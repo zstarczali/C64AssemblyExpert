@@ -1,0 +1,5 @@
+# Add ide a nagy fajlokat, ha nem akarod verziozni oket
+knowledge/sources/pdfs/*.pdf
+knowledge/sources/books/*.pdf
+knowledge/sources/books/*.epub
+knowledge/sources/books/*.djvu

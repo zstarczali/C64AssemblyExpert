@@ -1,0 +1,16 @@
+{
+  "name": "local-c64",
+  "owner": {
+    "name": "rlung"
+  },
+  "metadata": {
+    "description": "Local C64 assembly plugins for Copilot CLI",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "c64-assembly-expert",
+      "source": "plugins/c64-assembly-copilot"
+    }
+  ]
+}

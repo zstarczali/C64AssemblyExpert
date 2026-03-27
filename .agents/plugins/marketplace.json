@@ -1,0 +1,20 @@
+{
+  "name": "local-c64",
+  "interface": {
+    "displayName": "Local C64 Plugins"
+  },
+  "plugins": [
+    {
+      "name": "c64-assembly-expert",
+      "source": {
+        "source": "local",
+        "path": "./plugins/c64-assembly-codex"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

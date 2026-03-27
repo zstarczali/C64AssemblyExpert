@@ -1,0 +1,24 @@
+{
+  "name": "c64-assembly-expert",
+  "version": "0.1.0",
+  "description": "Reusable Codex plugin for source-grounded Commodore 64 assembly help.",
+  "author": {
+    "name": "rlung"
+  },
+  "license": "UNLICENSED",
+  "keywords": ["c64", "commodore-64", "6502", "6510", "assembly", "retro"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "C64 Assembly Expert",
+    "shortDescription": "Source-based Commodore 64 assembly workflow",
+    "longDescription": "A Codex plugin that steers the agent to use this repository's C64 books, PDFs, URLs, and notes when answering Commodore 64 assembly questions.",
+    "developerName": "rlung",
+    "category": "Developer Tools",
+    "capabilities": ["Read"],
+    "defaultPrompt": [
+      "Use the C64 Assembly Expert plugin to explain VIC-II sprite pointers from the local references.",
+      "Use the C64 Assembly Expert plugin to write a Kick Assembler raster interrupt example grounded in the project sources."
+    ],
+    "brandColor": "#3E6B48"
+  }
+}
