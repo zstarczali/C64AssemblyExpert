@@ -3,3 +3,4 @@ knowledge/sources/pdfs/*.pdf
 knowledge/sources/books/*.pdf
 knowledge/sources/books/*.epub
 knowledge/sources/books/*.djvu
+docs/src/bin/line.prg

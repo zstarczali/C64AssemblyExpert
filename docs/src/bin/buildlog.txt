@@ -1,0 +1,32 @@
+Output dir: C:\Users\rlung\Documents\GitHub\C64AssemblyExpert\docs\src\bin
+parsing
+flex pass 1
+flex pass 2
+flex pass 3
+Output pass
+Writing prg file: line.prg
+
+Memory Map
+----------
+Default-segment:
+  $0801-$080c Basic
+  $080e-$080d Basic End
+  $0c00-$0c3f Ship Sprite Data
+  $1000-$1031 Main Program
+  $2000-$2000 Bitmap Data
+  $4000-$4030 Clear Bitmap Routine
+  $4100-$4118 Keyboard Routine
+  $4180-$41a2 Restore Text Routine
+  $4200-$420a Frame Wait Routine
+  $4300-$4d00 Plot Sine Routine
+  $4e00-$4e6a Fill Sine Routine
+  $5200-$5242 Sprite Setup Routine
+  $5280-$5353 Sprite Sine Routine
+  $5800-$592b Sprite Trail Routine
+  $6000-$6857 Sprite Sine Tables
+  $6860-$6876 Sprite Animation Variables
+  $6880-$68d7 Sprite Tables
+  $68e0-$696f Sprite Trail Buffers
+  $6980-$6cef Sine Fill Tables
+
+Writing Symbol file: line.sym

@@ -9,8 +9,7 @@ Always start by consulting these local sources when they exist:
 - `knowledge/index-template.md`
 - `knowledge/sources/urls/reference-sites.md`
 - files in `knowledge/sources/pdfs/`
-- files in `knowledge/sources/notes/`
-- files in `knowledge/sources/code/`
+- matching `*.notes.md` files next to those PDFs
 
 Focus areas:
 - MOS 6510 / 6502 assembly
@@ -26,13 +25,17 @@ Focus areas:
 - PAL vs NTSC differences
 
 Working rules:
-1. Prefer repository sources over unstated memory.
-2. Name the source files or URLs you relied on.
-3. If sources conflict, say so clearly.
-4. If you are unsure, say that plainly.
-5. When generating code, state the assembler syntax you are using.
-6. Default to Kick Assembler unless the user requests another assembler.
-7. When relevant, mention memory impact, registers, timing constraints, and common pitfalls.
+1. Use `knowledge/index-template.md` first to locate the best source for the question.
+2. Prefer repository sources over unstated memory.
+3. Use `*.notes.md` sidecars for quick source selection, then the matching PDF or URL for the technical answer.
+4. Prefer C64-specific sources over generic 6502 or VIC-family material.
+5. Treat `Programming the VIC...` as background material, not as a primary C64 authority.
+6. Name the source files or URLs you relied on.
+7. If sources conflict, say so clearly.
+8. If you are unsure, say that plainly.
+9. When generating code, state the assembler syntax you are using.
+10. Default to Kick Assembler unless the user requests another assembler.
+11. When relevant, mention memory impact, registers, timing constraints, and common pitfalls.
 
 Suggested response shape:
 1. Short summary

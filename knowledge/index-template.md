@@ -1,16 +1,64 @@
 # Knowledge Index
 
-Ez a fajl a projektbe bekerult C64 forrasok elso tematikus indexe.
+Ez a fajl a projektbe bekerult C64 forrasok tematikus indexe.
 
 ## Forrasok
 
 ### PDF-ek
 
-- Cim: C64 Programmer's Reference Guide
-  Fajl: `knowledge/sources/pdfs/C64 Programmer's Reference Guide.pdf`
-  Temak: memoria, KERNAL rutinok, grafika, spriteok, hang, BASIC-gepi kod kapcsolat
-  Fontos fejezetek: altalanos referencia, programozasi fejezetek, grafikai reszek
-  Megjegyzes: alap referencia; kiemelten ertekes a hardverkozeli es rendszerhivasos temakhoz
+- Cim: 40 Best Machine Code Routines For C64
+  Fajl: `knowledge/sources/pdfs/40 Best Machine Code Routines For C64.pdf`
+  Temak: rutinok, peldakod, optimalizalas, gyakorlati technikak
+  Fontos fejezetek: rutinleirasok, minta megoldasok
+  Megjegyzes: eros gyakorlati referencia tipikus feladatokhoz
+
+- Cim: 6502 Opcodes
+  Fajl: `knowledge/sources/pdfs/6502 Opcodes.pdf`
+  Temak: 6502 utasitaskeszlet, opkodok, addressing mode-ok
+  Fontos fejezetek: opcode tablazatok, cimzesi modok
+  Megjegyzes: gyors referencia alacsony szintu asm munkahoz
+
+- Cim: A Commodore 64-es belso felepitese
+  Fajl: `knowledge/sources/pdfs/A Commodore 64-es belso felépítése.pdf`
+  Temak: gepfelepites, memoria, hardver, rendszerattekintes
+  Fontos fejezetek: belso felepites, fo komponensek
+  Megjegyzes: altalanos architekturalis hatteranyag
+
+- Cim: C64 Assembly
+  Fajl: `knowledge/sources/pdfs/C64 Assembly.pdf`
+  Temak: 6510 assembly alapok, peldaprogramok, fejlesztesi gyakorlat
+  Fontos fejezetek: alap nyelvi es gyakorlati reszek
+  Megjegyzes: oktato jellegu asm bevezeto
+
+- Cim: KickAssembler
+  Fajl: `knowledge/sources/pdfs/KickAssembler.pdf`
+  Temak: Kick Assembler szintaxis, direktivak, macro-k, scripteles, build folyamat
+  Fontos fejezetek: syntax referencia, directive-ok, macro es script reszek
+  Megjegyzes: primer toolchain-forras Kick Assembler kodgeneralashoz
+
+- Cim: Machine Language for the Commodore Revised and Expanded Edition
+  Fajl: `knowledge/sources/pdfs/Machine_Language_for_the_Commodore_Revised_and_Expanded_Edition.pdf`
+  Temak: gepi kod, assembly alapok, rutinok
+  Fontos fejezetek: alapok, minta rutinok
+  Megjegyzes: hasznos altalanos bevezeto es referencia
+
+- Cim: Programming the VIC
+  Fajl: `knowledge/sources/pdfs/Programming the VIC_ The Definitive Guide to the Commodore VIC-20 Computer [West 1987-01-01].pdf`
+  Temak: VIC videochip, grafika, hardverkozeli programozas
+  Fontos fejezetek: videochip mukodes, grafikai technikak
+  Megjegyzes: VIC-20 kozpontu forras; C64-re csak ovatosan, atfedesekkel hasznalando
+
+- Cim: VIC-II reference
+  Fajl: `knowledge/sources/pdfs/VIC-II reference.pdf`
+  Temak: VIC-II, regiszterek, raster, grafika, spriteok
+  Fontos fejezetek: regiszterleirasok, idozitesi reszek
+  Megjegyzes: celzott referencia C64 grafikai es video temakhoz
+
+- Cim: C64 Programmer's Reference Guide - Programming Graphics (copy 1)
+  Fajl: `knowledge/sources/pdfs/c64-programmers_reference_guide-03-programming_graphics (1).pdf`
+  Temak: grafika, VIC-II, spriteok
+  Fontos fejezetek: grafikai programozas
+  Megjegyzes: a masik azonos nevu PDF masolati peldanya
 
 - Cim: C64 Programmer's Reference Guide - Programming Graphics
   Fajl: `knowledge/sources/pdfs/c64-programmers_reference_guide-03-programming_graphics.pdf`
@@ -18,41 +66,35 @@ Ez a fajl a projektbe bekerult C64 forrasok elso tematikus indexe.
   Fontos fejezetek: grafikai programozas
   Megjegyzes: jo specializalt grafikai reszforras
 
-- Cim: Compute's Mapping the Commodore 64
-  Fajl: `knowledge/sources/pdfs/Compute's_Mapping_the_Commodore_64.pdf`
+- Cim: C64 Programmer's Reference Guide - BASIC to Machine Language (copy 1)
+  Fajl: `knowledge/sources/pdfs/c64-programmers_reference_guide-05-basic_to_machine_language 1.pdf`
+  Temak: BASIC-gepi kod kapcsolat, asm atvezetes, rendszerhivasok
+  Fontos fejezetek: BASIC to machine language atmenet
+  Megjegyzes: a masik azonos nevu PDF masolati peldanya
+
+- Cim: C64 Programmer's Reference Guide - BASIC to Machine Language
+  Fajl: `knowledge/sources/pdfs/c64-programmers_reference_guide-05-basic_to_machine_language.pdf`
+  Temak: BASIC-gepi kod kapcsolat, asm atvezetes, rendszerhivasok
+  Fontos fejezetek: BASIC to machine language atmenet
+  Megjegyzes: jo forras BASIC-bol asm iranyba meno kerdesekhez
+
+- Cim: Mapping the Commodore 64
+  Fajl: `knowledge/sources/pdfs/mapping-the-commodore-64.pdf`
   Temak: memoria-terkep, ROM/RAM, rendszercimek, zero page, KERNAL/BASIC belso reszletek
   Fontos fejezetek: memoria-terkep, rendszerteruletek, rutinleirasok
   Megjegyzes: kulcsforras memoria- es rendszerprogramozashoz
 
-- Cim: Commodore 64 Whole Memory Guide
-  Fajl: `knowledge/sources/pdfs/Commodore_64_Whole_Memory_Guide.pdf`
-  Temak: memoria, cimterek, hardverregiszterek
-  Fontos fejezetek: cimlista es hardverteruletek
-  Megjegyzes: nagy, valoszinuleg inkabb referenciajellegu anyag; cimek visszakeresesehez hasznos
+- Cim: PAL
+  Fajl: `knowledge/sources/pdfs/pal.pdf`
+  Temak: PAL video szabvany, kepfrissites, idozites
+  Fontos fejezetek: PAL idozites, video parameter-ek
+  Megjegyzes: valoszinuleg PAL-specifikus hatteranyag; raster es frame timing kerdesekhez lehet hasznos
 
-- Cim: C64 Assembly
-  Fajl: `knowledge/sources/pdfs/C64 Assembly.pdf`
-  Temak: assembly alapok, 6510, peldaprogramok
-  Fontos fejezetek: alap nyelvi es gyakorlati reszek
-  Megjegyzes: oktato jellegu anyagnak tunik
-
-- Cim: Commodore 64 Assembly Language Programming
-  Fajl: `knowledge/sources/pdfs/Commodore 64 Assembly Language Programming.pdf`
-  Temak: 6510 assembly, programozasi alapok, gepi kod
-  Fontos fejezetek: alapoktatas, rutinok, peldak
-  Megjegyzes: valoszinuleg atfedesben van az alatta levo azonos/kozel azonos fajllal
-
-- Cim: Commodore 64 Assembly Language Programming (duplicate copy)
-  Fajl: `knowledge/sources/pdfs/Commodore_64_Assembly_Language_Programming.pdf`
-  Temak: 6510 assembly, programozasi alapok, gepi kod
-  Fontos fejezetek: ugyanaz vagy kozel ugyanaz, mint a masik valtozat
-  Megjegyzes: duplikalt vagy nagyon hasonlo allomany; kesobb erdemes lehet egyet megtartani
-
-- Cim: 40 Best Machine Code Routines For C64
-  Fajl: `knowledge/sources/pdfs/40 Best Machine Code Routines For C64.pdf`
-  Temak: rutinok, peldakod, optimalizalt megoldasok
-  Fontos fejezetek: rutinleirasok es mintakodok
-  Megjegyzes: jo gyakorlati referencia lehet tipikus feladatokra
+- Cim: vic-ii
+  Fajl: `knowledge/sources/pdfs/vic-ii.pdf`
+  Temak: VIC-II, raster timing, spriteok, grafikai modok
+  Fontos fejezetek: regiszterek, grafikai modok, raster
+  Megjegyzes: celzott technikai referencia a VIC-II-rol
 
 ### URL-ek
 
@@ -92,41 +134,61 @@ Ez a fajl a projektbe bekerult C64 forrasok elso tematikus indexe.
 
 ### Memoria
 
-- `Compute's_Mapping_the_Commodore_64.pdf`
-- `Commodore_64_Whole_Memory_Guide.pdf`
-- `C64 Programmer's Reference Guide.pdf`
+- `mapping-the-commodore-64.pdf`
+- `A Commodore 64-es belső felépítése.pdf`
 - `https://sta.c64.org/cbm64mem.html`
 
-### VIC-II
+### 6502/6510 es assembly alapok
 
-- `C64 Programmer's Reference Guide.pdf`
+- `6502 Opcodes.pdf`
+- `C64 Assembly.pdf`
+- `KickAssembler.pdf`
+- `Machine_Language_for_the_Commodore_Revised_and_Expanded_Edition.pdf`
+- `c64-programmers_reference_guide-05-basic_to_machine_language.pdf`
+- `c64-programmers_reference_guide-05-basic_to_machine_language 1.pdf`
+
+### VIC-II es grafika
+
+- `VIC-II reference.pdf`
+- `vic-ii.pdf`
 - `c64-programmers_reference_guide-03-programming_graphics.pdf`
+- `c64-programmers_reference_guide-03-programming_graphics (1).pdf`
 - `https://www.cebix.net/VIC-Article.txt`
 - `https://sta.c64.org/cbm64col.html`
 
 ### Spriteok
 
-- `C64 Programmer's Reference Guide.pdf`
+- `VIC-II reference.pdf`
+- `vic-ii.pdf`
 - `c64-programmers_reference_guide-03-programming_graphics.pdf`
+- `c64-programmers_reference_guide-03-programming_graphics (1).pdf`
 - `https://www.cebix.net/VIC-Article.txt`
 
-### SID
+### KERNAL es rendszerprogramozas
 
-- `C64 Programmer's Reference Guide.pdf`
-
-### KERNAL rutinok
-
-- `C64 Programmer's Reference Guide.pdf`
-- `Compute's_Mapping_the_Commodore_64.pdf`
+- `mapping-the-commodore-64.pdf`
+- `c64-programmers_reference_guide-05-basic_to_machine_language.pdf`
+- `c64-programmers_reference_guide-05-basic_to_machine_language 1.pdf`
 - `https://sta.c64.org/cbm64krnfunc.html`
 
-### Interruptok es idozites
+### Interruptok es timing
 
-- `C64 Programmer's Reference Guide.pdf`
 - `40 Best Machine Code Routines For C64.pdf`
+- `VIC-II reference.pdf`
+- `vic-ii.pdf`
+- `pal.pdf`
 - `https://www.cebix.net/VIC-Article.txt`
 
-### Toolchain
+### Gyakorlati rutinok
 
+- `40 Best Machine Code Routines For C64.pdf`
+- `Machine_Language_for_the_Commodore_Revised_and_Expanded_Edition.pdf`
 - `C64 Assembly.pdf`
-- `Commodore 64 Assembly Language Programming.pdf`
+
+### Toolchain es assembler specifikus referencia
+
+- `KickAssembler.pdf`
+
+### Hatteranyag es rokon platform
+
+- `Programming the VIC_ The Definitive Guide to the Commodore VIC-20 Computer [West 1987-01-01].pdf`
