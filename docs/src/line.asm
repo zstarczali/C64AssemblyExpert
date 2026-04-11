@@ -12,10 +12,9 @@ start:
             
             EnableBitmapMode()          // Grafikus módra váltás
             ClearBitmapScreen()         // Képernyő törlése
-            FillUnderSineArea()
             PlotSineWave()
             SetupShipSprite()
-            AnimateShipOnSine()
+            AnimateShipOnSine()\
             RestoreTextMode()           // Vissza BASIC text képernyőre
 
 
