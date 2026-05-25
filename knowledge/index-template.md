@@ -12,6 +12,12 @@ Ez a fajl a projektbe bekerult C64 forrasok tematikus indexe.
   Fontos fejezetek: rutinleirasok, minta megoldasok
   Megjegyzes: eros gyakorlati referencia tipikus feladatokhoz
 
+- Cim: 6502 Instruction Set
+  Fajl: `knowledge/sources/pdfs/6502 Instruction Set.pdf`
+  Temak: 6502 opcode matrix (HI/LO nibble tablazat), osszes utasitas reszletes leirasa, addressing mode-ok, SR flag-ek, 65xx family
+  Fontos fejezetek: opcode matrix, flag-hatas tablazat, utasitas-leirasok, 65xx family osszefoglalo
+  Megjegyzes: reszletes referencia minden utasitashoz ciklus- es flag-adatokkal
+
 - Cim: 6502 Opcodes
   Fajl: `knowledge/sources/pdfs/6502 Opcodes.pdf`
   Temak: 6502 utasitaskeszlet, opkodok, addressing mode-ok
@@ -54,23 +60,11 @@ Ez a fajl a projektbe bekerult C64 forrasok tematikus indexe.
   Fontos fejezetek: regiszterleirasok, idozitesi reszek
   Megjegyzes: celzott referencia C64 grafikai es video temakhoz
 
-- Cim: C64 Programmer's Reference Guide - Programming Graphics (copy 1)
-  Fajl: `knowledge/sources/pdfs/c64-programmers_reference_guide-03-programming_graphics (1).pdf`
-  Temak: grafika, VIC-II, spriteok
-  Fontos fejezetek: grafikai programozas
-  Megjegyzes: a masik azonos nevu PDF masolati peldanya
-
 - Cim: C64 Programmer's Reference Guide - Programming Graphics
   Fajl: `knowledge/sources/pdfs/c64-programmers_reference_guide-03-programming_graphics.pdf`
   Temak: grafika, VIC-II, spriteok
   Fontos fejezetek: grafikai programozas
   Megjegyzes: jo specializalt grafikai reszforras
-
-- Cim: C64 Programmer's Reference Guide - BASIC to Machine Language (copy 1)
-  Fajl: `knowledge/sources/pdfs/c64-programmers_reference_guide-05-basic_to_machine_language 1.pdf`
-  Temak: BASIC-gepi kod kapcsolat, asm atvezetes, rendszerhivasok
-  Fontos fejezetek: BASIC to machine language atmenet
-  Megjegyzes: a masik azonos nevu PDF masolati peldanya
 
 - Cim: C64 Programmer's Reference Guide - BASIC to Machine Language
   Fajl: `knowledge/sources/pdfs/c64-programmers_reference_guide-05-basic_to_machine_language.pdf`
@@ -140,19 +134,18 @@ Ez a fajl a projektbe bekerult C64 forrasok tematikus indexe.
 
 ### 6502/6510 es assembly alapok
 
+- `6502 Instruction Set.pdf`
 - `6502 Opcodes.pdf`
 - `C64 Assembly.pdf`
 - `KickAssembler.pdf`
 - `Machine_Language_for_the_Commodore_Revised_and_Expanded_Edition.pdf`
 - `c64-programmers_reference_guide-05-basic_to_machine_language.pdf`
-- `c64-programmers_reference_guide-05-basic_to_machine_language 1.pdf`
 
 ### VIC-II es grafika
 
 - `VIC-II reference.pdf`
 - `vic-ii.pdf`
 - `c64-programmers_reference_guide-03-programming_graphics.pdf`
-- `c64-programmers_reference_guide-03-programming_graphics (1).pdf`
 - `https://www.cebix.net/VIC-Article.txt`
 - `https://sta.c64.org/cbm64col.html`
 
@@ -161,14 +154,12 @@ Ez a fajl a projektbe bekerult C64 forrasok tematikus indexe.
 - `VIC-II reference.pdf`
 - `vic-ii.pdf`
 - `c64-programmers_reference_guide-03-programming_graphics.pdf`
-- `c64-programmers_reference_guide-03-programming_graphics (1).pdf`
 - `https://www.cebix.net/VIC-Article.txt`
 
 ### KERNAL es rendszerprogramozas
 
 - `mapping-the-commodore-64.pdf`
 - `c64-programmers_reference_guide-05-basic_to_machine_language.pdf`
-- `c64-programmers_reference_guide-05-basic_to_machine_language 1.pdf`
 - `https://sta.c64.org/cbm64krnfunc.html`
 
 ### Interruptok es timing

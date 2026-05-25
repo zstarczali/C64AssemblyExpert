@@ -1,6 +1,6 @@
 # Claude Project Instructions
 
-Use [SYSTEM_PROMPT.md](/C:/Users/rlung/Documents/New%20project/c64-assembly-agent/SYSTEM_PROMPT.md) as the main behavioral guide for this project.
+Use [SYSTEM_PROMPT.md](SYSTEM_PROMPT.md) as the main behavioral guide for this project.
 
 ## Project Goal
 
