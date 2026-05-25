@@ -1,0 +1,48 @@
+# PAGE: cia:tod_calibration
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=cia:tod_calibration
+
+The code below initializes the TOD 50/60 Hz pre-scaler of CIA based on the detected AC line frequency.
+
+The idea is to use the horizontal retrace frequency (15.6-16 KHz) as base to measure the TOD tick interval. If it takes longer then a threshold the 50 Hz pre-scaler is used otherwise the 60 Hz one.
+
+Advantages:
+
+  * Independent of CPU clock so it works on SuperCPU
+  * Does not hang on DC only powered machines 
+  * No need to switch off screen or sprites
+  * Does not mess with timers or anything else
+
+Of course timer NMIs should be avoided during calibration. If interrupts are already disabled it can be shortened by 3 bytes.
+
+<code>
+tod_cia		= $dc08			; or $dd08
+
+tod_calibrate	ldy #255
+		jsr tod_prescale	; use 50 Hz
+
+		php			; no interrupts
+		sei			; while measuring
+		jsr tod_measure
+		jsr tod_measure
+		plp
+tod_prescale	lda tod_cia+6
+		asl a
+		cpy #204		; threshold
+		ror a
+		sta tod_cia+6		; set pre-scaler
+		rts
+
+tod_measure	ldy #0
+		sty tod_cia
+tod_lp2		lda #64
+tod_lp		cpx $d012
+		beq tod_lp
+		ldx $d012
+		lsr a
+		bne tod_lp
+		lda tod_cia
+		bne tod_done
+		iny
+		bne tod_lp2
+tod_done	rts
+</code>

@@ -1,0 +1,35 @@
+# PAGE: base:start
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:start
+
+====== The Codebase: Sourcecode, Articles & Tutorials ======
+
+This section is the core of the wiki, where you will find the most of the content. A lot of the contents were never published anywhere else before, but there are also a number of pages originally appearing in other places such as newsgroups, websites and magazines.
+
+The sections below correspond to the main sections which are also provided in the menu on the left:
+
+  * [[base:6502_6510_coding|6502/6510 Coding]] - Assembler programming in general, not specific to coding graphics, sound, etc.
+
+  * [[:vic|VIC programming]] - Programming graphics in general. Specific demo effects are in the Demo Coding section.
+
+  * [[SID programming]] - Music and sound programming.
+
+  * [[base:cia|CIA programming]] - Using the CIA (6526) chips, used for many things.
+
+  * [[cia:io_programming]] - Serial communication, including disk and tape access, keyboard and joystick reading, etc. 
+
+  * [[base:6502_6510_maths|Maths & Algorithms]] - Maths and algorithm related stuff (sorting, compression, etc).
+
+  * [[Game Programming]] - Issues specific to programming games.
+
+  * [[vic:demo_programming]] - How to create various demo effects. General graphics programming is in the VIC section.
+
+  * [[cpv|Cracking, Phreaking and Viruses]] - Information on...
+
+  * [[base:crossdev|Cross Development]] - Use that PC for something good!
+
+  * [[base:programming_languages|Programming Languages]] - Programming BASIC, COMAL, FORTH and so on. (Not assembler.)
+
+  * [[base:using_the_kernal_basic_roms|Using the KERNAL/BASIC ROMs]] - Using the built in "system", or "OS", of the C64.
+
+  * [[base:thirdparty|Third party hardware]] - How to program that cartridge, REU, network interface or hard drive.
+

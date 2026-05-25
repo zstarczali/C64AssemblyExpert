@@ -1,0 +1,45 @@
+# PAGE: base:supercpu_pea
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:supercpu_pea
+
+====== PEA ======
+
+<code>
+    /*-------------------------------------------------------------------------
+    OP CODE: PEA (Push Effective Absolute address)
+    ==============================================
+    
+    Addressing Modes:
+        Stac (Absolute)                  ($f4 - 3 bytes, 5 cycles)
+
+    Flags Affected:
+        N/A
+
+    Description:
+        Push the sixteen-bit operand (typically an absolute address) onto the
+        stack. The stack pointer is decremented twice. This operation always
+        pushes sixteen bits of data, irrespective of the settings of the m and
+        x mode select flags.
+
+        Although the mnemonic suggests that the sixteen-bit value pushed on the
+        stack be considered an address, the instruction may also be considered
+        a “push sixteen-bit immediate data” instruction, although the syntax of
+        immediate addressing is not used. The assembler syntax is that of the
+        absolute addressing mode, that is, a label or sixteen-bit value in the
+        operand field. Unlike all other instructions that use this assembler
+        syntax, the effective address itself, rather than the data stored at
+        the effective address, is what is accessed (and in this case, pushed
+        onto the stack).
+
+    Notes:
+
+    -------------------------------------------------------------------------*/
+
+    .pseudocommand pea val {
+        .if (val.getType()==AT_IMMEDIATE) {
+            .byte $f4, <val.getValue(), >val.getValue()
+        }
+        .if (val.getType()==AT_ABSOLUTE) {
+            .byte $f4, <val.getValue(), >val.getValue()
+        }
+    }
+</code>

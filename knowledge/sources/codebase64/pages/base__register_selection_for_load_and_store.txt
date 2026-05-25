@@ -1,0 +1,24 @@
+# PAGE: base:register_selection_for_load_and_store
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:register_selection_for_load_and_store
+
+====== Register selection for load and store ======
+
+<code>
+   bit1 bit0     A  X  Y
+    0    0             x
+    0    1          x
+    1    0       x
+    1    1       x  x
+
+So, A and X are selected by bits 1 and 0 respectively, while
+ ~(bit1|bit0) enables Y.
+
+Indexing is determined by bit4, even in relative addressing mode,
+which is one kind of indexing.
+
+Lines containing opcodes xxx000x1 (01 and 03) are treated as absolute
+after the effective address has been loaded into CPU.
+
+Zeropage,y and Absolute,y (codes 10x1 x11x) are distinguished by bit5.
+</code>
+

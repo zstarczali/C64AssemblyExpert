@@ -1,0 +1,22 @@
+# PAGE: base:6510_features
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:6510_features
+
+====== 6510 features ======
+
+  * PHP always pushes the Break (B) flag as a `1' to the stack. Jukka Tapanimäki claimed in C=lehti issue 3/89, on page 27 that the processor makes a logical OR between the status register's bit 4 and the bit 8 of the stack pointer register (which is always 1). He did not give any reasons for this argument, and has refused to clarify it afterwards. Well, this was not the only error in his article...
+
+  * Indirect addressing modes do not handle page boundary crossing at all. When the parameter's low byte is $FF, the effective address wraps around and the CPU fetches high byte from $xx00 instead of $xx00+$0100. E.g. JMP ($01FF) fetches PCL from $01FF and PCH from $0100, and LDA ($FF),Y fetches the base address from $FF and $00.
+
+  * Indexed zero page addressing modes never fix the page address on crossing the zero page boundary. E.g. LDX #$01 : LDA ($FF,X) loads the effective address from $00 and $01.
+
+  * The processor always fetches the byte following a relative branch instruction. If the branch is taken, the processor reads then the opcode from the destination address. If page boundary is crossed, it first reads a byte from the old page from a location that is bigger or smaller than the correct address by one page.
+
+  * If you cross a page boundary in any other indexed mode, the processor reads an incorrect location first, a location that is smaller by one page.
+
+   * Read-Modify-Write instructions write unmodified data, then modified (so INC effectively does LDX loc;STX loc;INX;STX loc)
+
+  * -RDY is ignored during writes (This is why you must wait 3 cycles before doing any DMA -- the maximum number of consecutive writes is 3, which occurs during interrupts except -RESET.)
+
+  * Some undefined opcodes may give really unpredictable results.
+
+  * All registers except the Program Counter remain unmodified after -RESET. (This is why you must preset D and I flags in the RESET handler.)

@@ -1,0 +1,70 @@
+# PAGE: magazines:start
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=magazines:start
+
+====== Magazines ======
+
+This page contains a number of complete magazines released elsewhere in the past, "mirrored" here for the sake of preservation. It would be nice to add contents from "real" c64 mags on this page too, converted from the original format into ascii, and a section is created at the bottom of this page for that kind of articles.
+
+===== What to think of when editing this part of the wiki =====
+
+This section contains magazines and articles from magazines once released elsewhere as finished products, not originally intended for wikis. Therefore these kinds of articles need to be handled a little bit more carefully than other parts of the wiki. In short; any modifications to these texts should be added in footnotes rather than by modifying the original text.
+
+Adding footnotes is done by inserting the text you want to add in double parenteses %%((like this))%% (and the result would be ((like this)) ). No information should be removed or changed in the original articles and please state clearly who you are, in case you add a footnote.
+
+In this way, the wiki can work both as a preservation tool and as a way to get to grips with errors and other flaws in these texts, and at the same time make articles in C64 form accessible to google searches and so on.
+
+===== Non Commercial Magazines =====
+
+==== C= Hacking ====
+
+Shamelessly taken from [[http://www.ffd2.com/fridge/chacking/|"The Official Unofficial C= Hacking homepage"]].
+
+There is also a [[chacking_toc|Table of Contents]] available (also taken from the page mentioned above).
+
+  * [[chacking1|C= Hacking Issue 1]] - Feb 1992
+  * [[chacking2|C= Hacking Issue 2]] - April 1992
+  * [[chacking3|C= Hacking Issue 3]] - July 1992
+  * [[chacking4|C= Hacking Issue 4]] - October 1992
+  * [[chacking5|C= Hacking Issue 5]] - March 1993
+  * [[chacking6|C= Hacking Issue 6]] - September 1993
+  * [[chacking7|C= Hacking Issue 7]] - February 1994
+  * [[chacking8|C= Hacking Issue 8]] - August 1994
+  * [[chacking9|C= Hacking Issue 9]] - January 1995
+  * [[chacking10|C= Hacking Issue 10]] - June 1995
+  * [[chacking11|C= Hacking Issue 11]] - December 1995
+  * [[chacking12|C= Hacking Issue 12]] - March 1996
+  * [[chacking13|C= Hacking Issue 13]] - July 1996
+  * [[chacking14|C= Hacking Issue 14]] - November 1996
+  * [[chacking15|C= Hacking Issue 15]] - April 1998
+  * [[chacking16|C= Hacking Issue 16]] - April 1998
+  * [[chacking17|C= Hacking Issue 17]] - November 1998 - ( {{magazines:slowideas-ntsc.gz|slowideas-ntsc.gz}} )
+  * [[chacking18|C= Hacking Issue 18]] - July 1999 - ( {{magazines:symgfx-ntsc.zip|symgfx-ntsc.zip}} )
+  * [[chacking19|C= Hacking Issue 19]] - May 2000
+  * [[chacking20|C= Hacking Issue 20]] - April 2001 -- ( [[chacking20addendum|C= Hacking 20 addendum]], {{magazines:slab.zip|slab.zip}}, {{magazines:digibin.zip|digibin.zip}}, {{magazines:play.zip|play.zip}} )
+  * [[chacking21|C= Hacking Issue 21]] - February 2002
+
+==== DisC=overy ====
+Kindly supplied by the editor of this magazine.
+
+  * [[discovery1|DisC=overy #1]] - May 17, 1996
+  * [[discovery2|DisC=overy #2]] - October 1, 1996
+  * [[discovery3|DisC=overy #3]] - March 26, 1997
+  * [[discoveryspecial1|DisC=overy Special Edition #1]] - August 28, 1997
+
+===== Articles from diskmags =====
+
+Single articles from C64 diskmags should go into the main section of the codebase, rather than having a separate area. Note that there is [[http://c64mags.untergrund.net|another wiki]] around which aims to preserve contents of c64 disk mags like this, which is more suitable for whole mags (which of course is not only concerned with coding matters). 
+===== Commercial Magazines =====
+There are other sites that collect scanned commercial magazines. Support them instead of adding this kind of content here.
+
+  * Many scanned mags can be found in pdf format at DLH's [[http://commodore.bombjack.org/|site]].
+
+  * Scanned Transactor mags are available [[http://csbruce.com/cbm/transactor/|here]].
+
+  * German "Magic Disk 64" mag is available [[http://magicdisk.untergrund.net|here]] in ascii format.
+
+  * Very interesting article on the C64 in IEEE Spectrum, March 1985: {{ :magazines:commodore64_mar1985.pdf |Design case history: The Commodore 64}}
+
+===== One of the BEST =====
+
+   * [[https://www.stone-oakvalley-studios.com/socse/|Stone Oakvalley Studios Commodore Search]] let's you search in Magazines from back in the days.

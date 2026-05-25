@@ -1,0 +1,29 @@
+# PAGE: base:40_bytes_fli_displayer
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:40_bytes_fli_displayer
+
+====== 40 Bytes FLI Displayer ======
+
+This is a simple, supersmall (A)FLI Displayer - written by Crossbow
+
+Bitmap at $4000, Videorams at $6000-
+
+<code>
+.C:1000   8D 11 D0   STA $D011
+.C:1003   AD 11 D0   LDA $D011
+.C:1006   4D 12 D0   EOR $D012
+.C:1009   C9 6A      CMP #$6A
+.C:100b   D0 F6      BNE $1003
+.C:100d   20 A5 EE   JSR $EEA5
+.C:1010   8E 20 D0   STX $D020
+.C:1013   A0 38      LDY #$38
+.C:1015   A9 80      LDA #$80
+.C:1017   78         SEI
+.C:1018   8D 18 D0   STA $D018
+.C:101b   8C 11 D0   STY $D011
+.C:101e   E8         INX
+.C:101f   F0 DF      BEQ $1000
+.C:1021   69 10      ADC #$10
+.C:1023   10 EE      BPL $1013
+.C:1025   C8         INY
+.C:1026   D0 EF      BNE $1017
+</code>

@@ -1,0 +1,53 @@
+# PAGE: base:detecting_sid_type
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:detecting_sid_type
+
+====== Method used in "Mathematica" by Reflex ======
+
+<code>
+;;;;;
+;;;;  detecting sid type (disassembled from Mathematica by Reflex)
+;;;
+;;    commented and labelled by Raf/Vulture Design
+;
+	; subroutine filling SID's registers with $00
+
+        LDX #24
+        LDA #0
+loop    STA $D400,x
+        DEX
+        BPL loop
+
+	; main routine
+        LDA #$02
+	STA $D40F
+	LDA #$30
+	STA $D412
+	LDY #$00
+	LDX #$00
+sl3	LDA $D41B
+	BMI sl2
+	DEX
+	BNE sl3
+	DEY
+	BNE sl3
+	BEQ sl4
+sl2	LDX #$01 	; 1 = 8580
+sl4			; 0 = 6581
+	bne d8580
+
+; we have 6581 found
+;	lda #<t6581 ; pointer to text about 6581
+;	ldy #>t6581
+;	jsr $ab1e
+
+	jmp _end
+
+; we have 8580 found
+d8580 	
+;       lda #<t8580 ; pointer to text about 8580
+;	ldy #>t8580
+;	jsr $ab1e
+	
+_end
+
+</code>

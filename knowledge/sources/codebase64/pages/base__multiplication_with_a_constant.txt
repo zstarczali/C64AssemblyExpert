@@ -1,0 +1,46 @@
+# PAGE: base:multiplication_with_a_constant
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:multiplication_with_a_constant
+
+====== Multiplication with a constant ======
+
+Multiplication by a specific constant can be a lot simpler and faster than a general-purpose routine to multiply two given numbers together.
+
+For multiplying by a power of two, you can use ASL multiple times on a number.
+
+For multiplying by other things, you can use two copies of the number, ASL both copies different amounts, and then add the results together. For example, here's some code for multiplying the accumulator by ten:
+<code>
+  sta $2 ; Can be any other memory location that's free for use
+  asl    ; Shifting something left three times multiplies it by eight
+  asl    ; 
+  asl    ; 
+  asl $2 ; Shifting something left one time multiplies it by two
+  clc    ; Clear carry
+  adc $2 ; Add the two results together
+</code>
+
+----
+
+By TWW:
+
+Optimization of the above posted by unknown: The above is based on 8*A + 2*A. This routine would not allow any higher number than A = 25 as it would overflow (8 * 26) + (2 * 26) = 208 + 52 = 262 (However 25 fits perfectly f.ex. when you'd want to calculate a character line based on Y).
+
+With this in mind, you can do 2*A + 8*A which saves you the asl $2. Also as long as A cannot be higher than 25, the upper 4 bits (high nybble) will always be #%0000. This means that the asl instructions will never set carry and the clc can be dropped.
+
+This gives the following code to multiply A with 10 (assuming A is less than 26):
+
+<code>
+    asl      // Multiply A with 2
+    sta $2   // Store A * 2 for later
+    asl      // Multiply A with 4
+    asl      // Multiply A with 8
+    adc $2   // Add A * 8 + A * 2
+</code>
+(12 cycles / 7 bytes) vs (17 cycles / 10 bytes)
+
+----
+
+You may also use a table, which is even faster, but would take up more space.
+<code>
+  tax          ; Copy the accumulator into X so we can use it as an index
+  lda Table, x ; 
+</code>

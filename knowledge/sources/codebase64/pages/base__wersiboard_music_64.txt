@@ -1,0 +1,10 @@
+# PAGE: base:wersiboard_music_64
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:wersiboard_music_64
+
+====== Wersiboard Music 64 ======
+
+This is a claviature for the C64, connected through the cartridge port. It is mapped to $df00-$df06, and every key corresponds to one bit each in those seven bytes respectively, except for $df06, where only bit 0 is used. This is because the keyboard consists of (6*8)+1 keys, and therefore 6 bytes is not enough to cover all of the keys. A bit weird, but that is how we like it.
+
+{{:base:wersiboard64_01.gif|}}
+
+Picture borrowed from [[http://www.richard-aicher.de/html/wersiboard64.html|here]].

@@ -1,0 +1,10 @@
+# PAGE: history
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=history
+
+====== Codebase64 History ======
+
+Around 2007 many people felt that there was no real good place on the net to find information on Commodore 64 coding. Websites like "The Fridge" weren't really updated anymore and mags like C=Hacking stopped being released. Instead fragments of information were scattered all over the internet and hidden on the private hard drives of various coders. Hence there was a collective feel that someone needed to come up with something new.
+
+After some discussion on the CSDb forum I (Frantic) offered to set up a wiki for this purpose. The wiki continued to grow thanks to all the contributors. In early 2015 we changed to another server, hosted by Count Zero, and Moloch provided the domain name for quite some time. After dropping it without further notice the whole content was moved to **codebase64.net**
+
+...and that's it, so far. Enjoy!

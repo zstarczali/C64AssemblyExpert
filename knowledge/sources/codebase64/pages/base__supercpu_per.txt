@@ -1,0 +1,80 @@
+# PAGE: base:supercpu_per
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:supercpu_per
+
+====== PER ======
+
+<code>
+    /*-------------------------------------------------------------------------
+    OP CODE: PER (Push Effective PC Relative indirect address)
+    ==========================================================
+    
+    Addressing Modes:
+        Stack (PC Relative Long)         ($62 - 3 bytes, 6 cycles)
+
+    Flags Affected:
+        N/A
+
+    Description:
+        Add the current value of the program counter to the sixteen-bit signed
+        displacement in the operand, and push the result on the stack. This
+        operation always pushes sixteen bits of data, irrespective of the
+        settings of the m and x mode select flags.
+
+        The high byte of the sum is pushed first, then the low byte is pushed.
+        After the instruction is completed, the stack pointer points to the
+        next available stack location, immediately below the last by pushed.
+
+        Because PER’s operand is a displacement relative to the current value
+        of the program counter (as with the branch instructions), this
+        instruction is helpful in writing self-relocatable code in which an
+        address within the program (typically of a data area) must be accessed.
+        The address pushed onto the stack will be the run-time address of the
+        data area, regardless of where the program was loaded in memory; it may
+        be pulled into a register, stored in an indirect pointer, or used on
+        the stack with the stack relative indirect indexed addressing mode to
+        access the data at that location.
+
+        As is the case with the branch instructions, the syntax used is to
+        specify as the operand the label of the data area you want to
+        reference. This location must be in the program bank, since the
+        displacement is relative to the program counter. The assembler
+        converts the assembly-time label into a displacement from the
+        assembly-time address of the next instruction.
+
+        The value of the program counter used in the addition is the address of
+        the next instruction, that is, the instruction following the PER
+        instruction.
+
+        PER may also be used to push return addresses on the stack, either as
+        part of a simulated branch-to subroutine or to place the return address
+        beneath the stacked parameters to a subroutine call; always remember
+        that a pushed return address should be the desired return address minus
+        one.
+
+    Notes:
+        VICE Emulator monitor does not handle the relative offset addressing.
+
+        Example code:
+                            .pc = $2000
+            2000 62 fd 7f   :per Data1      // Push run-time address of Data1
+            2003 e2 20      :sep #$20       // A = 8 bit
+            2005 a0 00 00   :ldy #$0000     // Zero Index Y
+            2008 b3 01      :lda (1,S),y    // load A from Data1 (1,s & 2,s)
+
+                            .pc = $2500
+            Data0:          .byte $2a, $2a, $2a
+            Data1:          .byte $ff
+            Data2:          .byte $f7
+            Data3:          .byte $e3
+
+            This code & data is fully relocatable.
+
+            Emulator monitor sets absolute address instead of relative (should
+            do be same as :bra)
+    -------------------------------------------------------------------------*/
+
+    .pseudocommand per val {
+        .byte $62, <val.getValue()-*-3, >val.getValue()-*-3
+    }
+
+</code>

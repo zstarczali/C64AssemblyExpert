@@ -1,0 +1,16 @@
+# PAGE: base:scpu_bitmode8
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:scpu_bitmode8
+
+====== BitMode8 ======
+
+Pseudocommand to set the Accumulator and X/Y Index registers to 8 bit mode on the 658C16.
+
+| SYNTAX:        | BitMode8 |
+| EXAMPLE:       | BitMode8 |
+| PARAMETERS:    | N/A      |
+
+<code>
+    .pseudocommand BitMode8 {
+        sep #%00110000
+    }
+</code>

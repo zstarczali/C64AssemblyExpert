@@ -1,0 +1,1278 @@
+# PAGE: base:sprite_multiplexer_2
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:sprite_multiplexer_2
+
+====== Multiplexer 2 ======
+
+By Fungus, in Turbo Assembler format.
+
+<code>
+;---------------------------------------
+;Super Galaxians
+;
+;(C) 2002 Sick Puppy Software
+;
+;Code, Story, Level Design: Scott
+;                           Brockway
+;
+;Additional Code, BRP! ETC... : GHD
+;
+;
+;Musix, Additional Code,: Glenn Rune
+;Level Design             Gallefoss
+;
+;Graphics, Level Design: Fade
+;
+;---------------------------------------
+
+         *= $2400      ;origin
+
+ysin     = $3800       ;y sinus
+
+sort     = $05         ;sort buffer
+xpos     = $0900       ;plot buffer
+xbuf     = $05+($20)   ;raster buffer
+ypos     = $0920
+ybuf     = $05+($20*2)
+sprc     = $0940
+cbuf     = $05+($20*3)
+sprp     = $0960
+pbuf     = $05+($20*4)
+
+sptr     = $02
+mnt      = $03
+cnt      = $04
+
+xofs     = $04
+yofs     = $04
+
+maxspr   = $1f
+
+;---------------------------------------
+;game setup routines
+
+         sei
+         cld
+         ldx #$02
+        ;jsr $1000
+         lda #<nmi
+         ldx #>nmi
+         sta $fffa
+         sta $fffc
+         stx $fffb
+         stx $fffd
+         lda #<ir0
+         ldx #>ir0
+         sta $fffe
+         stx $ffff
+         lda #$35
+         sta $01
+         lda #$00
+         sta $d020
+         sta $d021
+         sta $d012
+         lda #$1b
+         sta $d011
+         lda #$01
+         sta $d01a
+         lda #$1f
+         sta $dc0d
+         sta $dd0d
+         lda $dc0d
+         lda $dd0d
+
+         lda #$08
+         sta $d025    ;dark
+
+         lda #$0c
+         sta $d026    ;light
+
+         ldx #maxspr
+         lda #$02
+ser      sta sprc,x
+         dex
+         bpl ser
+
+         lda #$ff
+         sta $d01c
+
+         jsr mvspr
+
+         ldx #$00
+fuck     txa
+         sta sort,x
+         clc
+         adc #$90
+         sta sprp,x
+         inx
+         cpx #maxspr+1
+         bne fuck
+
+rset     ldx #$00
+pols     ldy sort+1,x
+plis     lda ypos,y
+         ldy sort,x
+         cmp ypos,y
+         bcc paws
+         inx
+         cpx #maxspr
+         bne pols
+         bpl edn
+paws     lda sort+1,x
+         sta sort,x
+         sty sort+1,x
+         dex
+         bpl pols
+         inx
+         beq plis
+edn
+         inc $d019
+         lda $dc0d
+         lda $dd0d
+
+         cli
+
+main     lda $b0
+shit     cmp $b0
+         beq shit
+       ; inc $d020
+         jsr mvspr
+       ; jsr $1003
+       ; dec $d020
+         jmp main
+
+;---------------------------------------
+;experimental
+;game irq routine
+
+ir0
+         pha
+         txa
+         pha
+         tya
+         pha
+         inc $d019
+         ldx #$03
+b1       dex
+         bpl b1
+         lda #$00
+         sta $d015
+
+         inc $d020
+
+rest     ldx #$00      ;super sort
+slop     ldy sort+1,x
+slep     lda ypos,y
+         ldy sort,x
+         cmp ypos,y
+         bcc swap
+         inx
+         cpx #maxspr
+         bne slop
+         beq end
+swap
+         lda sort+1,x
+         sta sort,x
+         sty sort+1,x
+         tay
+         dex
+         bpl slep
+         inx
+         beq slep
+end
+         dec $d020
+
+         ldy sort     ;re-order buffers
+         lda ypos,y
+         sta ybuf
+         lda xpos,y
+         sta xbuf
+         lda sprc,y
+         sta cbuf
+         lda sprp,y
+         sta pbuf
+
+         ldy sort+1
+         lda ypos,y
+         sta ybuf+1
+         lda xpos,y
+         sta xbuf+1
+         lda sprc,y
+         sta cbuf+1
+         lda sprp,y
+         sta pbuf+1
+
+         ldy sort+2
+         lda ypos,y
+         sta ybuf+2
+         lda xpos,y
+         sta xbuf+2
+         lda sprc,y
+         sta cbuf+2
+         lda sprp,y
+         sta pbuf+2
+
+         ldy sort+3
+         lda ypos,y
+         sta ybuf+3
+         lda xpos,y
+         sta xbuf+3
+         lda sprc,y
+         sta cbuf+3
+         lda sprp,y
+         sta pbuf+3
+
+         ldy sort+4
+         lda ypos,y
+         sta ybuf+4
+         lda xpos,y
+         sta xbuf+4
+         lda sprc,y
+         sta cbuf+4
+         lda sprp,y
+         sta pbuf+4
+
+         ldy sort+5
+         lda ypos,y
+         sta ybuf+5
+         lda xpos,y
+         sta xbuf+5
+         lda sprc,y
+         sta cbuf+5
+         lda sprp,y
+         sta pbuf+5
+
+         ldy sort+6
+         lda ypos,y
+         sta ybuf+6
+         lda xpos,y
+         sta xbuf+6
+         lda sprc,y
+         sta cbuf+6
+         lda sprp,y
+         sta pbuf+6
+
+         ldy sort+7
+         lda ypos,y
+         sta ybuf+7
+         lda xpos,y
+         sta xbuf+7
+         lda sprc,y
+         sta cbuf+7
+         lda sprp,y
+         sta pbuf+7
+
+         ldy sort+8
+         lda ypos,y
+         sta ybuf+8
+         lda xpos,y
+         sta xbuf+8
+         lda sprc,y
+         sta cbuf+8
+         lda sprp,y
+         sta pbuf+8
+
+         ldy sort+9
+         lda ypos,y
+         sta ybuf+9
+         lda xpos,y
+         sta xbuf+9
+         lda sprc,y
+         sta cbuf+9
+         lda sprp,y
+         sta pbuf+9
+
+         ldy sort+10
+         lda ypos,y
+         sta ybuf+10
+         lda xpos,y
+         sta xbuf+10
+         lda sprc,y
+         sta cbuf+10
+         lda sprp,y
+         sta pbuf+10
+
+         ldy sort+11
+         lda ypos,y
+         sta ybuf+11
+         lda xpos,y
+         sta xbuf+11
+         lda sprc,y
+         sta cbuf+11
+         lda sprp,y
+         sta pbuf+11
+
+         ldy sort+12
+         lda ypos,y
+         sta ybuf+12
+         lda xpos,y
+         sta xbuf+12
+         lda sprc,y
+         sta cbuf+12
+         lda sprp,y
+         sta pbuf+12
+
+         ldy sort+13
+         lda ypos,y
+         sta ybuf+13
+         lda xpos,y
+         sta xbuf+13
+         lda sprc,y
+         sta cbuf+13
+         lda sprp,y
+         sta pbuf+13
+
+         ldy sort+14
+         lda ypos,y
+         sta ybuf+14
+         lda xpos,y
+         sta xbuf+14
+         lda sprc,y
+         sta cbuf+14
+         lda sprp,y
+         sta pbuf+14
+
+         ldy sort+15
+         lda ypos,y
+         sta ybuf+15
+         lda xpos,y
+         sta xbuf+15
+         lda sprc,y
+         sta cbuf+15
+         lda sprp,y
+         sta pbuf+15
+
+         ldy sort+16
+         lda ypos,y
+         sta ybuf+16
+         lda xpos,y
+         sta xbuf+16
+         lda sprc,y
+         sta cbuf+16
+         lda sprp,y
+         sta pbuf+16
+
+         ldy sort+17
+         lda ypos,y
+         sta ybuf+17
+         lda xpos,y
+         sta xbuf+17
+         lda sprc,y
+         sta cbuf+17
+         lda sprp,y
+         sta pbuf+17
+
+         ldy sort+18
+         lda ypos,y
+         sta ybuf+18
+         lda xpos,y
+         sta xbuf+18
+         lda sprc,y
+         sta cbuf+18
+         lda sprp,y
+         sta pbuf+18
+
+         ldy sort+19
+         lda ypos,y
+         sta ybuf+19
+         lda xpos,y
+         sta xbuf+19
+         lda sprc,y
+         sta cbuf+19
+         lda sprp,y
+         sta pbuf+19
+
+         ldy sort+20
+         lda ypos,y
+         sta ybuf+20
+         lda xpos,y
+         sta xbuf+20
+         lda sprc,y
+         sta cbuf+20
+         lda sprp,y
+         sta pbuf+20
+
+         ldy sort+21
+         lda ypos,y
+         sta ybuf+21
+         lda xpos,y
+         sta xbuf+21
+         lda sprc,y
+         sta cbuf+21
+         lda sprp,y
+         sta pbuf+21
+
+         ldy sort+22
+         lda ypos,y
+         sta ybuf+22
+         lda xpos,y
+         sta xbuf+22
+         lda sprc,y
+         sta cbuf+22
+         lda sprp,y
+         sta pbuf+22
+
+         ldy sort+23
+         lda ypos,y
+         sta ybuf+23
+         lda xpos,y
+         sta xbuf+23
+         lda sprc,y
+         sta cbuf+23
+         lda sprp,y
+         sta pbuf+23
+
+         ldy sort+24
+         lda ypos,y
+         sta ybuf+24
+         lda xpos,y
+         sta xbuf+24
+         lda sprc,y
+         sta cbuf+24
+         lda sprp,y
+         sta pbuf+24
+
+         ldy sort+25
+         lda ypos,y
+         sta ybuf+25
+         lda xpos,y
+         sta xbuf+25
+         lda sprc,y
+         sta cbuf+25
+         lda sprp,y
+         sta pbuf+25
+
+         ldy sort+26
+         lda ypos,y
+         sta ybuf+26
+         lda xpos,y
+         sta xbuf+26
+         lda sprc,y
+         sta cbuf+26
+         lda sprp,y
+         sta pbuf+26
+
+         ldy sort+27
+         lda ypos,y
+         sta ybuf+27
+         lda xpos,y
+         sta xbuf+27
+         lda sprc,y
+         sta cbuf+27
+         lda sprp,y
+         sta pbuf+27
+
+         ldy sort+28
+         lda ypos,y
+         sta ybuf+28
+         lda xpos,y
+         sta xbuf+28
+         lda sprc,y
+         sta cbuf+28
+         lda sprp,y
+         sta pbuf+28
+
+         ldy sort+29
+         lda ypos,y
+         sta ybuf+29
+         lda xpos,y
+         sta xbuf+29
+         lda sprc,y
+         sta cbuf+29
+         lda sprp,y
+         sta pbuf+29
+
+         ldy sort+30
+         lda ypos,y
+         sta ybuf+30
+         lda xpos,y
+         sta xbuf+30
+         lda sprc,y
+         sta cbuf+30
+         lda sprp,y
+         sta pbuf+30
+
+         ldy sort+31
+         lda ypos,y
+         sta ybuf+31
+         lda xpos,y
+         sta xbuf+31
+         lda sprc,y
+         sta cbuf+31
+         lda sprp,y
+         sta pbuf+31
+
+
+         ldx #$00     ;find how many
+         stx sptr     ;sprites
+maxc     lda ybuf,x
+         cmp #$ff
+         beq maxs
+         inx
+         cpx #maxspr+1
+         bne maxc
+maxs     stx cnt
+         cpx #$07
+         bcc maxm
+         ldx #$07
+maxm     stx mnt
+
+         lda #$ff
+         sta $d001
+         sta $d003
+         sta $d005
+         sta $d007
+         sta $d009
+         sta $d00b
+         sta $d00d
+         sta $d00f
+
+         inc $b0
+
+         lda #$02
+         sta $dd00
+         lda #$80
+         sta $d018
+         lda #$18
+         sta $d016
+         lda #$00
+         sta $d021
+         lda #$3b
+         sta $d011
+         lda #<ir1
+         sta $fffe
+         lda #>ir1
+         sta $ffff
+         lda #$28
+         sta $d012
+         jmp eirq
+ir1
+         pha
+         txa
+         pha
+         tya
+         pha
+         inc $d019
+         lda #$ff
+         sta $d015
+         ldx sptr
+hlop1    lda ybuf,x
+         sta $d001
+         lda xbuf,x
+         asl a           ;rm w/mbuf
+         sta $d000
+       ; lda mbuf,x
+         bcc no1         ;beg w/mbuf
+         lda $d010
+         ora #%00000001
+         bne yes1
+no1      lda $d010
+         and #%11111110
+yes1     sta $d010
+         lda pbuf,x
+         sta $63f8
+         lda cbuf,x
+         sta $d027
+         inx
+         cpx mnt
+         bcc hlop2
+         cpx cnt
+         bne ok1
+         jmp done
+
+ok1      stx sptr
+         lda $d003
+         clc
+         adc #$15
+         cmp $d012
+         bcc hlop2
+         adc #$02
+         sta $d012
+         lda #<ir2
+         sta $fffe
+         lda #>ir2
+         sta $ffff
+         jmp eirq
+
+ir2      pha
+         txa
+         pha
+         tya
+         pha
+         inc $d019
+         ldx sptr
+hlop2    lda ybuf,x
+         sta $d003
+         lda xbuf,x
+         asl a
+         sta $d002
+        ;lda mbuf,x
+         bcc no2
+         lda $d010
+         ora #%00000010
+         bne yes2
+no2      lda $d010
+         and #%11111101
+yes2     sta $d010
+         lda pbuf,x
+         sta $63f9
+         lda cbuf,x
+         sta $d028
+         inx
+         cpx mnt
+         bcc hlop3
+         cpx cnt
+         bne ok2
+         jmp done
+
+ok2      stx sptr
+         lda $d005
+         clc
+         adc #$15
+         cmp $d012
+         bcc hlop3
+         adc #$02
+         sta $d012
+         lda #<ir3
+         sta $fffe
+         lda #>ir3
+         sta $ffff
+         jmp eirq
+
+ir3      pha
+         txa
+         pha
+         tya
+         pha
+         inc $d019
+         ldx sptr
+hlop3    lda ybuf,x
+         sta $d005
+         lda xbuf,x
+         asl a
+         sta $d004
+        ;lda mbuf,x
+         bcc no3
+         lda $d010
+         ora #%00000100
+         bne yes3
+no3      lda $d010
+         and #%11111011
+yes3     sta $d010
+         lda pbuf,x
+         sta $63fa
+         lda cbuf,x
+         sta $d029
+         inx
+         cpx mnt
+         bcc hlop4
+         cpx cnt
+         bne ok3
+         jmp done
+
+ok3      stx sptr
+         lda $d007
+         clc
+         adc #$15
+         cmp $d012
+         bcc hlop4
+         adc #$02
+         sta $d012
+         lda #<ir4
+         sta $fffe
+         lda #>ir4
+         sta $ffff
+         jmp eirq
+
+ir4      pha
+         txa
+         pha
+         tya
+         pha
+         inc $d019
+         ldx sptr
+hlop4    lda ybuf,x
+         sta $d007
+         lda xbuf,x
+         asl a
+         sta $d006
+        ;lda mbuf,x
+         bcc no4
+         lda $d010
+         ora #%00001000
+         bne yes4
+no4      lda $d010
+         and #%11110111
+yes4     sta $d010
+         lda pbuf,x
+         sta $63fb
+         lda cbuf,x
+         sta $d02a
+         inx
+         cpx mnt
+         bcc hlop5
+         cpx cnt
+         bne ok4
+         jmp done
+
+ok4      stx sptr
+         lda $d009
+         clc
+         adc #$15
+         cmp $d012
+         bcc hlop5
+         adc #$02
+         sta $d012
+         lda #<ir5
+         sta $fffe
+         lda #>ir5
+         sta $ffff
+         jmp eirq
+
+ir5      pha
+         txa
+         pha
+         tya
+         pha
+         inc $d019
+         ldx sptr
+hlop5    lda ybuf,x
+         sta $d009
+         lda xbuf,x
+         asl a
+         sta $d008
+        ;lda mbuf,x
+         bcc no5
+         lda $d010
+         ora #%00010000
+         bne yes5
+no5      lda $d010
+         and #%11101111
+yes5     sta $d010
+         lda pbuf,x
+         sta $63fc
+         lda cbuf,x
+         sta $d02b
+         inx
+         cpx mnt
+         bcc hlop6
+         cpx cnt
+         bne ok5
+         jmp done
+
+ok5      stx sptr
+         lda $d00b
+         clc
+         adc #$15
+         cmp $d012
+         bcc hlop6
+         adc #$02
+         sta $d012
+         lda #<ir6
+         sta $fffe
+         lda #>ir6
+         sta $ffff
+         jmp eirq
+
+ir6      pha
+         txa
+         pha
+         tya
+         pha
+         inc $d019
+         ldx sptr
+hlop6    lda ybuf,x
+         sta $d00b
+         lda xbuf,x
+         asl a
+         sta $d00a
+       ; lda mbuf,x
+         bcc no6
+         lda $d010
+         ora #%00100000
+         bne yes6
+no6      lda $d010
+         and #%11011111
+yes6     sta $d010
+         lda pbuf,x
+         sta $63fd
+         lda cbuf,x
+         sta $d02c
+         inx
+         cpx mnt
+         bcc hlop7
+         cpx cnt
+         bne ok6
+         jmp done
+
+ok6      stx sptr
+         lda $d00d
+         clc
+         adc #$15
+         cmp $d012
+         bcc hlop7
+         adc #$02
+         sta $d012
+         lda #<ir7
+         sta $fffe
+         lda #>ir7
+         sta $ffff
+         jmp eirq
+
+ir7      pha
+         txa
+         pha
+         tya
+         pha
+         inc $d019
+         ldx sptr
+hlop7    lda ybuf,x
+         sta $d00d
+         lda xbuf,x
+         asl a
+         sta $d00c
+      ;  lda mbuf,x
+         bcc no7
+         lda $d010
+         ora #%01000000
+         bne yes7
+no7      lda $d010
+         and #%10111111
+yes7     sta $d010
+         lda pbuf,x
+         sta $63fe
+         lda cbuf,x
+         sta $d02d
+         inx
+         cpx mnt
+         bcc hlop8
+         cpx cnt
+         bne ok7
+         jmp done
+
+ok7      stx sptr
+         lda $d00f
+         clc
+         adc #$15
+         cmp $d012
+         bcc hlop8
+         adc #$02
+         sta $d012
+         lda #<ir8
+         sta $fffe
+         lda #>ir8
+         sta $ffff
+         jmp eirq
+
+ir8      pha
+         txa
+         pha
+         tya
+         pha
+         inc $d019
+         ldx sptr
+hlop8    lda ybuf,x
+         sta $d00f
+         lda xbuf,x
+         asl a
+         sta $d00e
+        ;lda mbuf,x
+         bcc no8
+         lda $d010
+         ora #%10000000
+         bne yes8
+no8      lda $d010
+         and #%01111111
+yes8     sta $d010
+         lda pbuf,x
+         sta $63ff
+         lda cbuf,x
+         sta $d02e
+         inx
+         cpx mnt
+         bcc hlop9
+         cpx cnt
+         bne ok8
+         jmp done
+
+ok8      stx sptr
+         lda $d001
+         clc
+         adc #$15
+         cmp $d012
+         bcc hlop9
+         adc #$02
+         sta $d012
+         lda #<ir1
+         sta $fffe
+         lda #>ir1
+         sta $ffff
+         jmp eirq
+hlop9    jmp hlop1
+
+done     lda #<ir0
+         sta $fffe
+         lda #>ir0
+         sta $ffff
+         lda #$fb
+         sta $d012
+eirq
+         pla
+         tay
+         pla
+         tax
+         pla
+         rti
+
+;---------------------------------------
+;sprite movement
+
+mvspr
+
+;plot y
+
+y1       lda ysin
+         sta ypos
+y2       lda ysin+yofs
+         sta ypos+1
+y3       lda ysin+(yofs*2)
+         sta ypos+2
+y4       lda ysin+(yofs*3)
+         sta ypos+3
+y5       lda ysin+(yofs*4)
+         sta ypos+4
+y6       lda ysin+(yofs*5)
+         sta ypos+5
+y7       lda ysin+(yofs*6)
+         sta ypos+6
+y8       lda ysin+(yofs*7)
+         sta ypos+7
+y9       lda ysin+(yofs*8)
+         sta ypos+8
+y10      lda ysin+(yofs*9)
+         sta ypos+9
+y11      lda ysin+(yofs*10)
+         sta ypos+10
+y12      lda ysin+(yofs*11)
+         sta ypos+11
+y13      lda ysin+(yofs*12)
+         sta ypos+12
+y14      lda ysin+(yofs*13)
+         sta ypos+13
+y15      lda ysin+(yofs*14)
+         sta ypos+14
+y16      lda ysin+(yofs*15)
+         sta ypos+15
+y17      lda ysin+(yofs*16)
+         sta ypos+16
+y18      lda ysin+(yofs*17)
+         sta ypos+17
+y19      lda ysin+(yofs*18)
+         sta ypos+18
+y20      lda ysin+(yofs*19)
+         sta ypos+19
+y21      lda ysin+(yofs*20)
+         sta ypos+20
+y22      lda ysin+(yofs*21)
+         sta ypos+21
+y23      lda ysin+(yofs*22)
+         sta ypos+22
+y24      lda ysin+(yofs*23)
+         sta ypos+23
+y25      lda ysin+(yofs*24)
+         sta ypos+24
+y26      lda ysin+(yofs*25)
+         sta ypos+25
+y27      lda ysin+(yofs*26)
+         sta ypos+26
+y28      lda ysin+(yofs*27)
+         sta ypos+27
+y29      lda ysin+(yofs*28)
+         sta ypos+28
+y30      lda ysin+(yofs*29)
+         sta ypos+29
+y31      lda ysin+(yofs*30)
+         sta ypos+30
+y32      lda ysin+(yofs*31)
+         sta ypos+31
+;plot x
+
+x1       lda #$00
+         sta xpos
+x2       lda #$00+xofs
+         sta xpos+1
+x3       lda #$00+(xofs*2)
+         sta xpos+2
+x4       lda #$00+(xofs*3)
+         sta xpos+3
+x5       lda #$00+(xofs*4)
+         sta xpos+4
+x6       lda #$00+(xofs*5)
+         sta xpos+5
+x7       lda #$00+(xofs*6)
+         sta xpos+6
+x8       lda #$00+(xofs*7)
+         sta xpos+7
+x9       lda #$00+(xofs*8)
+         sta xpos+8
+x10      lda #$00+(xofs*9)
+         sta xpos+9
+x11      lda #$00+(xofs*10)
+         sta xpos+10
+x12      lda #$00+(xofs*11)
+         sta xpos+11
+x13      lda #$00+(xofs*12)
+         sta xpos+12
+x14      lda #$00+(xofs*13)
+         sta xpos+13
+x15      lda #$00+(xofs*14)
+         sta xpos+14
+x16      lda #$00+(xofs*15)
+         sta xpos+15
+x17      lda #$00+(xofs*16)
+         sta xpos+16
+x18      lda #$00+(xofs*17)
+         sta xpos+17
+x19      lda #$00+(xofs*18)
+         sta xpos+18
+x20      lda #$00+(xofs*19)
+         sta xpos+19
+x21      lda #$00+(xofs*20)
+         sta xpos+20
+x22      lda #$00+(xofs*21)
+         sta xpos+21
+x23      lda #$00+(xofs*22)
+         sta xpos+22
+x24      lda #$00+(xofs*23)
+         sta xpos+23
+x25      lda #$00+(xofs*24)
+         sta xpos+24
+x26      lda #$00+(xofs*25)
+         sta xpos+25
+x27      lda #$00+(xofs*26)
+         sta xpos+26
+x28      lda #$00+(xofs*27)
+         sta xpos+27
+x29      lda #$00+(xofs*28)
+         sta xpos+28
+x30      lda #$00+(xofs*29)
+         sta xpos+29
+x31      lda #$00+(xofs*30)
+         sta xpos+30
+x32      lda #$00+(xofs*31)
+         sta xpos+31
+
+        ;jmp cx
+;move y
+         inc y1+1
+         inc y2+1
+         inc y3+1
+         inc y4+1
+         inc y5+1
+         inc y6+1
+         inc y7+1
+         inc y8+1
+         inc y9+1
+         inc y10+1
+         inc y11+1
+         inc y12+1
+         inc y13+1
+         inc y14+1
+         inc y15+1
+         inc y16+1
+         inc y17+1
+         inc y18+1
+         inc y19+1
+         inc y20+1
+         inc y21+1
+         inc y22+1
+         inc y23+1
+         inc y24+1
+         inc y25+1
+         inc y26+1
+         inc y27+1
+         inc y28+1
+         inc y29+1
+         inc y30+1
+         inc y31+1
+         inc y32+1
+;move x
+cx
+         dec x1+1
+         dec x2+1
+         dec x3+1
+         dec x4+1
+         dec x5+1
+         dec x6+1
+         dec x7+1
+         dec x8+1
+         dec x9+1
+         dec x10+1
+         dec x11+1
+         dec x12+1
+         dec x13+1
+         dec x14+1
+         dec x15+1
+         dec x16+1
+         dec x17+1
+         dec x18+1
+         dec x19+1
+         dec x20+1
+         dec x21+1
+         dec x22+1
+         dec x23+1
+         dec x24+1
+         dec x25+1
+         dec x26+1
+         dec x27+1
+         dec x28+1
+         dec x29+1
+         dec x30+1
+         dec x31+1
+         dec x32+1
+
+;scroll wrap
+
+         ldx #$b0
+         lda x1+1
+         cmp #$ff
+         bne p1
+         stx x1+1
+p1       lda x2+1
+         cmp #$ff
+         bne p2
+         stx x2+1
+p2       lda x3+1
+         cmp #$ff
+         bne p3
+         stx x3+1
+p3       lda x4+1
+         cmp #$ff
+         bne p4
+         stx x4+1
+p4       lda x5+1
+         cmp #$ff
+         bne p5
+         stx x5+1
+p5       lda x6+1
+         cmp #$ff
+         bne p6
+         stx x6+1
+p6       lda x7+1
+         cmp #$ff
+         bne p7
+         stx x7+1
+p7       lda x8+1
+         cmp #$ff
+         bne p8
+         stx x8+1
+p8       lda x9+1
+         cmp #$ff
+         bne p9
+         stx x9+1
+p9       lda x10+1
+         cmp #$ff
+         bne p10
+         stx x10+1
+p10      lda x11+1
+         cmp #$ff
+         bne p11
+         stx x11+1
+p11      lda x12+1
+         cmp #$ff
+         bne p12
+         stx x12+1
+p12      lda x13+1
+         cmp #$ff
+         bne p13
+         stx x13+1
+p13      lda x14+1
+         cmp #$ff
+         bne p14
+         stx x14+1
+p14      lda x15+1
+         cmp #$ff
+         bne p15
+         stx x15+1
+p15      lda x16+1
+         cmp #$ff
+         bne p16
+         stx x16+1
+p16      lda x17+1
+         cmp #$ff
+         bne p17
+         stx x17+1
+p17      lda x18+1
+         cmp #$ff
+         bne p18
+         stx x18+1
+p18      lda x19+1
+         cmp #$ff
+         bne p19
+         stx x19+1
+p19      lda x20+1
+         cmp #$ff
+         bne p20
+         stx x20+1
+p20      lda x21+1
+         cmp #$ff
+         bne p21
+         stx x21+1
+p21      lda x22+1
+         cmp #$ff
+         bne p22
+         stx x22+1
+p22      lda x23+1
+         cmp #$ff
+         bne p23
+         stx x23+1
+p23      lda x24+1
+         cmp #$ff
+         bne p24
+         stx x24+1
+p24      lda x25+1
+         cmp #$ff
+         bne p25
+         stx x25+1
+p25      lda x26+1
+         cmp #$ff
+         bne p26
+         stx x26+1
+p26      lda x27+1
+         cmp #$ff
+         bne p27
+         stx x27+1
+p27      lda x28+1
+         cmp #$ff
+         bne p28
+         stx x28+1
+p28      lda x29+1
+         cmp #$ff
+         bne p29
+         stx x29+1
+p29      lda x30+1
+         cmp #$ff
+         bne p30
+         stx x30+1
+p30      lda x31+1
+         cmp #$ff
+         bne p31
+         stx x31+1
+p31      lda x32+1
+         cmp #$ff
+         bne p32
+         stx x32+1
+p32      rts
+
+;---------------------------------------
+;sprite animation
+
+
+;---------------------------------------
+;end
+
+nmi
+         lda #$37
+         sta $01
+         lda $dd0d
+         jmp $9000
+</code>

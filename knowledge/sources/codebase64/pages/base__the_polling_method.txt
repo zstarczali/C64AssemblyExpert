@@ -1,0 +1,108 @@
+# PAGE: base:the_polling_method
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:the_polling_method
+
+====== Stable raster position by polling $D012 ======
+
+One method to acheive stable timing and complete synchronization with another signal is simply to poll the signal and take counter measures. The signal in this case could be the raster beam (stable rasters) or f.e. the drive CPU.
+
+Let's examplify this with polling the raster beam. We know $D012 contains lower 8 bits (out of nine) of the current raster line counter, and will increase by one every 63rd cycle.
+
+Consider the following code:
+<code>
+lda #$30
+cmp $d012
+bne *-3
+</code>
+
+Since each loop here takes 7 cycles we'll have a jitter of up to 7 cycles. I.e. after the ''bne'' the beam will be on cycle 2-9.
+
+Imagine pushing this jitter onward, so that our next comparison of $D012 crosses the boundary between raster line #$30 and #$31 by applying 54 cycles NOPs.  Adding 58 cycles (including the following ''cpx $d012'') to the 2-9 jitter we get a jitter on 60-67, or in terms of raster lines 60-62(line #$30) and 0-3(line #$31).
+
+When polling $D012 we will receive a value that sometimes is #$31 (too early) or sometimes is #$32.  In case it is too early, we compensate by wasting 3 extra cycles (''beq'' takes 3 on branch. when not taking the branch, ''beq : nop : nop'' needs 6 cycles.)
+
+Our jitter has now narrowed down to at max 4 cycles.  Let's play this game again:\\
+- waste 54 cycles\\
+- poll $D012\\
+- waste 2 more cycles if we polled too early
+
+Now, we're off by one at max!
+
+Thus - again another waste of precious calculation time - but this time we have to waste 55 cycles before polling $D012.  If we polled one cycle too early, we waste that last cycle by a branch to the following line.
+
+Boom - stabilized!
+
+<code>
+          ldx #$30
+lp1:
+          cpx $d012
+          bne lp1
+          jsr cycles
+          bit $ea
+          nop
+          cpx $d012
+          beq skip1
+          nop
+          nop
+skip1:    jsr cycles
+          bit $ea
+          nop
+          cpx $d012
+          beq skip2
+          bit $ea
+skip2:    jsr cycles
+          nop
+          nop
+          nop
+          cpx $d012
+          bne onecycle
+onecycle: rts
+
+cycles:
+         ldy #$06
+lp2:     dey
+         bne lp2
+         inx
+         nop
+         nop
+         rts
+</code>
+
+----
+
+This {{ :base:half-variance-stabilization.pdf |image}} visualizes the timing during stabilization.
+
+==== St0fF/NPL^t0M says: ====
+
+I rather use a more flexible raster time wasting approach, but it doesn't make much of a difference.  May save some bytes here and there ...
+
+<code syntax="ACME">
+stabilize_fa
+        ldx #$fa
+-       cpx $d012		;nächste Zeile Abwarten - Jitter 1..7
+        bne -
+        ldy #7			;2
+        jsr tue13_5Y		;5*Y +13 = 48
+        nop
+	nop			;4
+        cpx $d012		;4
+        beq +                   ;schon in der nächsten Zeile? Weniger verbraten!
+        nop
+        nop 			;3 Zyklen mehr verbraucht
++	ldy #7			;2
+        jsr tue13_5Y		;48
+        nop
+	nop			;4
+        cpx $d012
+        beq +
+        bit $ea			;2 Zyklen mehr verbraucht
++	ldy #8			;2
+        jsr tue13_5Y		;53
+        cpx $d012
+        bne +
++       rts
+tue13_5Y
+-       dey         ;2
+        bne -       ;3/2 => (5*Y)-1
+        inx         ;2
+tue_rts rts         ;6+6 (JSR) = 5*Y +13
+</code>

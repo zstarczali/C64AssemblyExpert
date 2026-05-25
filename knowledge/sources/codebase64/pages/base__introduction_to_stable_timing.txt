@@ -1,0 +1,27 @@
+# PAGE: base:introduction_to_stable_timing
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:introduction_to_stable_timing
+
+====== Introduction to stable timing ======
+
+The definition of stable timing is to synchronize the CPU to an external signal so that after synchronization the CPU and the synchronization point is always at a constant cycles apart.
+
+Most commonly is to synchronize the CPU to the raster beam to achieve all those glorious VIC-tricks that require cycle precise timing. Not uncommon either is to synchronize the CPU with the drive code so that you can burst a few bytes over the serial bus in a controlled manner.
+
+===== Why isn't IRQs or simple polling stable? =====
+
+To synchronize on the raster beam you could code something like:
+
+<code>
+lda #$80
+cmp $d012
+bne *-3
+</code>
+
+The problem with this approach is that the compare and the branch takes 7 cycles in total, so if $d012 wasn't at #$80 when the compare was executed the CPU won't recheck $d012 until 7 cycles later. Thus you'll have a 7 cycle jitter. I.e. you simply don't poll quickly enough. Quickly enough would have been polling $d012 every cycle, which is impossible.
+
+Someone clever might want to setup a raster IRQ instead since they're fired at cycle 0 of the raster trigger line. That perhaps would fool someone that it should acheive stable timing. However the 6502 CPU must always finish execution of the current instruction before jumping to the IRQ handler. Thus depending on what the CPU was executing when the IRQ was triggered it may stall IRQ-handler execution up to 8 cycles. (8 cycles is the maximum number or cycles it can take to execute one instruction).
+
+===== Conclusion =====
+So, due to the fact that we can't simply poll quickly enough and due to the fact that the CPU must finish the current instruction before jumping to the IRQ-handler we simply can not acheive a stable timing without taking extra ordinary measures.
+
+The are tons of various approaches that has been devised over the years of C64 programming. I'll cover three of them in the following chapters.

@@ -1,0 +1,123 @@
+# PAGE: base:rather_small_and_rather_fast_screen_offset_component_splitter
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:rather_small_and_rather_fast_screen_offset_component_splitter
+
+<code>
+;  in: 10-bit value in hi.A
+; out: x=input % 40
+;      y=input / 40
+;      a=clobbered
+;
+.proc splitOffset
+         sta sm2+1
+         lsr HI
+         ror
+         lsr HI
+         ror
+         lsr HI
+         ror
+         lsr HI
+         ror
+         lsr HI
+         ror
+         tax           ;x=in/32
+         ldy divtab,x  ;y=x/1.25 = in/40 + rounding errors
+         tya
+         asl
+         asl
+         asl           ;a=y*8
+         sta sm1+1
+         asl
+         asl           ;a=<(y*32)
+         clc
+sm1:     adc #$00      ;<(y*8+y*32) = <(y*40)
+         sec
+sm2:     sbc #$00      ;<(y*40-in)
+         eor #$ff      ;<(in-y*40-1)
+         tax           ;x=<(in-y*40-1)
+         inx           ;x=<(in-y*40) = in%40 + rounding errors
+         cpx #40       ;due to x/40 != int(x/32)/1.25 we might get a rounding error that we fix here
+         bcc :+
+            txa
+            .byte $cb,40 ;axs/sbx #40
+            iny
+         :
+         rts
+
+divtab:  .byte $00,$00,$01,$02,$03,$04,$04,$05,$06,$07,$08,$08,$09,$0a,$0b,$0c,$0c,$0d,$0e,$0f,$10,$10,$11,$12,$13,$14,$14,$15,$16,$17,$18,$18
+.endproc
+</code>
+
+Other versions with non destructive parameter fetch of index ($fc:$fb) included (no SMC, no Illegals):
+
+Outputs (X, Y)
+
+<code>
+    //-------------------------------------------------
+    // Version 1 - Faster & Smaller
+    // Best: 69 cycles & Worst: 72 cycles - 75 bytes
+
+    lda $fb
+    asl
+    sta $02
+    lda $fc
+    rol
+    asl $02
+    rol
+    asl $02
+    rol
+    tax
+    ldy tab_corr1,x
+    tya
+    asl
+    asl
+    asl
+    sta $02
+    asl
+    asl
+    clc
+    adc $02
+    sta $02
+    lda $fb
+    sec
+    sbc $02
+    bcs !+
+        adc #$28
+        dey
+!:  tax
+    rts
+
+tab_corr1:
+    .fill 32, (i - floor(i/5))
+</code>
+
+<code>
+    //-------------------------------------------------
+    // Version 2 - Seriously faster, but + some bytes
+    // Best: 47 cycles & Worst: 50 cycles - 88 bytes
+
+    lda $fb
+    asl
+    sta $02
+    lda $fc
+    rol
+    asl $02
+    rol
+    asl $02
+    rol
+    tax
+    ldy tab_corr1,x
+    lda $fb
+    sec
+    sbc tab_corr2,y
+    bcs !+
+        adc #$28
+        dey
+!:  tax
+    rts
+
+tab_corr1:
+    .fill 32, (i - floor(i/5))
+
+tab_corr2:
+    .fill 26, <(i * 40)
+</code>

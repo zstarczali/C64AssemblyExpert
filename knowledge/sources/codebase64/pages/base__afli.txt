@@ -1,0 +1,10 @@
+# PAGE: base:afli
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:afli
+
+====== AFLI ======
+
+AFLI is short for Advanced FLI. Back in those days you could never rely on a naming of a trick, like this one.. there is nothing more advanced with this than with normal FLI.
+
+Use your favourite FLI-shower and change the d016-value to #$c8 instead of #$d8. Throw away the d800-colors and you have AFLI. In other words [[base:hires_fli|Hires FLI]].
+
+AFLI was also the name of what you get if you take a FLI-loop and reduce it from 23 to 20 cycles. D011-stretcher is the common name for this effect, however when used in bitmap mode (and probably hires) it was also called AFLI.

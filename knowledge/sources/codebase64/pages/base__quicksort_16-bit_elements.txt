@@ -1,0 +1,402 @@
+# PAGE: base:quicksort_16-bit_elements
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:quicksort_16-bit_elements
+
+====== Quicksort (for 16-bit Elements) ======
+by Vladimir Lidovski aka litwr, 13 Aug 2016 (with help of BigEd)
+
+It is well known that the best, the fastest sort routine is Quicksort.  It is very odd that its implementations for 6502 for all of 42 years (from 1975 to 2016) have a bit blurred and unofficial status.  The main problem is in the stack depending nature of Quicksort and the stack limit of 256 bytes of 6502 architecture.  It is solvable.
+
+The next Pascal code was translated to 6502 assembler.
+<code>
+(* it sorts array of longint Basearray with the index range from 1 to Size *)
+(* it should be invoked by QuickSort(1, Size) *)
+(* Basearray elements and x local variable type maybe any numeric, string, set, ... type *)
+Procedure QuickSort(LBound, UBound: word);
+  var
+    i, j: word;
+    x: longint;
+  begin
+    i := LBound;
+    j := UBound;
+    x := BaseArray[(i + j) div 2];
+    repeat
+      while BaseArray[i] > x do inc(i);
+      while x > BaseArray[j] do dec(j);
+      if i <= j then begin
+        Exchange(i, j);
+        inc(i);
+        dec(j)
+      end
+    until i > j;
+    if LBound < j then QuickSort(LBound, j);
+    if i < UBound then QuickSort(i, UBound)
+  end;
+</code>
+TMPx assembler is used but it is very easy to convert it to any other 6502 assembler syntax.
+<code>
+i2lo = zp0lo
+i2hi = zp0hi
+j2lo = zp2lo
+j2hi = zp2hi
+x_lo = m2lo
+x_hi = m2hi
+
+quicksort tsx
+          cpx #16  ;stack limit
+          bcs qsok
+
+qs_csp    ldx #0
+          dex
+          dex
+          txs
+qsok      lda $103,x
+          sta i2lo
+          lda $104,x
+          sta i2hi
+          ldy $106,x
+          sty j2hi
+          lda $105,x
+          sta j2lo
+          clc        ;this code works only for the even align
+          adc i2lo
+          and #$fc
+          sta zp1lo
+          tya
+          adc i2hi
+          ror
+          sta zp1hi
+          ror zp1lo
+
+          ldy #0
+          lda (zp1lo),y
+          sta x_lo
+          iny
+          lda (zp1lo),y
+          sta x_hi
+qsloop1   ldy #0         ;compare array[i] and x
+          lda (i2lo),y
+          cmp x_lo
+          iny
+          lda (i2lo),y
+          sbc x_hi
+          bcs qs_l1
+
+          lda #2
+          adc i2lo
+          sta i2lo
+          bcc qsloop1
+
+          inc i2hi
+          bne qsloop1 ;=jmp
+
+qs_l1     ldy #0       ;compare array[j] and x
+          lda x_lo
+          cmp (j2lo),y
+          iny
+          lda x_hi
+          sbc (j2lo),y
+          bcs qs_l3
+
+          lda j2lo
+          sbc #1
+          sta j2lo
+          bcs qs_l1
+
+          dec j2hi
+          bne qs_l1 ;=jmp
+
+qs_l3     lda j2lo        ;compare i and j
+          cmp i2lo
+          lda j2hi
+          sbc i2hi
+          bcc qs_l8
+
+qs_l6     lda (j2lo),y    ;exchange elements with i and j indices
+          tax
+          lda (i2lo),y
+          sta (j2lo),y
+          txa
+          sta (i2lo),y
+          dey
+          bpl qs_l6
+
+          ;clc
+          lda #1        ;CY=1
+          adc i2lo
+          sta i2lo
+          bcc *+4
+          inc i2hi
+          sec
+          lda j2lo
+          sbc #2
+          sta j2lo
+          bcs *+4
+          dec j2hi
+          ;lda j2lo
+          cmp i2lo
+          lda j2hi
+          sbc i2hi
+          ;bcc *+5
+          ;jmp qsloop1
+          bcs qsloop1
+
+qs_l8     tsx
+          lda $103,x
+          cmp j2lo
+          lda $104,x
+          sbc j2hi
+          bcs qs_l5
+
+          lda i2hi
+          pha
+          lda i2lo
+          pha
+          lda j2hi
+          pha
+          lda j2lo
+          pha
+          lda $104,x
+          pha
+          lda $103,x
+          pha
+          jsr quicksort
+          pla
+          pla
+          pla
+          pla
+          pla
+          sta i2lo
+          pla
+          sta i2hi
+          tsx
+qs_l5     lda i2lo
+          cmp $105,x
+          lda i2hi
+          sbc $106,x
+          bcs qs_l7
+
+          lda $106,x
+          pha
+          lda $105,x
+          pha
+          lda i2hi
+          pha
+          lda i2lo
+          pha
+          jsr quicksort
+          pla
+          pla
+          pla
+          pla
+qs_l7     rts
+</code>
+//zp0lo//, //zp0hi//, //zp1lo//, //zp1hi//, //zp2lo//, //zp2hi// are zero page bytes.  Low byte should precede high.  //m2lo// and //m2hi// are bytes which maybe situated anywhere in RAM but it is better for speed to put them at zero page too.  The invocation should be in the next form.
+<code>
+          lda #>array+size2-2
+          pha
+          lda #<array+size2-2
+          pha
+          lda #>array
+          pha
+          lda #<array
+          pha
+          tsx
+          stx qs_csp+1
+          jsr quicksort
+          pla
+          pla
+          pla
+          pla
+</code>
+//array// is the address of the array and //size2// is its size in bytes.  So //size2// is twice bigger then the number of 2 bytes integer in the array for the sort. //array// maybe any even address above $200.
+
+The main trick is the work with the stack.  The routine reserves 16 stack bytes for interrupts.  It is possible to reduce this number to 0 if all interrupts are disabled.  It maybe made dynamically.  So if the stack has only 16 bytes free then the interrupts should be disabled and if there is more than 16 free bytes than the interrupts should be enabled.  This dynamic control will consume only about 10 more bytes in the code but its effect is small.  Some systems use NMI interrupts and this makes such dynamic control more complex.  The systems with NMI may require more than 16 free bytes in the stack.  IMHO 30 bytes will be enough for any system.
+
+Several time measurements  (in seconds) were made for the Quicksort and the [[Shell Sort (16-bit elements)|Fredrik Ramsberg's Shell and Insertion sorts]]. Commodore +4 is used.  Its CPU works at 1.14 MHz average frequency.
+^1024 Integers^Sort Type ^Random ^Ordered ^Reversed ^Zeros ^
+| |Insertion |21.4 |0.14 |39.75 |0.16 |
+| |Shell     |1.75 |0.8  |1.12  |0.82 |
+| |Quick     |0.75 |0.4  |0.47  |0.94  |
+
+^4096 Integers^Sort Type ^Random ^Ordered ^Reversed ^Zeros ^
+| |Insertion |317.98 |0.6  |635.13 |0.58 |
+| |Shell     |8.12   |4.02 |5.25   |4    |
+| |Quick     |3.67   |1.88 |2.04   |4.21 |
+
+^12288 Integers^Sort Type ^Random ^Ordered ^Reversed ^Zeros ^
+| |Insertion |2877.48|1.78 |5714.08|1.75 |
+| |Shell     |30.18  |13.82|18.05  |13.81|
+| |Quick     |11.74  |6.83 |7.33   |13.07|
+//Random//, //Ordered//, //Reversed//, //Zeros// mean the type of array filling.  Random filling just copies ROM content into array.  Ordered filling uses numbers from 0 with step 1.  Reversed filling uses numbers from $ffff with step -1.  Zeros filling is just an array filled with the zeros only.
+
+So Quicksort is more than two times faster than Shell Sort.  Its code occupies together with its call wrapping 259 bytes.  It also uses 6 bytes of zero page and 2 bytes of any RAM.  The Shell sort requires about 250 bytes for the code and data and it doesn't use stack.  It also uses up to 14 bytes at zero page.  All these 14 bytes were used in the mentioned above measurements.
+
+This version of Quicksort requires almost all stack (about 240 bytes) to sort fast more than 32 KB of data.  The required minimum is about 176 bytes but the stack with the only such minimum may slow down sorting dramatically.  If the stack has less free bytes than this minimum then this may give the meditation, the endless loop.
+
+It is possible to reduce the stack load by tail call elimination.  It makes Quicksort slightly faster (only by 3-4%) but reduces the stack load more than 50%.  So 128 free bytes in the stack will make the sort of 60 KB data without delays.
+
+<code>
+i2lo = zp0lo
+i2hi = zp0hi
+j2lo = zp2lo
+j2hi = zp2hi
+x_lo = m2lo
+x_hi = m2hi
+ublo = m3lo
+ubhi = m3hi
+lblo = m4lo
+lbhi = m4hi
+
+quicksort0
+          tsx
+          cpx #16  ;stack limit
+          bcs qsok
+
+qs_csp    ldx #0
+          txs
+
+quicksort lda #>array+size2-2
+          sta ubhi
+          lda #<array+size2-2
+          sta ublo
+          lda #>array
+          sta lbhi
+          lda #<array
+          sta lblo
+          tsx
+          stx qs_csp+1
+qsok      lda lblo
+          sta i2lo
+          lda lbhi
+          sta i2hi
+          ldy ubhi
+          sty j2hi
+          lda ublo
+          sta j2lo
+          clc        ;this code works only for the even align
+          adc i2lo
+          and #$fc
+          sta zp1lo
+          tya
+          adc i2hi
+          ror
+          sta zp1hi
+          ror zp1lo
+
+          ldy #0
+          lda (zp1lo),y
+          sta x_lo
+          iny
+          lda (zp1lo),y
+          sta x_hi
+qsloop1   ldy #0     ;compare array[i] and x
+          lda (i2lo),y
+          cmp x_lo
+          iny
+          lda (i2lo),y
+          sbc x_hi
+          bcs qs_l1
+
+          lda #2
+          adc i2lo
+          sta i2lo
+          bcc qsloop1
+
+          inc i2hi
+          bne qsloop1 ;=jmp
+
+qs_l1     ldy #0    ;compare array[j] and x
+          lda x_lo
+          cmp (j2lo),y
+          iny
+          lda x_hi
+          sbc (j2lo),y
+          bcs qs_l3
+
+          lda j2lo
+          sbc #1
+          sta j2lo
+          bcs qs_l1
+
+          dec j2hi
+          bne qs_l1 ;=jmp
+
+qs_l3     lda j2lo    ;compare i and j
+          cmp i2lo
+          lda j2hi
+          sbc i2hi
+          bcc qs_l8
+
+qs_l6     lda (j2lo),y    ;exchange elements with i and j indices
+          tax
+          lda (i2lo),y
+          sta (j2lo),y
+          txa
+          sta (i2lo),y
+          dey
+          bpl qs_l6
+
+          ;sec
+          lda #1        ;CY=1
+          adc i2lo
+          sta i2lo
+          bcc *+4
+          inc i2hi
+          sec
+          lda j2lo
+          sbc #2
+          sta j2lo
+          bcs *+4
+          dec j2hi
+          ;lda j2lo
+          cmp i2lo
+          lda j2hi
+          sbc i2hi
+          ;bcc *+5
+          ;jmp qsloop1
+          bcs qsloop1
+
+qs_l8     lda lblo
+          cmp j2lo
+          lda lbhi
+          sbc j2hi
+          bcs qs_l5
+
+          lda i2hi
+          pha
+          lda i2lo
+          pha
+          lda ubhi
+          pha
+          lda ublo
+          pha
+          lda j2hi
+          sta ubhi
+          lda j2lo
+          sta ublo
+          jsr quicksort0
+          pla
+          sta ublo
+          pla
+          sta ubhi
+          pla
+          sta i2lo
+          pla
+          sta i2hi
+qs_l5     lda i2lo
+          cmp ublo
+          lda i2hi
+          sbc ubhi
+          bcs qs_l7
+
+          lda i2hi
+          sta lbhi
+          lda i2lo
+          sta lblo
+          jmp qsok
+qs_l7     rts
+</code>
+
+The locations //m3hi//, //m3lo//, //m4hi//, //m4lo// maybe situated anywhere in RAM.  The invocation just a call to quicksort routine.  However it is required to put the proper constants after //quicksort// label.  This makes the invocation code more complex in the general case.
+
+The other published 6502 Quicksort is at [[http://www.vcfed.org/forum/showthread.php?4687-QuickSort-in-6502-assembler|Vintage Computer Federation]]. More information can be found on page [[https://github.com/litwr2/6502-sorting|6502 sorting]]

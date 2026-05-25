@@ -1,0 +1,17 @@
+# PAGE: base:dos_examples
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:dos_examples
+
+====== High level KERNAL examples ======
+
+Be aware that some of these KERNAL routines call SEI and CLI, so if you have interrupts running in your program, be sure to disable your interrupts properly (i.e. do not only do SEI) before calling these routines in case you don't want the interrupts to be re-enabled by the KERNAL code. Also note that BASIC ROM can be disabled when doing disk IO (except for the DIR routine here, which calls one of the BASIC routines, but that is not for the disk IO itself, but just for printing the output to the screen).
+
+  * [[Loading a file]]
+  * [[Saving a file]]
+  * [[Reading a file byte-by-byte]]
+  * [[Writing a file byte-by-byte]]
+  * [[Reading the error channel of a disk drive]]
+  * [[Reading the directory]]
+  * [[Sending a command to a disk drive]]
+  * [[Reading a sector from disk]]
+  * [[Writing a sector to disk]]
+  * [[Formatting a disk]]

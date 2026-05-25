@@ -1,0 +1,56 @@
+# PAGE: base:sprites
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:sprites
+
+====== Sprites ======
+Everything sprite related. This page contains all information on sprite programming, and other sections such as the VIC, demo coding and game coding sections link to this page, rather than having own links to sprite articles.
+
+===== Basic stuff =====
+
+  * [[base:spriteintro|Introduction to Sprites]] - by Oswald/Resource
+  * [[Sprite X-coordinate calculus]] - by The_WOZ/soft154i
+  * [[Ballon demo from Manual]] - by Andreas Bujok
+
+===== Multiplexing =====
+  * [[Sprite multiplexing]] - aka [[http://cadaver.homeftp.net/rants/sprite.htm|"Rant 3"]] - tutorial by Cadaver
+  * [[Simple Sprite-Multiplexing using Sprite 1]] - by cbmhardware
+  * [[Sprite Multiplexer]] - by Fungus.
+  * [[Sprite Multiplexer 2]] - by Fungus. More advanced.
+  * [[Sprite Multiplexer 3]] - by Fungus. Even more advanced, but still got some bugs. Available here to express the idea.
+  * [[Flexible 32 Sprite Multiplexer]] - by Thcm. Advanced Multiplexer with a very fast sorting algo.
+  * [[Flexible 32 Sprite Multiplexer 2|Flexible 32 Sprite Multiplexer - Version 2]] - Updates by MP. Advanced Multiplexer with a very fast sorting algo.
+  * [[Flexible 48 Sprite Multiplexer]] - by MP. Source and demo unit test.
+
+===== Sorting Routines for Multiplexers =====
+
+Several of the articles above touch on sort routines, and Cadaver's "Rant 3" compares a few. The following pages focus purely on sorting.
+  * [[Sprite multiplexer sorting]] - Sprite 'Y' sorting research by Falco Paul
+  * [[Flagged Bucket Sort]] - a "fast worst case" sorter by Christopher Jam
+  * [[A Faster Radix Sort]] - by lft
+
+There are also information about sorting available on the [[base:6502_6510_maths#sorting|maths and algorithms]] page.
+===== Collision Detection =====
+
+  * [[Simple Hardware Sprite to sprite collision]] - by Richard Bayliss
+  * [[Simple Software Sprite to sprite collision]] - by Richard Bayliss
+  * [[Simple Hardware Sprite to Background collision]] - by Richard Bayliss
+  * [[Simple Software Sprite to Background collision|Simple Software Sprite to Background collision]] - by Achim
+  * [[Hybrid Hardware/Software Sprite collision detection]] - by Flavioweb
+===== Tricks =====
+  * [[Sprites in Bottom Sideborder]] - by Groepaz/Hitmen
+  * [[Sprite FPP]] how to display any gfx line at any place using sprites
+  * [[magazines:chacking5#the_demo_cornerstretching_sprites|Stretching Sprites]] by Pasi 'Albert' Ojala ( C= Hacking #5)
+  * [[Sprite Interleave]] to help with large sprite arrays - by Raistlin/Genesis*Project (with thanks to Christopher Jam)
+
+===== Demo Effects using Sprites =====
+These are also available on the Demo Coding page.
+
+  * [[Scrolltext using Sprites]] - by Testicle
+  * [[8 Sprite starfield]] - by Richard Bayliss
+
+===== Various =====
+
+  * [[Sprite Converter]] - a simple tool (Python script) to convert images to fields of sprites
+  * [[Sprite Mirror]] - by Antonio Savona
+  * [[GIF to Sprites]] - Kick Assembler script to convert a formatted GIF to a sprite font
+
+

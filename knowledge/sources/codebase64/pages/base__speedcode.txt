@@ -1,0 +1,124 @@
+# PAGE: base:speedcode
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:speedcode
+
+====== Speedcode a.k.a. Loop Unrolling ======
+
+Written by Cruzer/CML
+
+===== Intro =====
+
+One of the earliest optimization tricks invented was loop unrolling, aka. speedcode. It was probably first done to get the most rastersplits on the same line, and then later utilized to break DYCP records, etc. The idea is that instead of a loop, you "unroll" the inner part of the loop that actually does something, and thereby strip away the administrative costs of the loop logic.
+
+This loop clears 10 chars, which it uses 103 cycles for:
+
+<code>
+	lda #0
+	ldx #9
+loop:	sta screen,x
+	dex
+	bpl loop
+</code>
+
+If we unroll the loop it can be done in only 42 cycles:
+
+<code>
+	lda #0
+	sta screen+0
+	sta screen+1
+	sta screen+2
+	sta screen+3
+	sta screen+4
+	sta screen+5
+	sta screen+6
+	sta screen+7
+	sta screen+8
+	sta screen+9
+</code>
+
+This might be counterintuitive at first, since the latter piece of code is bigger, but the fastness comes from the fact that it only has to be executed once, where the first one loops 10 times. The drawback is that it takes up a lot of memory, but fortunately there can be a lot of speedcode in 64K, so no need to worry about that for now. Another disadvantage is that it's harder to write and read afterwards.
+
+Here's another a bit more advanced example - an 8x8 plasma, which is not only ugly but also slow because it relies on looping. This means it can only be 20x20 chars big if it has to run oneframed.
+
+[[8x8-plasma-looped|{{:base:plasma-looped.png|}}]]
+
+[[8x8-plasma-looped|Sourcecode for 8x8 Plasma Without Speedcode]]
+
+In the coming chapters I will use the same routine to show some different ways of optimizing it.
+
+===== The slave method =====
+
+The most braindead way of making speedcode is to type it all in by hand, which is how I did it back in the good old lamerdays. :-) This took quite some time, but with help from copy/paste, a little exercise and some nice pumping music on the ghettoblaster, you could get into kind of a robotic trance, where the code almost wrote itself. An average routine could be done in about an afternoon on a good day, if I knew what I was doing. The problem came when I didn't, and needed to do it all over again and again until it worked. Or if I just wanted to experiment with parameters for sines etc., it could take hours to update the routine for every change.
+
+Here is the plasma routine, now with handcoded speedcode. As you can see this had a drastic effect on the size that could be rendered in one frame, which went from 20x20 to a full 40x25 chars screen.
+
+[[8x8-plasma-slave-speedcode|{{:base:plasma-speedcoded.png|}}]]
+
+[[8x8-plasma-slave-speedcode|8x8 Plasma with "handcoded" speedcode]] - Well, actually I gotta admit that I cheated a bit and made a script to generate the assembly code, but the difference is the same. The sourcecode is now 5297 lines long.
+
+===== Making the computer code for you =====
+
+Typing it all by hand quickly became boring, so the next step was to automate the process. The first idea I had was to make a Basic program to generate the code. This was quite an improvement, but still a bit clumsy, for instance because the places where stuff should be changed in the code had to be hardcoded, and because C64 Basic basically sucks for doing anything advanced, because of short variable names, slowness, etc. So this is not a recommended method.
+
+[[8x8-plasma-basic|8x8 Plasma with Basic generated speedcode]]
+
+
+===== Scripting/Macros =====
+
+This is something I haven't used a whole lot. In the old days I heard a lot of buzz about macro assemblers that could "do all the work for you", but since I had already skipped to a runtime code generator (see next chapter) I didn't bother to check it out. I have used the scripting language in KickAss quite a lot though, since it's very easy to do some speedcode in a hurry that way, to test if an idea works before doing it the real way.
+
+The disadvantage of this and the other above mentioned methods is that the speedcode fills up a lot of space on the disk, and therefore takes a long time to load. It's also very static, since you only have one version of the effect, with no option of changing it at runtime.
+
+You could of course make a runtime speedcode updater to change the params in the speedcode, but that's almost as advanced as a runtime generator, and it only helps in cases where the code repeats in predictable patterns. If there's optimizations like storing the same value twice which cause the code to change structure when the effect params change, the code needs to be regenerated all over.
+
+So in my opinion scripting is only good for proof of concept, except maybe in rare cases where the code is so advanced that would make the runtime code generator take longer than loading the speedcode from disk.
+
+[[8x8-plasma-scripted|8x8 Plasma With Scripted Speedcode]]
+
+===== Runtime Code Generators =====
+
+And now for the real way of doing it - on the C64, in machine code. That way you only need to load the small generator routine, which means faster loading time, and space for more parts on the disk. It also means that you can more easily switch between different variants of the effect, or even fit several different effects into the memory at once, as seen in onefilers like Dawnfall/Oxyron.
+
+The disadvantage is that it's harder to do complex logic in assembly than in a high level language. But it isn't that complicated actually - basically you just need to copy the same piece of code out to memory a number of times, with a little change for every iteration. The changes can be applied either by calculating stuff, e.g. multiplying the X and Y positions with sine spreadings, or incrementally, which is of course faster.
+
+Let's look at an algorithm for generating our simple char plasma:
+	* For all Y positions (lines)
+		* Init params/code sources for the current line
+		* Copy init code to destination
+		* For all X positions on the line
+			* Copy plasmer chunk to destination
+			* Update sine load addresses + store address in the code source
+		* Update sine load addresses in init chunk
+
+[[8x8-plasma-codegen|8x8 Plasma w/ Generated Speedcode]] - As you can see when assembling it, the code now only takes about $140 bytes, as opposed to over $3000 with the previous versions. And the init time isn't too bad either - about a 3rd of a second, which definitely wouldn't have been enough to load all the speedcode from disk.
+
+===== Optimizing the Speedcode Generator =====
+
+If it takes too long to generate the code and you crave some more pace for your Edge of Disgrace-beating killerdemo, the generator can of course also be optimized. In our plasma case the speedcode is quite small and simple, which means the generator is already so fast that it would be hard to notice any improvement of the init time. But if we switch between some different variants of the effect while running, the pause gets more noticeable. So here's [[8x8-plasma-effect-switch|8x8 Plasma w/ Effect Switching]] and no optimizing.
+
+**Using Speedcode to Generate Speedcode**
+
+The code generating loops can of course be unrolled like any other loop. This doesn't take too much memory since they are usually quite small - in our case it's a total of 24 bytes that are generated. The sourcecode can become a bit messy though, but that's the price you have to pay for gaining speed. We'll look at a way of simplifying it a bit later though.
+
+Here's the [[8x8-plasma-optimized-codegen|8x8 Plasma w/ Optimized Code Generator]], where the pause between effects has been at least halved. The main improvements are unrolling of the X- and Y loops, a few lookup-tables as well as a faster color table generator. The inner loop (X) has been optimized the most, since it runs the most times (1000 as opposed to only 25 for the outer Y-loop.) So actually the outer one doesn't matter much, but I included it anyway to show two different ways of unrolling a code generator. The fastest version takes 7+ cycles for every byte it generates, while the "slow" one takes 10+. The + means there's also administrative costs for both versions, as well as additional cycles if the code bytes have to be looked up or calculated instead of just loaded immediately.
+
+**Simplifying the Mess with Scripting**
+
+Before complicating the code further, let's simplify it a bit with some of KickAss's scripting features. ([[http://www.theweb.dk/KickAssembler/Main.php|Read the fine manual]] for details on the syntax.) The main idea is to add some functions and pseudo commands to do some common tasks, of course without sacrificing any cycles or flexibility. Basically we just want to create the same code as before, but with a more coder friendly interface, to make it easier to define the speedcode that should be generated.
+
+The main pseudocommand is ":gc" (for Generate Code), which can generate 1-3 bytes of code based on the arguments. This provides syntactic sugar to hopefully make the code more readable, as well as more flexible, since you can now change/move/remove/add instructions without having to manually change the length of the code segments or other administrative stuff. [[codegen-scripts.asm|scripts.asm]] - should be placed in the same folder as the code, or a lib-dir. [[8x8-plasma-scripted-codegenerator|8x8 Plasma w/ Scripted Codegenerator]] - see the comments in both files for how it works.
+
+Guess it might be possible to simplify it further. Basically what we need is just to define the code segments and how to change them for each iteration, and from this information it should theoretically be possible to generate a codegenerator. But the danger of a more generic approach is always that it becomes slower, bigger and harder to finetune. With the approach above I haven't compromised on any of these aspects.
+
+**Gaining Further Speed with Code Updating**
+
+The pause between effect variants could be further reduced if we added a code updater, that only changed the stuff that needed to be changed, instead of regenerating all the code every time. However, this only works if the code has the exact same structure for every variant of the effect, but luckily it does in our case.
+
+The code generator can be reused if we add two different modes - "generate" and "update", as well as a second pseudo command (:uc, for Update Code) which does the same as :gc, except that :gc now only outputs bytes in "generate" mode, while being skipped in "update" mode. This logic doesn't impact the speed, since it's all done at assembly time. And it can even reduce the runtime memory footprint, since we only need the updater (which is smaller than the generator) at runtime. The generator only needs to run once before the effect starts, and can hereafter be disposed, e.g. by placing it in the area where the effect spits out its gfx data.
+"8x8-plasma-updater|8x8 Plasma w/ Code Updater" - archive missing?
+
+
+===== What to do if running short on memory? =====
+
+For some effects, especially ones that take more than one frame to complete, or that require lots of lookup-tables, the 64K can become a little too crammed. The solution is to prioritise, and choose what gives you most bang for the buck, regardless of whether it's speedcode or tables. This can sometimes be hard to determine, since it's sometimes not easy to make a cycle count of how much the difference would be between using a chunk of memory on e.g. a table or some speedcode. Another good rule of thumb is to start with unrolling the innermost loop, since it runs the most times. This would mean the X-loop in our plasma case, which loops 1000 times for a full screen, where the y-loop only runs 25 times.
+
+It's always a good practice is to keep a meticulous memory map at the top of your source code, and to keep it updated, e.g. by regularly taking a tour of the memory with a monitor, and checking that things fill up as much as you think. Also remember that memory can be reused again and again - for instance there might be some code and data used for initing, which isn't needed when the effect is running. So there's no need to keep it filling up. Instead it could be placed where the effect has its graphical output, and thus overwritten when it starts. The place that should be kept under the most scrutiny is the zeropage, since you win both bytes and cycles by placing your variables here. I do all of this memory allocation manually, but I guess it might be possible to automate it somehow.

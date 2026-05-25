@@ -1,0 +1,127 @@
+# PAGE: base:supercpu_adc
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:supercpu_adc
+
+====== ADC ======
+
+<code>
+    //---------------------------------------------------------------------------------------------
+    // PseudoCommand-OPC: ADC16 (ADd with Carry)
+    //
+    // Addressing Modes:
+    //   Immediate                               ($69 - 2 bytes*, 2 cycles¹°)
+    //   Absolute                                ($6d - 3 bytes, 4 cycles¹°)
+    //   Absolute Long                           ($6f - 4 bytes, 5 cycles¹°)
+    //   Direct Page (also DP)                   ($65 - 2 bytes, 3 cycles¹²°)
+    //   DP Indirect                             ($72 - 2 bytes, 5 cycles¹²°)
+    //   DP Indirect Long                        ($67 - 2 bytes, 6 cycles¹²°)
+    //   Absolute Indexed, X                     ($7d - 3 bytes, 4 cycles¹³°)
+    //   Absolute Long Indexed, X                ($7f - 4 bytes, 5 cycles¹°)
+    //   Absolute Indexed, Y                     ($79 - 3 bytes, 4 cycles¹³°)
+    //   DP Indexed, X                           ($75 - 2 bytes, 4 cycles¹²°)
+    //   DP Indexed Indirect, X                  ($61 - 2 bytes, 6 cycles¹²°)
+    //   DP Indirect Indexed, Y                  ($71 - 2 bytes, 5 cycles¹²³°)
+    //   DP Indirect Long Indexed, Y             ($77 - 2 bytes, 6 cycles¹²°)
+    //   Stack Relative (also SR)                ($63 - 2 bytes, 4 cycles¹°)
+    //   SR Indirect Indexed, Y                  ($73 - 2 bytes, 7 cycles¹°)
+    //   * - Add 1 byte if m = 0 (16-bit memory/accumulator)
+    //   ¹ - Add 1 cycle if m = 0 (16-bit memory/accumulator)
+    //   ² - Add 1 cycle if low byte of Direct Page register is other than zero (DL< >0)
+    //   ³ - Add 1 cycle if adding index crosses a page boundary
+    //   ° - Add 1 cycle if 65C02 and d=1 (decimal mode, 65C02)
+    //
+    // Flags Affected:
+    //   n - Set if most significant bit of result is set; else cleared.
+    //   v - Set if signed overflow; cleared if valid signed result.
+    //   z - Set if result is zero; else cleared.
+    //   c - Set if unsigned overflow; cleared if valid unsigned result.
+    //
+    // Description:
+    //   Add the data located at the effective address specified by the operand to the contents of
+    //   the accumulator; add one to the result if the carry flag is set, and store the final
+    //   result in the accumulator.
+    //
+    //   The 65x processors have no add instruction that does not involve the carry. To avoid
+    //   adding the carry flag to the result, you must either be sure that it is already clear, or
+    //   you must explicitly clear it (using CLC) prior to executing the ADC instruction.
+    //
+    //   In a multi-precision (multi-word) addition, the carry should be cleared before the
+    //   low-order words are added; the addition of the low word will generate a new carry flag
+    //   value based on the addition. This new value in the carry flag is added into the next
+    //   (middle-order or high-order) addition; each intermediate result will correctly reflect the
+    //   carry from the previous addition.
+    //
+    //   d flag clear: Binary addition is performed.
+    //   d flag set: Binary coded decimal (BCD) addition is performed.
+    //
+    //   8-bit accumulator (all processors): Data added from memory is eight-bit.
+    //
+    //   16-bit accumulator (65802/65816 only, m = 0):
+    //    - Data added from memory is sixteen-bit:
+    //     - the low-order eight bits are located at the effective address;
+    //     - the high-order eight bits are located at the effective address plus one.
+    //---------------------------------------------------------------------------------------------
+
+    .pseudocommand adc16 val {
+        .if (val.getType()==AT_IMMEDIATE) {
+            .byte $69, <val.getValue(), >val.getValue()
+        }
+
+        .if (val.getType()==AT_ABSOLUTE) {
+            .if (val.getValue()<256) {
+                .byte $65, <val.getValue()       // Direct Page
+            } else {
+                .if (val.getValue()<65536) {
+                    .byte $6d, <val.getValue(), >val.getValue()
+                } else {
+                    .byte $6f, <val.getValue(), >val.getValue(), val.getValue() >> 16
+                }
+            }
+        }
+
+        .if (val.getType()==AT_ABSOLUTEX) {
+            .if (val.getValue()<256) {
+                .byte $75, <val.getValue()       // Direct Page
+            } else {
+                .if (val.getValue()<65536) {
+                    .byte $7d, <val.getValue(), >val.getValue()
+                } else {
+                    .byte $7f, <val.getValue(), >val.getValue(), val.getValue() >> 16
+                }
+            }
+        }
+
+        .if (val.getType()==AT_ABSOLUTEY) {
+            .byte $79, <val.getValue(), >val.getValue()
+        }
+        .if (val.getType()==AT_IZEROPAGEX) {
+            adc (val.getValue(),x)
+        }
+        .if (val.getType()==AT_IZEROPAGEY) {
+            adc (val.getValue()),y
+        }
+        .if (val.getType()==AT_INDIRECT) {
+            .byte $72, val.getValue()
+        }
+
+    }
+
+    // Handle long addressing modes for Indirect and Indirect,y:
+    .pseudocommand adc_l val {
+        .if (val.getType()==AT_INDIRECT) {
+            .byte $67, val.getValue()
+        }
+        .if (val.getType()==AT_IZEROPAGEY) {
+            .byte $77, val.getValue()
+        }
+    }
+
+    // Handle stack addressing modes for Stack Relative and Stack Indirect Indexed,y:
+    .pseudocommand adc_s val {
+        .if (val.getType()==AT_INDIRECT) {
+            .byte $63, val.getValue()
+        }
+        .if (val.getType()==AT_IZEROPAGEY) {
+            .byte $73, val.getValue()
+        }
+    }
+</code>

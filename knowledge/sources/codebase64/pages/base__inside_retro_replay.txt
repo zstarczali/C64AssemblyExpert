@@ -1,0 +1,438 @@
+# PAGE: base:inside_retro_replay
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:inside_retro_replay
+
+====== Documentation for the Retro Replay freezer cartridge for the C-64 ======
+
+This document is freely distributable as long as it is not changed, and one
+of the sources www.jschoenfeld.com, www.jschoenfeld.de, www.siliconsonic.com
+is mentioned. 
+
+last update: December 6th, 2001 \\
+-- \\
+  * December 6th:
+    * Added 29F010B section.
+  * October 5th:
+    * Corrected typos in "accessory connector" chapter.
+  * September 28th:
+    * Last-minute change: The Freeze button of my pre-series prototype failed today! This brought me to the decision to send the MT250 type buttons back and use Monacor MT412 buttons instead. They are much more expensive (more than twice as much!), but they make a much better impression. I know my MT250 button on the pre-series board had to take a lot since june this year, but I don't want to risk returns from all over the world because of bad buttons. SMD and conventional production is finished, quality control will follow this weekend, first shipments on monday, october 1st! (fortunately, the buttons are mounted after QC, so this does not cause additional work :-)).
+    * Corrected the "accessory connector" chapter of this document.
+    * Corrected the "hints" chapter of this document.
+  * September 26th, 11:30am:
+    * Decided to leave bit 0 of $de01 register "write-always", so the UART can be switched on and off during operation. This ensures higher compatibility with other hardware. Last chance to change something in the behavior of the Retro Replay is over now, programming the MACHs will begin in a few minutes!
+  * September 26th, 2:00am:
+    * Accessory connector was only available in REU compatible mode. Nonsens! Don't ask me why I did this, now the accessory connector can be switched on regardless of the REU compatibility bit. Decision pending: set/reset accessory enable bit regardless of first write to $de01? Right now it's "write once and suffer from your decision". Could be changed for the final version, we have about 12 hours left for the decision!
+  * September 19th:
+    * Removed another glitch in the logic that kept the Flash from accepting the "magic" sequences such as "Autoselect" and "Read/Reset". The problem was an interruption of the write cycle of about 5 nanoseconds after about 250ns. This caused the 29F010 Flashrom to recognize two write cycles instead of one, so an error in the sequence was detected, and the device stayed in read mode forever. Problem solved by generating the signal with a T-Flipflop instead of a combinatoric equation. Thanks to my Agilent 54622D mixed-signal scope for being such a precise device. Now I know why I decided for the 100Mhz version instead of the cheaper 60Mhz version, but I did not expect it to be useful  on the slowest computer that I ever developed for. All other combinatoric equations of the design do not cause glitches like this (either uncritical, or they form RS-flipflops that are stable by default). No further problems expected from this cause. Further, the memory map changes possible with the lower two bits of the $de00 register have been cut to a minimum. You can only alter the $8000-$9fff area with the GAME and EXROM lines if the Flashmode jumer is set. This ensures IRQs and NMIs to be served correctly, even if the GAME line is asserted, which usually also disables the kernal rom in the $e000-$ffff area. With this improvement, you can write basic programs with small assembler-subroutines for the magic sequences. Don't try POKE-ing the magic sequences, as the POKE command also reads from the location you want to write, so you'll never produce a proper magic sequence. Updating will not have to be done, the September 18th version never left this house!
+    * Software compatibility is not affected by these changes.
+  * September 18th:
+    * In preparation for mass production, some changes in RAM and FLASH timing have been done. Certain combinations of MACH and RAM had problems with data loss in the memory. This is also the cause for the failure of earlier Flash programs. Sorry Count0!
+    * Write cycles have now an earlier end, this ensures data hold times for both, Ram and Flash chips. This improvement also applies to the accessory connector. A write cycle is now exactly three dot-clock cycles long, which is about 380 nanoseconds on PAL machines. Both edges of the signal occur during the data-valid window of the CPU write cycle, so a secure takeover of data into the receiving chip is ensured for all vendors of memory chips and Amiga-clockport expansions. This change cannot be implemented on the beta board (green board) due to routing limitations in the MACH chip. Pins had to be swapped and glue logic had to be added to the final board in order to make the design fit. If you have one of the four beta boards, keep it as a collector's item. Two of them are back at individual Computers, maybe we will auction them on eBay (anybody interested?). Software compatibility is not affected by these changes.
+  * May 17th:
+    * Changed interrupt level of 22-pin port to NMI. Thanks to Ninja for the suggestion, this will ensure safe serial data transfer also at high baudrates.
+    * 22-pin port will now be equipped on all boards. Found a good supplier of raster-2 pin headers, so now this can be financially justified. Still looking for case supplier. We want black or transparent cases!
+    * Printed circuit board (PCB) finalized. The board will have black solderstop and golden connectors. We want it to be durable!
+  * April 21st:
+    * Added passage to "Flashing Rom" section, added hardware options of final board.
+  * April 19th:
+    * Updated after the Ma Baker conference at McDonalds Fallingbostel on April 15th, 2001. Thanks to these scene members: Danzig, Deekay, Doc Bacardi, Ninja, Checky and Count0 (no special order!). Each of them has done his part in improving the cartridge with suggestions.
+
+===== Implemented suggestions =====
+
+
+  * REU comp bit moved to bit 6 in $de00/01 read register
+  * AllowBank bit introduced ($de01 write, bit 1, only affects RAM)
+  * NoFreeze bit introduced
+  * accessory connector added 
+
+===== Suggestions not implemented =====
+
+
+Someone (not at the Ma Baker conference) suggested that the freeze button
+can be pressed through a serial port that is connected to the accessory
+connector. This would have caused too many changes that would make other
+A1200 hardware incompatible on this port. Sure, this port will be used for
+a Silversurfer serial port by most users, but you could also think of any
+other piece of hardware that uses the Amiga 1200 clockport. This would not
+be possible with that change. 
+Hardware-turn-off switch/jumper: This is absolutely unnecessary. After
+setting bit 2 in $de00, the cartridge is completely switched off, and it is
+impossible to tell by software if there is a Retro Replay installed or not
+(and I mean "impossible", because the hardware is completely tri-stated!).
+
+Compatibility to the IDE64 controller: This is not necessary. That thing is
+overpriced and crappy. Nobody can really use it. Demos and games have their
+own loaders that do not work with a harddrive, and there are simply not
+enough customers with such a harddrive to justify such a major change in
+hard- and software. Period.
+--
+** No further changes to the hardware will be made. This is nealry a
+** non-profit project, I will not spend more time with it.
+(unless you have a really good suggestion that increases the value by far!)
+
+
+====== General ======
+
+Retro Replay is a cartridge that is plugged to the 44-pin expansion slot of
+all known C-64 versions. Opening the computer is not necessary. It has been
+successfully tested on C-64 models from 1983, 1984, the cost-reduced C-64
+with the highly integrated PLA, the C-64 game system, and the SX-64. The
+machines tested were all PAL machines. NTSC machines were tested by Jeri
+Ellsworth. If used on a C128, the module will not force the computer to start
+in C64 mode. It will only start if you enter "go64", or if you hold down the
+C= key during startup, so you don't have to remove the cartridge for the C128
+mode.
+Essentially, Retro Replay is a revised Action Replay clone. There are a
+number of advantages over the real Datel Action Replay, like a more secure
+freeze-logic, added amount of ROM and RAM, compatibility to Commodore 1764
+REU, and user-flashable ROM without need for additional equipment like Eprom-
+programmers or erasers. Reading $de00 with the cartridge activated will not
+crash the computer, as it does with the original Action Replay.
+Retro Replay is software compatible with Action Replay, so you can use the
+ROM image of your old cartridge on this new product. If you want to do this
+legally, you have to be the owner of a real Action Replay. There is no
+license aggreement with Datel, because talking to them seems like an
+impossible mission. They simply ignored our efforts to contact them.
+However, there are free images on the internet that are placed in the public
+domain, so nobody really depends on Datel. Check www.ar.c64.org.
+The board has the same shape as the original Action Cartridge, so you can put
+it in the same case, or leave it without a case at all.
+
+
+====== Theory of operation ======
+
+After switching on, the cartridge is a simple ROM module. The $de00 and $de01
+registers are active, and the memory map of the cartridge is standard, not
+freeze (see further down).
+The Freezer is essentially made up of two RS-Flipflops, as with all freezer-
+cartridges. However, the Retro Replay has much more sophisticated conditions
+for setting and resetting them. Let's call the two Flipflops "Freeze Pending"
+and "Freeze done". Both are reset on a hardware reset. Holding the Freeze
+button down for more than two microseconds and then releasing it will set the
+"Freeze Pending" Flipflop. At the same time, the IRQ and NMI lines are
+asserted, and the CPU supervision logic is started: This logic waits for the
+CPU to do the necessary write-accesses to stack: Before the 6510 serves an
+IRQ or an NMI, the program pointer and the processor status are saved on the
+stack ($0100 to $01ff). These three consecutive write cycles give a clear
+indication that the CPU will fetch the IRQ/NMI vector in the next cycle, so
+this is the set-condition for the "Freeze Done" Flipflop. Setting FreezeDone
+resets FreezePending, and disables the Freeze button. Further, the "Freeze"
+memory map is set, replacing the original C-64 Kernal IRQ/NMI with the
+vectors of the Retro Replay cartridge.
+The only way to beat this freezer is to disable IRQs with the SEI command,
+and to assert the NMI line with the CIA chip, not telling it to release the
+NMI line (NMI is edge-triggered, not level-triggered!). Since nearly no
+program runs totally without IRQs, the Retro Replay can be considered as the
+"unbeatable freezer" that has been described in one of the "C=Hacking" mags
+(although the hardware-description in that article is totally bullshit, no
+serious Freezer module has ever used the UltiMax mode of the 64). Even if the
+IRQ is served "late" - the CPU supervision circuit is patient. It can wait
+forever, and let the computer run without affecting the memory map. If the
+program you are trying to freeze has disabled all IRQs and NMIs, the Freeze
+button will simply have no effect.
+The FreezeDone Flipflop is reset by setting bit 6 of the $de00 register,
+activating the standard memory map of the cartridge.
+
+
+====== Registers ======
+
+The Retro Replay has three registers: Two write-only and one read-only
+register:
+<code>
+$de00 write: This register is reset to $00 on a hard reset if not in flash
+             mode. If in flash mode, it is set to $02 in order to prevent the
+             computer from starting the normal cartridge. Flash mode is
+             selected with a jumper.
+             Bit 0 controls the GAME line: A 1 asserts the line, a 0 will
+             deassert it.
+             Bit 1 controls the EXROM line: A 0 will assert it, a 1 will
+             deassert it.
+             Writing a 1 to bit 2 will disable further write accesses to all
+             registers of Retro Replay, and set the memory map of the C-64
+             to standard, as if there is no cartridge installed at all.
+             Bit 3 controls bank-address 13 for ROM and RAM banking
+             Bit 4 controls bank-address 14 for ROM and RAM banking
+             Bit 5 switches between ROM and RAM: 0=ROM, 1=RAM
+             Bit 6 must be written once to "1" after a successful freeze in
+                   order to set the correct memory map and enable Bits 0 and 1
+                   of this register. Otherwise no effect.
+             Bit 7 controls bank-address 15 for ROM banking
+
+$de01 write: Extended control register. If not in Flash mode, bits 1, 2 and 6
+             can only be written once. If in Flash mode, the REUcomp bit
+             cannot be set, but the register will not be disabled by the
+             first write. Bit 5 is always set to 0 if not in flash mode.
+             Bit 0: enable accessory connector. See further down.
+             Bit 1: AllowBank  (1 allows banking of RAM in $df00/$de02 area)
+             Bit 2: NoFreeze   (1 disables Freeze function)
+             Bit 3: bank-address 13 for RAM and ROM (mirror of $de00)
+             Bit 4: bank-address 14 for RAM and ROM (mirror of $de00)
+             Bit 5: bank-address 16 for ROM (only in flash mode)
+             Bit 6: REU compatibility bit. 0=standard memory map
+                                           1=REU compatible memory map
+             Bit 7: bank-address 15 for ROM (mirror of $de00)
+
+$de00 read or $de01 read:
+             Bit 0: 1=Flashmode active (jumper set)
+             Bit 1: feedback of AllowBank bit 
+             Bit 2: 1=Freeze button pressed
+             Bit 3: feedback of banking bit 13
+             Bit 4: feedback of banking bit 14
+             Bit 5: feedback of banking bit 16
+             Bit 6: 1=REU compatible memory map active
+             Bit 7: feedback of banking bit 15
+</code>
+====== Memory maps ======
+
+===== standard =====
+
+$de00 and $de01 registers are active, $df00-$dfff contain the last page of
+the selected 8K-bank of either ROM or RAM, whatever is selected. RAM can only
+be accessed in $8000-$9fff. ROM can be mapped to $8000, $a000 or $e000 with
+the corresponding status on GAME and EXROM.
+Note: If the AllowBank bit is not set, the $df00-$dfff area will always
+access bank 0 of the RAM, so the older cartridge images will work. The
+AllowBank bit does not have any effect on the ROM mirror in that area.
+
+===== Freeze =====
+
+ROM is mapped to $e000-$ffff, bank 0 is active directly after Freeze. Writing
+to bits 0 and 1 of the $de00 register will have no effect on GAME and EXROM.
+RAM can be selected and used in $df00 or $de02, respectively, but not in
+$8000. Banking bits work, so you have full read access to the ROM, and access
+to up to four RAM pages with the AllowBank bit set (minus 2 bytes if REU
+compatible bit is set). You should leave this memory map ASAP by setting bit
+6 of $de00, because C-64 RAM in the $e000 area is not available, and you
+don't have control of the GAME and EXROM lines.
+
+===== REU compatible =====
+
+$de00 and $de01 registers are active, $de02-$deff contain a mirror of $9e02-
+$9eff of the selected 8K-bank of either ROM or RAM, whatever is selected.
+RAM can only be accessed in $8000-$9fff. ROM can be mapped to $8000, $a000
+or $e000 with the corresponding status on GAME and EXROM. The $df00 stays
+free for use with the 1764 Ram Expansion Unit (REU).
+Note: If the AllowBank bit is not set, the $de02-$deff area will always
+access bank 0 of the RAM, so the older cartridge images will work. The
+AllowBank bit does not have any effect on the ROM mirror in that area.
+
+
+====== Flashing the ROM ======
+
+Retro Replay uses an AMD 29F010 1MBit Flash rom, organized as 128Kx8. If the
+Flashmode jumper is not set, writing to the chip is disabled by hardware.
+There is no possibility, no undocumented trick or anything else that lets
+you write to the Flash. For Flashing, both jumpers must be set. If the
+bank-select jumper is not set, you only have access to the upper 64K of the
+Flash, which inhibits certain actions described below. It is recommended to
+explain this on-screen before trying erase, sector-erase or write operations.
+Further, you can try to use banking bit 16 and compare the contents of the
+banks you are trying to select. You can display a warning if the contents are
+identical, but this is not a proof for an unset jumper, so the user should be
+able to override the warning.
+All the information below can also be verified from the 29F010 final
+datasheet, available on the AMD homepage (160K PDF document). 
+
+Note: For security reasons, the Freeze button is disabled when the Flashmode
+jumper is set. Accidential freezing during a flash operation could destroy
+data in banks you may not want to alter. The same applies to the Reset-button,
+but that cannot be disabled.
+
+Before runnig the following code segments, set bits 0 and 1 of the $de00
+register. This will assert GAME and deassert EXROM, bringing the 8K-bank
+of the Flash to $8000-$9fff for read and write accesses. This is necessary,
+because the cartridge sets $de00 to $02 with the Flashmode jumper set. This
+results in a "38911 basic bytes free" message, which may be confusing,
+because it shows that no cartridge is installed. Don't be afraid! The
+$de00/01 registers are active, and this is only done in order to prevent the
+computer to start a possibly garbled ROM. Ideal for development :-)
+
+===== Read/Reset command =====
+
+<code>
+LDA #$10
+STA $de01  ;set bank
+LDA #$aa
+STA $9555  ;this is a write to $5555 of the chip
+LDA #$08
+STA $de01  ;set bank
+LDA #$55
+STA $8aaa  ;this is a write to $2aaa of the chip
+LDA #$10
+STA $de01  ;set bank
+LDA #$f0
+STA $9555  ;write $F0 to $5555
+LDA #$xx
+STA $de01  ;set bank you desire
+LDA $xxxx  ;read address you desire
+
+Autoselect command:
+LDA #$10
+STA $de01  ;set bank
+LDA #$aa
+STA $9555  ;this is a write to $5555 of the chip
+LDA #$08
+STA $de01  ;set bank
+LDA #$55
+STA $8aaa  ;this is a write to $2aaa of the chip
+LDA #$10
+STA $de01  ;set bank
+LDA #$90
+STA $9555  ;write $90 to $5555
+LDA #$xx
+STA $de01  ;set bank you wish to read status from (one of eigt)
+LDA $8000  ;read manufacturer code ($01 for AMD)
+;do something with the value just read
+LDA $8001  ;read device code ($20 for 29F010)
+;do something with the value just read
+LDA $8002  ;read sector protect information in bit 0. 1=sector protected
+;do something with the value just read
+</code>
+
+Note: Once in Autoselect mode, you can do as many reads from the sectors as
+you want. Leaving this mode is only possible with the read/reset command, or
+with power-down. Bringing the device into Autoselect mode and then resetting
+the machine will let your Retro Replay appear as an empty cartridge. Nothing
+to worry about, just power-cycle the computer, and you're back to normal.
+
+===== Byte program =====
+<code>
+LDA #$10
+STA $de01  ;set bank
+LDA #$aa
+STA $9555  ;this is a write to $5555 of the chip
+LDA #$08
+STA $de01  ;set bank
+LDA #$55
+STA $8aaa  ;this is a write to $2aaa of the chip
+LDA #$10
+STA $de01  ;set bank
+LDA #$a0
+STA $9555  ;write $a0 to $5555
+LDA #$xx
+STA $de01  ;set bank you desire
+LDA #$xx   ;content you wish to write
+STA $xxxx  ;write to address you wish to write
+</code>
+Note: Programming means resetting bits from 1 to 0. Programming a 1 into a
+bit that already contains a 0 is not possible. The 29F010 chip will give an
+error condition in this case, which is not a chip failure - the user has made
+the mistake! Consult the AMD document for this case.
+
+The Chip Erase command should not be used, and is therefore not translated
+to C-64 assembler in this document. You _can_ use it, but I don't recommend
+it. Progam/erase cycles of the Flash memory are limited, and you usually only
+alter one of the two 64K banks. The limits are pretty far: Given the 100.000
+guaranteed program/erase cycles and an update frequency of "twice a day
+including weekends, christmas and easter", we have a product life time of
+more than 136 years. Pretty much for a computer product :-).
+
+===== Sector erase =====
+<code>
+LDA #$10
+STA $de01  ;set bank
+LDA #$aa
+STA $9555  ;this is a write to $5555 of the chip
+LDA #$08
+STA $de01  ;set bank
+LDA #$55
+STA $8aaa  ;this is a write to $2aaa of the chip
+LDA #$10
+STA $de01  ;set bank
+LDA #$80
+STA $9555  ;write $80 to $5555
+LDA #$10
+STA $de01  ;set bank
+LDA #$aa
+STA $9555  ;this is a write to $5555 of the chip
+LDA #$08
+STA $de01  ;set bank
+LDA #$55
+STA $8aaa  ;this is a write to $2aaa of the chip
+LDA #$xx
+STA $de01  ;set sector you wish to erase
+LDA #$30
+STA $8000  ;erase the sector
+;the following sequence is optional, called "multiple sector erase".
+LDA #$xx
+STA $de01  ;set another sector you wish to erase at the same time
+LDA #$30
+STA $8000  ;erase the sector
+</code>
+then timeout 80 microseconds, and do not access the chip during this period
+(your code must be in the 64 memory for this). Then the sector erase
+operation will start inside the chip.
+After the 80 microsecond pause, start polling $8000 for the results of the
+erase operation. For closer information on this, consult the 29F010
+datasheet, the /DATA poll section, page 15. A sector erase may take up to 30
+seconds, sometimes even longer, because the sector is programmed to $00 prior
+to erase (an empty byte contains $ff). I'd suggest a timeout of 60 seconds
+for a 16K sector.
+
+====== Making flash memory version 29F010B work ======
+
+
+The 29F010B is a drop-in replacement for the 29F010. However, the flash
+utility V0.01 and V0.02 can only program the chips, but not erase them.
+Due to internal AMD documents, the 29F010 tolerates some violations of the
+command sequences, such as not terminating the autoselect command, and
+sending another unlock sequence for multiple sector erase. The basic rule is:
+
+Follow the AMD documentation word-by-word, terminate each and every command
+with the read/reset command after successful execution, and use the status
+given by the chip instead of static timeouts for program or erase operations.
+
+If you need a copy of the changes document, send an eMail. It does not
+contain any "confidential" information, and I did not have to sign NDA to
+obtain the file, neither will you have to. It's just something that AMD does
+not provide on their website publicly.
+
+====== Accessory connector ======
+
+The Retro Replay has an accessory connector that can carry Amiga 1200
+hardware. The connector uses the spare_CS signal, not the RTC_CS signal.
+This lets you use add-ons like the Silversurfer to add a serial port to the
+C-64. The 16 registers of the clock-port are mapped to $de02-$de0f (lower two
+registers not available!). The IRQ of that port is connected to the NMI line
+of the 6510 processor.
+
+The two missing bytes of the Spare_CS space in non-REU compatible mode will
+be no problem, because the Silversurfer is mirrored over that area twice.
+Just use $de08-$de0f for the eight registers of the 16c550 UART. I tend to
+call this connector the "Silversurfer port", as it will not be able to carry
+bigger expansions of the 1200.
+
+Don't just "try" to connect other hardware, as most of the expansions will
+not fit mechanically correct. Hypercom 3 for example (old model with direct
+connection) would only fit the wrong way round, and this causes a short that
+kills both, Hypercom and Retro Replay. Of course, there is no warranty for
+this case!
+
+====== Hints ======
+
+All jumpers of the Retro Replay are hot-pluggable. Hot-plugging means you
+don't have to switch the computer off to change the jumper setting. There is
+one thing that you may need this for: After writing to $de01 once, bits 1,2
+and 6 are blocked for further writes. If you set and reset the Flashmode
+jumper during a session, one more write to the $de01 register including
+bits 1,2 and 6 is allowed without having to reset the whole computer. It
+will not really make sense for the user, but it may be interesting for
+developers.
+
+With Bit 2 in $de01 set, the freeze function is disabled. However, the state
+of the freeze button can still be read in bit 2 of the $de00 or $de01 read
+register. This could be used as an additional key, a hidden-key or whatever
+you want to use it for. 
+
+====== 512K Flash option ======
+
+The final board has the option to install a 29F040 Flash rom (also AMD). I am
+not sure whether this will ever be done, because these parts are really
+expensive (about 40,- DM each, information from April 2001). However, with a
+special MACH version that is still to be made, a 512K Flash can be installed,
+at the cost of having no accessory connector. The two pins necessary will be
+used for further banking bits, so the accessory connector MUST stay free!
+
+If you have any questions, feel free to ask me via e-mail:
+jens@jschoenfeld.de
+
+--EOF

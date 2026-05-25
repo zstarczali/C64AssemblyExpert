@@ -1,0 +1,12 @@
+# PAGE: books:hardware_diagnostics
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=books:hardware_diagnostics
+
+====== Hardware Diagnostics ======
+
+In case of hardware failure, these docs from Commodore may come in handy.
+
+{{ books:c64-diagnostics1.jpg }}
+
+{{ books:c64_diagnostics2.jpg }}
+
+{{ books:1541_diagnostics.jpg }}

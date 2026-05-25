@@ -1,0 +1,15 @@
+# PAGE: vic:visible_area
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=vic:visible_area
+
+====== Visible area of the screen on the monitor ======
+
+Different monitors show differently much of the VIC's output. The following figures are valid for PAL.
+
+The left border is 6 chars wide. From these 48 pixels, 2 are invisible because of the white HSYNC burst stripe. The right border is 4.5 chars wide, which is 36 pixels. Thus, the visible area is 46 + 320 + 36 = 402 pixels wide.
+
+The earliest line known to be displayed by any monitor is $08. This makes 43 lines of upper border. The last line known to be displayed is $12c, which makes 49 lines of lower border. Thus, the visible area is 43 + 200 + 49 = 292 pixels high.
+
+Remember that when using sprites in the upper border, line $08 corresponds to sprite y-position $07 (!). So if you want to cover the //whole// visible area, you should start with sprite(s) at y-position $07 and then work your way down 292 lines.
+
+Overall, this makes a visible area of 402 by 292 pixels.
+{{ :base:pal_visible_area.png?nolink |}}

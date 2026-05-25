@@ -1,0 +1,325 @@
+# PAGE: base:commodore_vic-ii_color_analysis
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:commodore_vic-ii_color_analysis
+
+====== Commodore VIC-II Color Analysis ======
+
+Written by Pepto. FTC cleaned up some initial comments about lack of time etc that were not exactly relevant to the topic itself. The original article is available [[http://www.pepto.de/projects/colorvic/|here]].
+
+The whole issue of VIC-II color-emulation is so mis-guiding and irritating, because every c64-emulator uses different palettes and these have been created by using cheap frame-grabbers/digitizers with strange color-behaviour or by moving around some rgb-sliders until it looks quite right. Many people have forgotten how the colors on a real C64 look, because they use emulators for a long time. Some people like DeeKay/Crest or Cyclone/Haujobb (he's also a member of Crest nowadays if I remember correctly) were able to create pretty good palettes by moving around rgb-sliders and comparing to a real C64, but the system described on this page gets even closer than this. Most probably you won't come much closer to the real thing, than this at all.
+
+But let's come to the C=64 colors which will be featured here first...
+
+The C=64 (with its VIC-II chip) features a palette of 16 colors.
+
+^ # ^ Name        ^
+| 0 | black       |
+| 1 | white       |
+| 2 | red         |
+| 3 | cyan        |
+| 4 | purple      |
+| 5 | green       |
+| 6 | blue        |
+| 7 | yellow      |
+| 8 | orange      |
+| 9 | brown       |
+| A | light red   |
+| B | dark grey   |
+| C | grey        |
+| D | light green |
+| E | light blue  |
+| F | light grey  | 
+
+Black, White and the three Greys are no colors and the "light"-versions of Red, Green and Blue are just brighter versions of Red, Green and Blue. That leaves us with eight unique colors.
+
+Since the color-palette of the VIC-II has been made for the TV-system, we aren't talking a RGB-color-space, but a YUV-one (for PAL-TV that is), that we can convert to RGB later.
+
+"Y" in the YUV-color-space is the Luma-signal which is just the "black&white-part" (the brightness) of the colors. "U" and "V" are color-difference signals, which together describe the hue and the saturation of the colors.
+
+If you just measure the "Y" signal with an oscilloscope, you'll notice, that few of the very early VIC's just had 4 different luma-levels (excluding black) and the majority of VIC's (called the "late" ones here) have 8 different luma-levels (excluding black). They doubled them, because quite some people still had black&white TV-sets, where many colors looked exactly the same. With the "late" version, only two colors share the same brightness.
+
+Here's a table of both of those luma-versions, ordered from darkest to brightest color (top to bottom):
+
+^ early VIC-II luma ^
+| 0                 |
+| 2, 6, 9, B        |
+| 4, 5, 8, A, C, E  |
+| 3, 7, D, F        |
+| 1                 |
+
+^ late VIC-II luma ^
+| 0                |
+| 6, 9             |
+| 2, B             |
+| 4, 8             |
+| C, E             |
+| 5, A             |
+| 3, F             |
+| 7, D             |
+| 1                |
+
+You can of course also verify this by minimizing color-saturation on your monitor, or just plugging "Y" in, or using a black&white monitor/tv.
+
+However if you measure the luma-levels with an oscilloscope (Marko Mäkelä did so in 1996), you are able to see, that all of those levels are perfectly dividable by 32. I made a little Illustration here:
+
+{{:base:luma-sys.gif|}}
+
+As we need to stuff the luma-values into 8 bits (0 to 255) for later calculation, we just divide 255 by 32 and get 7,96875. Now we just need to multiply the values in the Illustration with 7,96875 and round the results. Of course you may just use 8 instead of 7,96875, but as I'm quite a perfectionist I'll use 7,96875 for now and maybe change it later. ;-)
+
+^                                  ^^^
+| 08 * 7,96875 | = 63,75     | =  64 |
+| 10 * 7,96875 | = 79,6875   | =  80 |
+| 12 * 7,96875 | = 95,625    | =  96 |
+| 15 * 7,96875 | = 119,53125 | = 120 |
+| 16 * 7,96875 | = 127,5     | = 128 |
+| 20 * 7,96875 | = 159,375   | = 159 |
+| 24 * 7,96875 | = 191,25    | = 191 |
+| 32 * 7,96875 | = 255,0     | = 255 |
+
+So... That's it for the brightness of the colors, let's come to the hue...
+
+If you measure the chroma-signal ("u" & "v") with a vectorscope (I did so in 1999), you'll recognize, that all of the colors are on a perfect circle around the crossing-point of the "U" and "V" axis and so have exactly the same saturation (at least speaking in terms of video-language). That's why you don't need to note down the color-difference-signals by "U" and "V" coordinates, but you can use one value (degrees). All these angles are perfectly dividable by 22,5° (which is a quarter of 90°). The VIC-II creates all angles just with 4 voltage-levels being send positive and negative on "U" and "V". You can see those voltage-levels clearly in the next Illustration.
+
+^                                 ^^^
+| (light) blue | 0,0°   | 22,5° *  0 |
+| purple       | 45,0°  | 22,5° *  2 |
+| (light) red  | 112,5° | 22,5° *  5 |
+| orange       | 135,0° | 22,5° *  6 |
+| brown        | 157,5° | 22,5° *  7 |
+
+The missing three angles are on the opposite side of the color-wheel from above mentioned angles. Yellow is "blue + 180°", (light) green is "purple + 180°"; and cyan is "(light) red + 180°". This is also clearly visible in the next Illustration. You can of course also take (light) red, (light) green, (light) blue, orange and brown as the base-colors and say that the missing ones are on opposite sides of them, but for now I have it written down the above mentioned way. This will be maybe changed later (no time to change it right now). Thanks again to John 'Graham' Selck's Test-Program, which helped to find the angles a bit more exact than the vectorscope was able to do.
+
+If you want to calculate "U" and "V" coordinates from these angles in percent, you just use this formula:
+
+<code>
+U = 100 * cos(angle)
+V = 100 * sin(angle)
+</code>
+
+In order to calculate the 4 voltage-levels in percent, calculate "V" from Brown, Purple and Red and "U" from Blue:
+
+<code>
+100 * sin(157,5°) =  38,26834323650897719%
+100 * sin( 45,0°) =  70,71067811865475244%
+100 * sin(112,5°) =  92,38795325112867561%
+100 * cos(  0,0°) = 100,00000000000000000%
+</code>
+
+{{:base:uv-scope.gif|}}
+
+Now "Y", "U" and "V" are known and in order to convert to the RGB-color-space, you just have to find out how much saturation is possible without getting "out of gamut"/"invalid" rgb-values. Brown is the peak-color of the VIC-II color-palette. It is the first color to produce a negative blue-value when converting from YUV to RGB with too much saturation.
+
+I found out the desired value with the brute force method by calculating around with different values in order to more and more close up to the needed value which produces Brown's Blue-Channel to be very little above 0 when converting from YUV to RGB. The value I came up with is 34,0081334493.
+
+Please note however, that monitors/tv's also do clipping (out of gamut colors), when saturation, brightness or contrast is set too high. Really every C64-User has set-up his monitor/tv in a different way. Most people I personally know have set up their equipment to show a normalized palette though, because I think that this looks the best to the eye. This is a matter of taste. If you want a more saturated palette or higher brightness/contrast, you'll have to calculate with greater values (before gamma-correction -- more on this later). The palette I'm calculating here is normalized in every aspect (brightness, contrast and saturation) and this is also the way I have set up my original C64 with its 1084-monitor.
+
+What is maybe interesting for you to know is, that John 'Graham' Selck is currently coding a routine for the new CCS64-Beta (it will probably be included in other emulators later) which lets you modify contrast, brightness saturation and gamma in realtime while emulating, based on the color-logic described on this page. This is the most cool way to emulate your equipment, as you'll be able to modify the settings on the fly, as you do with real equipment. Additionally Graham emulates the short-comings of the PAL-TV-system (for example by using only half the resolution of the Y-layer for the U and V-layer -- like in a real PAL-system) which will also come closer to the look of a real C64 connected to a real 1084 monitor. Make sure to watch out for the new CCS64-Beta.
+
+But let's continue with the calculation... ;-)
+
+^ # ^ name        ^ angle                    ^ y ("late" luma)   ^ u                 ^ v                 ^
+| 0 | black       | n/a                      | 0 * ( 255 : 32 )  | 0                 | 0                 |
+| 1 | white       | n/a                      | 32 * ( 255 : 32 ) | 0                 | 0                 |
+| 2 | red         | 5 * ( 360° : 16 )        | 10 * ( 255 : 32 ) | peak * cos(angle) | peak * sin(angle) |
+| 3 | cyan        | 5 * ( 360° : 16 ) + 180° | 20 * ( 255 : 32 ) | peak * cos(angle) | peak * sin(angle) |
+| 4 | purple      | 2 * ( 360° : 16 )        | 12 * ( 255 : 32 ) | peak * cos(angle) | peak * sin(angle) |
+| 5 | green       | 2 * ( 360° : 16 ) + 180° | 16 * ( 255 : 32 ) | peak * cos(angle) | peak * sin(angle) |
+| 6 | blue        | 0 * ( 360° : 16 )        | 8 * ( 255 : 32 )  | peak * cos(angle) | peak * sin(angle) |
+| 7 | yellow      | 0 * ( 360° : 16 ) + 180° | 24 * ( 255 : 32 ) | peak * cos(angle) | peak * sin(angle) |
+| 8 | orange      | 6 * ( 360° : 16 )        | 12 * ( 255 : 32 ) | peak * cos(angle) | peak * sin(angle) |
+| 9 | brown       | 7 * ( 360° : 16 )        | 8 * ( 255 : 32 )  | peak * cos(angle) | peak * sin(angle) |
+| A | light red   | 5 * ( 360° : 16 )        | 16 * ( 255 : 32 ) | peak * cos(angle) | peak * sin(angle) |
+| B | dark grey   | n/a                      | 10 * ( 255 : 32 ) | 0                 | 0                 |
+| C | grey        | n/a                      | 15 * ( 255 : 32 ) | 0                 | 0                 |
+| D | light green | 2 * ( 360° : 16 ) + 180° | 24 * ( 255 : 32 ) | peak * cos(angle) | peak * sin(angle) |
+| E | light blue  | 0 * ( 360° : 16 )        | 15 * ( 255 : 32 ) | peak * cos(angle) | peak * sin(angle) |
+| F | light grey  | n/a                      | 20 * ( 255 : 32 ) | 0                 | 0                 |
+
+...and the result of this calculation is:
+
+^ # | name        ^ angle  ^ y (late)  ^ u                     ^ v                     ^
+| 0 | black       | n/a    | 0,0       | 0                     | 0                     |
+| 1 | white       | n/a    | 255,0     | 0                     | 0                     |
+| 2 | red         | 112,5° | 79,6875   | -13,01434923670814368 | +31,41941843272073796 |
+| 3 | cyan        | 292,5° | 159,375   | +13,01434923670814368 | -31,41941843272073796 |
+| 4 | purple      | 45,0°  | 95,625    | +24,04738177749708281 | +24,04738177749708281 |
+| 5 | green       | 225,0° | 127,5     | -24,04738177749708281 | -24,04738177749708281 |
+| 6 | blue        | 0,0°   | 63,75     | +34,0081334493        | 0                     |
+| 7 | yellow      | 180,0° | 191,25    | -34,0081334493        | 0                     |
+| 8 | orange      | 135,0° | 95,625    | -24,04738177749708281 | +24,04738177749708281 |
+| 9 | brown       | 157,5° | 63,75     | -31,41941843272073796 | +13,01434923670814368 |
+| A | light red   | 112,5° | 127,5     | -13,01434923670814368 | +31,41941843272073796 |
+| B | dark grey   | n/a    | 79,6875   | 0                     | 0                     |
+| C | grey        | n/a    | 119,53125 | 0                     | 0                     |
+| D | light green | 225,0° | 191,25    | -24,04738177749708281 | -24,04738177749708281 |
+| E | light blue  | 0,0°   | 119,53125 | +34,0081334493        | 0                     |
+| F | light grey  | n/a    | 159,375   | 0                     | 0                     |
+
+Now we need to convert YUV to RGB. Here's the formula:
+
+<code>
+R = Y             + 1,140 * V
+G = Y - 0,396 * U - 0,581 * V
+B = Y + 2,029 * U
+</code>
+
+...and here's the result:
+
+^ # ^ name        ^ r                           ^^ g                           ^^ b                           ^^
+| 0 | black       | 0,0                  | (0)   | 0,0                  | (0)   | 0,0                  | (0)   |
+| 1 | white       | 255,0                | (255) | 255,0                | (255) | 255,0                | (255) |
+| 2 | red         | 115,5056370133016413 | (116) | 66,58650018832567614 | (67)  | 53,28138539871917648 | (53)  |
+| 3 | cyan        | 123,5568629866983587 | (124) | 172,4759998116743239 | (172) | 185,7811146012808235 | (186) |
+| 4 | purple      | 123,0390152263466744 | (123) | 72,13070800338535009 | (72)  | 144,417137626541581  | (144) |
+| 5 | green       | 100,0859847736533256 | (100) | 150,9942919966146499 | (151) | 78,70786237345841898 | (79)  |
+| 6 | blue        | 63,75                | (64)  | 50,2827791540772     | (50)  | 132,7525027686297    | (133) |
+| 7 | yellow      | 191,25               | (191) | 204,7172208459228    | (205) | 122,2474972313703    | (122) |
+| 8 | orange      | 123,0390152263466744 | (123) | 91,17623437116303968 | (91)  | 46,83286237345841898 | (47)  |
+| 9 | brown       | 78,5863581298472838  | (79)  | 68,63075279282998076 | (69)  | 0,00000000000962268  | (0)   |
+| A | light red   | 163,3181370133016413 | (163) | 114,3990001883256761 | (114) | 101,0938853987191765 | (101) |
+| B | dark grey   | 79,6875              | (80)  | 79,6875              | (80)  | 79,6875              | (80)  |
+| C | grey        | 119,53125            | (120) | 119,53125            | (120) | 119,53125            | (120) |
+| D | light green | 163,8359847736533256 | (164) | 214,7442919966146499 | (215) | 142,457862373458419  | (142) |
+| E | light blue  | 119,53125            | (120) | 106,0640291540772    | (106) | 188,5337527686297    | (189) |
+| F | light grey  | 159,375              | (159) | 159,375              | (159) | 159,375              | (159) |
+
+Now you need to gamma-correct the rgb-colors. Please note, that the gamma-correction is always the last thing you do to the palette. If you want to change brightness, contrast, saturation, mix-colors for interlace-emu, rotate hue or anything else, you have to do this before the gamma-correction.
+
+I'm not 100% sure about the used gamma-values in the following calculation, but I'm working on it and it's probably right. This page will be updated in the future with the right values in case the one I'm using now are wrong. If you feel like a gamma-expert, please get in touch with me at pepto@pepto.de, while I keep on investigating the matter. ;-)
+
+In order to correct the PAL-Gamma for VGA-Output you need to calculate each r, g and b value with an exponent of "2,5 : 2,2" (which is 1,136) and stretch the results back proportionaly to 8 bit valid values (between 0 and 255). There's a lot of false and irritating information about gamma around, but I'll fix the right value in the future. Maybe 1,136 is even right and because it should theoretically and it does look correct, I'll use it for the moment (Thanks to John 'Graham' Selck for a little help with the gamma-values by just deciding which ones to use, while I was still thinking about which one to choose from the ones talked about in the gamma-faq's.). Theoretically Gamma is 2,5, but most people use 2,2 and PAL is officially noted with a gamma of 2,8. PeeCee's use a gamma of 2,2. Macintosh-computers have a gamma of 1,8 by default, but you're able to change it system-wide with the control-pannel "adobe-gamma" or "monitors" to the more common 2,2. Programs like Adobe Photoshop are also able to emulate the gamma for you in the "color-preferences". More Information about this will be added here later. I also don't know much about the gamma of Amiga-computers (ECS and AGA), even if I would love to as they are my computers of choice. Please get in touch with me if you know more about this.
+
+Here are the results, after the gamma-correction:
+
+^ # ^ name        ^ r                    ^^ g                    ^^ b                    ^^
+| 0 | black       | 0,0           | (0)   | 0,0           | (0)   | 0,0           | (0)   |
+| 1 | white       | 254,999999878 | (255) | 254,999999878 | (255) | 254,999999878 | (255) |
+| 2 | red         | 103,681836072 | (104) | 55,445357742  | (55)  | 43,038096345  | (43)  |
+| 3 | cyan        | 111,932673473 | (112) | 163,520631667 | (164) | 177,928819803 | (178) |
+| 4 | purple      | 111,399725075 | (111) | 60,720543693  | (61)  | 133,643433983 | (134) |
+| 5 | green       | 88,102223525  | (88)  | 140,581101312 | (141) | 67,050415368  | (67)  |
+| 6 | blue        | 52,769271594  | (53)  | 40,296416104  | (40)  | 121,446211753 | (121) |
+| 7 | yellow      | 183,892638117 | (184) | 198,676829993 | (199) | 110,585717385 | (111) |
+| 8 | orange      | 111,399725075 | (111) | 79,245328562  | (79)  | 37,169652483  | (37)  |
+| 9 | brown       | 66,932804788  | (67)  | 57,383702891  | (57)  | 0,0           | (0)   |
+| A | light red   | 153,690586380 | (154) | 102,553762644 | (103) | 89,111118307  | (89)  |
+| B | dark grey   | 67,999561813  | (68)  | 67,999561813  | (68)  | 67,999561813  | (68)  |
+| C | grey        | 107,797780127 | (108) | 107,797780127 | (108) | 107,797780127 | (108) |
+| D | light green | 154,244479632 | (154) | 209,771445903 | (210) | 131,584994128 | (132) |
+| E | light blue  | 107,797780127 | (108) | 94,106015515  | (94)  | 180,927622164 | (181) |
+| F | light grey  | 149,480882981 | (149) | 149,480882981 | (149) | 149,480882981 | (149) |
+
+Finished... Now here's a comparison of how some c64-pics look with the palette which is included in ccs64 v2.0 beta (this is just an example) and with the palette we just calculated...
+
+^ ccs64 v2.0b ^ my palette ^
+| {{:base:dk-ccs64.gif|}} | {{:base:dk-pepto.gif|}} |
+
+^ ccs64 v2.0b ^ my palette ^
+| {{:base:jo-ccs64.gif|}} | {{:base:jo-pepto.gif|}} |
+
+^ ccs64 v2.0b ^ my palette ^
+| {{:base:vs-ccs64.gif|}} | {{:base:vs-pepto.gif|}} |
+
+And here's the palette in hex-format for easier usage in certain emulators:
+
+<code>
+00 00 00
+FF FF FF
+68 37 2B
+70 A4 B2
+6F 3D 86
+58 8D 43
+35 28 79
+B8 C7 6F
+6F 4F 25
+43 39 00
+9A 67 59
+44 44 44
+6C 6C 6C
+9A D2 84
+6C 5E B5
+95 95 95
+</code>
+
+Have fun using it... ;-) (watch out -- work in progress -- more to come...)
+Sorry again for poor documentation and maybe typos, but remember that this is a preview...
+
+
+Philip "Pepto" Timmermann, 〈pepto@pepto.de〉
+
+
+P.S.: Here's an interesting eMail which Bob Yannes (co-developer of the VIC-II) sent to me. Please note that I can't disclose Bob's eMail address to you, as he's very concerned about his privacy and the only way to get in touch with him myself, was through a third person, who forwarded our mails to eachother. In other words, I don't have his eMail-address myself, so don't ask. Additionally please note that Bob talks about the NTSC color wheel. NTSC uses YIQ instead of PAL's YUV, but in order to convert from YIQ to YUV you just have to rotate everything by 33° and exchange the color-difference axis. This is what they probably did in hardware in order to make the VIC-II work with PAL and so NTSC and PAL-VIC's probably have the same colors.
+
+<code>
+Subject: "Re: VIC-II colors"
+   From: Robert 'Bob' Yannes
+     To: Philip 'Pepto' Timmermann
+   Date: 27.09.1999
+
+I was involved with the development of the VIC-II, however the 
+actual implementation of the design, including the Color Palette, 
+was done by someone else. I have forwarded your message to him, 
+but it is up to him if he wants to respond.
+
+I can tell you that the design was based on the principle that
+adding a sine wave of a particular frequency and amplitude to an
+inverted version of the same sine wave at a different amplitude
+produces a phase-shifted sine wave of the same frequency. The
+amount of phase shift is directly proportional to the amplitudes
+of the two sine waves.
+
+The VIC-II used the 14.31818 MHz master clock input (4 times the
+NTSC color burst frequency of 3.579545 MHz) to produce
+quadrature square-wave clocks. These clock signals were then
+integrated into triangle waves using analog integrators. The
+triangle waves were then integrated again into sine waves
+(actually rounded triangle waves, but good enough for this
+application). This produced a 3.579545 MHz sine wave, inverse
+sine wave, cosine wave and inverse cosine wave.
+
+An analog summer was used to create the phase-shifts in the
+Chroma signal by adding together the appropiate two waveforms at
+the appropiate amplitudes. The Color Palette data went to a
+look-up table that specified the amplitude of the waves by
+selecting different resistors in the gain path of the summer.
+The end result was that we could create any hue we wanted by
+looking at the NTSC color wheel to determine the phase-shift and
+then picking the appropiate resistor values to produce that
+phase-shift.
+
+Color Saturation was controlled by scaling the gain of the
+summer. When we picked the resistor values to determine the
+output phase-shift, we also scaled them to produce the desired
+output amplitude. Luminance was controlled using a simple
+voltage divider which switched different pull-down resistors
+into the open-drain output. We could create any Luminance we
+wanted by choosing the desired resistor value.
+
+I'm afraid that not nearly as much effort went into the color
+selection as you think. Since we had total control over hue,
+saturation and luminance, we picked colors that we liked. In
+order to save space on the chip, though, many of the colors
+were simply the opposite side of the color wheel from ones
+that we picked. This allowed us to reuse the existing resistor
+values, rather than having a completely unique set for each
+color.
+
+I believe that Commodore actually got a patent on this
+technique. It was certainly superior to the Apple or Atari
+approach at the time, as they ended up with whatever colors
+that came out--ours allowed the designer to freely select Hue,
+Saturation and Luminance.
+
+Since all of this was based on selecting different resistor
+values and resistance varied from chip lot to chip lot, there
+was variation from one Commodore 64 to another. It wasn't as
+bad as it could have been though, since all of the Chrominance
+selection was based on resistor ratios, which could be kept
+constant even if the actual resistor values varied. Luminance
+was more of a problem. A trimmer resistor should really have
+been used to pull up the output. This would have allowed the
+Luminance to be adjusted for consistency from unit to unit,
+however Commodore didn't care enough about consistency to
+bother with adjusting each unit.
+
+Robert 'Bob' Yannes
+</code>

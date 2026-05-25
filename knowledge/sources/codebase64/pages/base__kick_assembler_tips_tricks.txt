@@ -1,0 +1,194 @@
+# PAGE: base:kick_assembler_tips_tricks
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:kick_assembler_tips_tricks
+
+====== Kick Assembler tips & tricks =====
+
+These tips & tricks have been extracted from various threads on the CSDb forum.
+There's also [[base:Kick Assembler Macros|a page with a collection of macros]] for Kick Assembler.
+
+===== Many interrupts =====
+
+Suppose you have a routine that uses many IRQs. You might want create a macro to use at the end of each IRQ:
+<code>
+.macro endIrq(d012Value, irq) { 
+        lda #d012Value
+        sta $d012
+        lda #<irq
+        sta $fffe 
+        lda #>irq
+        sta $ffff 
+}
+</code>
+
+This will work, but once you want to move a lot of 16 bit data around in other places too, you can also combine stuff a bit.
+Pseudo commands gives more flexibility (you can use different addressing modes on the same pseudo command), while macros might be easier. However, once you get the idea, pseudocommands are really effective.
+
+Now look in the manual under pseudo commands. Here is shown how to define 16 bit pseudo commands. There is a move command which is defined like this: 
+<code>
+.function _16bit_nextArgument(arg) { 
+	.if (arg.getType()==AT_IMMEDIATE) .return CmdArgument(arg.getType(),>arg.getValue()) 
+	.return CmdArgument(arg.getType(),arg.getValue()+1)
+}
+
+.pseudocommand mov16 src;tar { 
+	lda src
+	sta tar 
+	lda _16bit_nextArgument(src) 
+	sta _16bit_nextArgument(tar)
+} 
+</code>
+
+The _16bit_nextArgument(arg) function is the easy way to deal with 16 bit values. Just write the 4 lines once and newer think about it again. This is good when you have to define many 16bit pseudo commands. If you don't like structural things like the _16bit_nextArgument function and the mov command, simply define the pseudocommand directly as shown below.
+<code>
+.pseudocommand irqEnd d12 ; irq {
+
+       .var hiArg 
+       .if (irq.getType()==AT_IMMEDIATE) .eval hiArg= CmdArgument(arg.getType(),>arg.getValue()) 
+       else .eval hiArg= CmdArgument(arg.getType(),arg.getValue()+1)
+
+      lda d12
+      sta $d012
+      lda irq
+      sta $fffe	
+      lda hiArg
+      sta $ffff	
+}
+</code>
+
+With this you can do stuff like: 
+<code>
+:mov16 #irq ; $fffe
+:mov16 irqTable,x ; $fffe
+etc.
+</code>
+
+You can now define you pseudocommand like this:
+<code> 
+pseudocommand irqEnd d12 ; irq {
+      lda d12
+      sta $d012
+      :mov16 irq ; $fffe
+}
+</code>
+
+and use it like this: 
+<code>
+:irqEnd #$10 ; #irq1  
+or 
+:irqEnd d012Table,y ; irqTable,x  
+</code>
+
+===== Time consuming code =====
+
+When you have a time-consuming program, with pure script commands - then place them in a .define block or in a function and it will be faster. 
+
+Because when Kick Assembler evaluates a function or directive it saves the result, so it doesn't have to evaluate it in the next pass. The directive will only be reevaluated if the result is invalid (that is, when the result depends on a label that is defined later in the sourcecode). However, if you have too many saved intermediate results, it damages the performace and the memory usage. Placing your script inside a function or .define block will save only one result and not all the intermediate results. 
+
+So this will be more effective:
+
+<code>
+.var bgColor = findBgColor(params)
+.function findBgColor(params) {
+...
+}
+</code>
+
+===== Pattern fill =====
+
+If you want to fill patterns you can do it like this:
+<code>
+.fill $100, List().add($fe,$82,$82,$82,$82,$82,$fe,$00).get(mod(i,8)) 
+</code>
+
+===== Compile differently based on arguments =====
+
+Can I create a macro/pseudocommand which will compile differently depending on arguments passed?
+Yes you can. Use the if command or modify arguments to change the behavior. Here are a couple of examples from my own library (increasing complexity). 
+
+==== Example 1 ====
+
+I got two versions of a move macro, one that is fast and a general one for moving a lot of data. Dependent of the number of bytes to be moved i select one of the two: 
+<code>
+.macro Move(source, target, size) {
+	.if (size <= $1000) :FastMove(source,target,size)
+	else                :GeneralMove(source,target,size)
+}
+
+.macro FastMove(source, target, size) {
+...
+}
+
+.macro GeneralMove(source, target, size) {
+...
+}
+</code>
+
+==== Example 2 ====
+
+I got a 8/16 bit library that gives me amiga/pc like pseudo commands. Below is an example of an 8 bit adc command. You con give it 3 arguments it adds the first two and place the result in the third argument (eg: :add #3 ; table1,x ; result). But you can also leave out the third argument and then the result is placed in the second (eg: :add #3 ; score) 
+<code>
+.pseudocommand adc arg1;arg2;tar {
+	.if (tar.getType()==AT_NONE) .eval tar=arg2
+	lda arg2
+	adc arg1
+	sta tar
+}
+</code>
+
+==== Example 3 ====
+
+Now lets take the 16bit version of the adc command which is a bit harder since the highbyte of each argument should be treated different dependent on the mode of the arguments (absolute, immediate, zeropage, etc). Eg if you have an immediate argument like #$1234 the the lowbyte is 34 and the highbyte is 12, but if you have an absolute like $1000 then the lowbyte is in $1000 and the highbyte is in $1001. To take care of this we define a nextArguent function and use it as show below. 
+<code>
+.pseudocommand adc16 arg1 ; arg2 ; tar {
+	.if (tar.getType()==AT_NONE) .eval tar=arg2
+	lda arg2
+	adc arg1
+	sta tar
+	lda _16bit_nextArgument(arg2)
+	adc _16bit_nextArgument(arg1)
+	sta _16bit_nextArgument(tar)
+}
+
+.function _16bit_nextArgument(arg) {
+	.if (arg.getType()==AT_IMMEDIATE) .return CmdArgument(arg.getType(),>arg.getValue())
+	.return CmdArgument(arg.getType(),arg.getValue()+1)
+}
+
+// the above macro is use like this:
+:add16 #$2800 ; $1000
+:add16 screen ; offset ; zpPointer
+</code>
+
+===== Redistribute bytes from file =====
+
+Suppose you'd like to do a LoadBinary and redistribute the bytes into the memory in another way than in the original file, something like this: 
+<code>
+Byte 1 @ $x000
+Byte 2 @ $x040
+Byte 3 @ $x080
+Byte 4 @ $x0c0
+...
+Byte 9 @ $x001
+Byte 10@ $x041
+...
+Byte 17@ $x002 etc.
+</code>
+
+In other words: byte 1 + n*8 in order, byte 2 + n*8 etc.
+
+The obvious solution would be:
+<code>
+	.var theData = LoadBinary "data.prg"
+
+	.for (var TelA=0; TelA<8; TelA++) {
+		.pc = NewData + TelA*64
+		.for (var TelB=0; TelB<64; TelB=TelB) {
+			.byte theData.get(TelA + [TelB*8])
+		}
+	}
+</code>
+
+But you can do that much shorter:
+<code>
+.fill theData.size(), theData.get(mod(i,8)*$40 + floor(i/8))
+</code>

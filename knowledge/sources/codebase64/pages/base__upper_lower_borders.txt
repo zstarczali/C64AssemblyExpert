@@ -1,0 +1,97 @@
+# PAGE: base:upper_lower_borders
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:upper_lower_borders
+
+====== Opening borders and other things ======
+
+Opening the upper and lower borders is a very common VIC trick that I'm sure coders still use today.
+
+The basic idea of this is to change the rows-bit of $d011 on the last row of a frame. This makes the VIC think that the borders have already started being drawn- when in reality they haven't. The VIC will place graphics from $3fff/$7fff/$bfff/$ffff (ghostbyte) depending on your selected VIC bank in the opened area. Make sure to set $3fff to 0 so this can't be seen. This doesn't need to be done with stable timing.
+
+So, here's an example piece of code (TASS syntax):
+
+<code>;Opening the upper and lower borders
+;Coding by Karmic/HVSC
+
+  sei ;disable interrupts
+  lda #$35 ;bank off Kernal and BASIC roms
+  sta $01
+  lda #$7f ;disable timer and CIA IRQs/NMIs
+  sta $dc0d
+  sta $dd0d
+  lda $dc0d ;acknowledge any pending interrupt
+  lda $dd0d
+  lda #<irq ;set the IRQ vectors
+  sta $fffe
+  lda #>irq
+  sta $ffff
+  lda #$f8 ;set rasterline- can be done on lines $f8-$fa
+  sta $d012
+  lda #$01 ;enable raster irqs
+  sta $d01a
+  lda #$00 ;make it so $3fff area displays nothing
+  sta $3fff
+  sta $d010 ;all MSBs of X positions off
+  lda #$ff ;make a block sprite at $3000
+  ldx #63
+  sta $3000,x
+  dex
+  bpl *-4
+  ldx #$07
+loop
+  lda #$01 ;set sprite colors to white
+  sta $d027,x
+  lda #$c0 ;set sprite pointers
+  sta $07f8,x
+  dex
+  bpl loop
+  inx ;set sprite positions
+  clc
+  lda #$40
+loop2
+  sta $d000,x
+  sta $d001,x
+  adc #$18
+  inx
+  inx
+  cpx #$10
+  bcc loop2
+  lda #$ff ;enable sprites now
+  sta $d015
+  inc $d019 ;acknowledge any pending VIC IRQs
+  cli ;enable interrupts again
+main
+  ldy #8 ;delay
+  dey
+  bpl *-1
+  nop
+  inc $d020 ;something to look at
+  inc $d021
+  jmp main
+  
+irq
+  lda #$13 ;make it 24 rows
+  sta $d011
+  lda #$fc ;wait for line $fc- anything not in the last row will work
+  cmp $d012
+  bne *-3
+  lda #$1b ;set back to 25 rows
+  sta $d011
+  clc
+  ldx #1 ;move the sprites around
+loop3
+  inc $d000,x
+  dec $d002,x
+  txa
+  adc #4
+  tax
+  cpx #$10
+  bcc loop3
+  inc $d019 ;acknowledge IRQ
+  rti ;end</code>
+
+Wait, but that's not all. You can also disable the main screen and show nothing but sprites. $3fff will be displayed on the whole screen. This has the advantage of not having to worry about badlines. This idea is very similar to the previous, except with a few differences:
+
+You must write $1b to $d011 first, and then write $00.
+The first write can be done on lines $31-$f6, and the second write can be done on lines $f8-$fa.
+
+Just sprites, sounds limiting at first, but you could use this "Idle-Mode" for raster bars, sprites (e.g. as [[base:sprite_fpp|Sprite FPP]] and ghostbyte tricks. Keep in mind, that setting sprite background priorities could make the ghostbyte a dithering pattern =).

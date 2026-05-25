@@ -1,0 +1,40 @@
+# PAGE: base:cartridge_bugs
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:cartridge_bugs
+
+====== Cartridge bugs ======
+
+This page contains a number of bugs to be found in common general purpose cartridges such as Action Replay, Retro Replay, Final Cartridge, and so on. The document is based on a post by GRG in the CSDb forum, and the original thread can be found [[http://noname.c64.org/csdb/forums/?roomid=11&topicid=45925#45927|here]].
+
+In case you have additional material or corrections to make to this document; please do so!
+
+====== AR (all versions ?) ======
+
+The infaomus $dexx read bug, only happens on real hardware. Doesnt happen in emulator afaik. All sort of read attempts from registers between $de00-$df00 will make your computer crash.
+
+====== AR 4.2 + AR 6.0 plus ======
+(not to be mistaken by the normal AR 6.0)
+
+Certain games using NMI interrupts will crash because of this cartridge. If you have such a cart then check the game 720 usa (Don't check the nostalgia version, because they fixed it.).
+
+====== RR 3.8 Alpha ======
+There was a bug in the last officially released Retro Replay ROM version named "//Cyberpunx Replay ALPHA 3.8 - 64 KB - PAL&NTSC - 23-Jun-2002//". If having fastload turned on, then $9ec5 would get fucked while loading, which is bad in many cases (for example when using turbo assembler). In case this didn't suddenly change, it is (as of august 2007) still the last available version on the [[http://ar.c64.org|official homepage]].
+
+====== RR ======
+
+The RR+RRnet doesnt work on my (GRG's) C128D - Dont know why.
+
+
+====== AR 6.0 + RR ======
+When fixing the problems I (GRG) had with [[http://noname.c64.org/csdb/forums/?roomid=11&topicid=42166|N0SD0S]]
+I came across another interesting bug with both Action Replay and Retro Replay.
+
+It has to do with the $1802 register in a 1541 drive using device number #9, #10 or #11. AR & RR set this register to $7a when using fastload. When fastload finishes it does not reset $1802 back to it's default value ($1a).
+
+When you load and run a program from device #9,10 or 11 that makes use of the "UI" dos command, the following will happen:
+
+The device number of your drive (9, 10 or 11) will be soft-changed to device #8. And you loose the connection, and your program is stuck trying to communicate with a device that doesnt exist anymore. Nice!! :)
+
+If you turn your drive off and on before running that program it will work properly. But we dont want to do that everytime so the method to fix it is to memory-write $1a to the $1802 register.
+I think RR should do that.
+
+Many thanks to Soci for helping debugging this one.

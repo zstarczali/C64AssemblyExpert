@@ -1,0 +1,372 @@
+# PAGE: base:tinymidi
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:tinymidi
+
+===== TinyMidi Source Code: =====
+
+
+<code>
+;---------------------------------------------
+;TinyMIDI (c) GRG/SHAPE 2007
+;---------------------------------------------
+;This program was made for the Sequential (SCI) Interface.
+;It will play the notes you press on your midi keyboard
+;with the sid chip. 
+
+_MIDIReset      = %00000011 ;Same for all interfaces
+_MIDI16CountDiv = %00010101 ;1mhz interfaces: 16 divider
+_MIDI64CountDIv = %00010110 ;2mhz interfaces: 64 divider
+_IRQMIDI16      = %10010101 ;1mhz interfaces: IRQ enabled
+_IRQMIDI64      = %10010110 ;2mhz interfaces: IRQ enabled
+
+;Sequential registers
+MIDI_ControlReg = $de00
+MIDI_StatusReg  = $de02
+MIDI_Tx         = $de01
+MIDI_Rx         = $de03
+
+;Adjust hardrestart to 2 for Attack Values 1-F.
+HARDRESTART	= 1		;1 or 2
+
+buffnotes	= $2000		;All MIDI notes are buffered here
+
+		* = $0801
+		.byte $0b,$08,$d7,$07
+		.byte $9e
+		.text "2061"
+		.byte 0,0,0
+
+		lda #<message
+		ldy #>message
+		jsr $ab1e
+		sei
+		lda #$35
+		sta $01
+		lda #$03
+		sta MIDI_ControlReg   ;Reset Midi interface
+		lda #$95
+		sta MIDI_ControlReg   ;Enable Midi IRQ & Clock 16
+		jsr init_soundplayer
+		lda #<hwirq
+		sta $0314
+		lda #>hwirq
+		sta $0315
+		lda #<irq
+		sta $fffe
+		lda #>irq
+		sta $ffff
+		lda #<nmi
+		sta $fffa
+		sta $0318
+		lda #>nmi
+		sta $fffb
+		sta $0319
+		lda #$01              ;Irq on
+		sta $d01a
+		lda #$fb
+		sta $d012
+		lda $d011
+		and #$7f
+		sta $d011
+		lda #$7f
+		sta $dc0d
+		bit $dc0d
+		cli
+keyloop		inc $01               ;36
+		jsr $ffe4
+		dec $01               ;35
+		cmp #0
+		beq keyloop
+		jmp keyloop
+                
+midinote	.byte 0 ;0-127
+ncount		.byte 0 ;max 127 (max keys on keyboard)
+countby		.byte 0 ;count bytes in buffer (0-255)
+mibcount	.byte 0	;Midi byte count (0-255)
+
+;---------------------------------------------------
+*= (*+$ff)&$ff00 ;Start the following code on a page
+;---------------------------------------------------
+;MIDI IRQ:
+i80_noteoff1	sta midinote
+		lda #<i80_noteoff2
+		jmp setexirq
+i80_noteoff2	ldx mibcount
+		lda midinote
+		ora #$80
+		sta buffnotes,x
+		inc mibcount
+		inc ncount
+		lda #<i80_noteoff1
+		jmp setexirq
+
+i90_noteon1	sta midinote
+		lda #<i90_noteon2
+		jmp setexirq
+i90_noteon2	beq i90_noteoff
+		lda #0
+		.byte $2c
+i90_noteoff	lda #$80
+		ldx mibcount
+		ora midinote
+		sta buffnotes,x
+		inc mibcount
+		inc ncount
+		lda #<i90_noteon2
+		jmp setexirq
+
+;-------- Unused routines here
+iC0_programchange1
+iA0_aftertouch1
+iD0_channelpress1
+iB0_cwheel1
+iE0_cwheel1
+		lda #<exirq
+		jmp setexirq
+                
+;------- STATUS fetch
+
+get_statb	and #$f0              ;Allow all Midi channels
+		cmp #$e0
+		beq stpwheel
+		cmp #$b0
+		beq stcwheel
+		cmp #$90
+		beq stnoteon
+		cmp #$80
+		beq stnoteoff
+		cmp #$d0
+		beq stchpress
+		cmp #$a0
+		beq statouch
+		cmp #$c0
+		beq stprchange
+		lda #<exirq
+		.byte $2c
+stprchange	lda #<iC0_programchange1
+		.byte $2c
+statouch	lda #<iA0_aftertouch1
+		.byte $2c
+stchpress	lda #<iD0_channelpress1
+		.byte $2c
+stnoteoff	lda #<i80_noteoff1
+		.byte $2c
+stnoteon	lda #<i90_noteon1
+		.byte $2c
+stcwheel	lda #<iB0_cwheel1
+		.byte $2c
+stpwheel	lda #<iE0_cwheel1
+setexirq	sta mjump+1
+exirq		lda #0
+		sta $d020
+		pla
+		tay
+		pla
+		tax
+		pla
+		rti
+
+irmid		pha
+		txa
+		pha
+		tya
+		pha
+hwirmid		dec $d020
+		lda MIDI_StatusReg
+		bpl exirq          ;0-7f
+		;bit parity        ;$70
+		;beq parok
+		;jmp error
+parok		and #%00000001
+		beq error
+setMidi_Rx	lda MIDI_Rx
+		bmi get_statb
+mjump		jmp exirq
+error		inc $d021          ;endless error
+		jmp error
+
+parity		.byte %01110000 ;parity error,receiver overrun,framing error
+
+irq		bit $d019	;FFFE/FFFF IRQ
+		bpl irmid	;Check if MIDI made this irq
+		pha
+		txa
+		pha
+		tya
+		pha
+		jmp d019clear
+hwirq		bit $d019	;0314/0315 IRQ
+		bpl hwirmid	;Check if MIDI made this irq
+d019clear	lda #1
+		sta $d019
+		cli		;Make sure more Midi irq's can happen
+		lda #5
+		sta $d020
+		jsr sound_init
+		jsr sound_play
+		lda #0
+		sta $d020
+		lda $01
+		pha
+		lda #$37
+		sta $01
+		jsr $ea87        ;C64 Keyboard scan
+		lda $dc0d
+		pla
+		sta $01
+		pla
+		tay
+		pla
+		tax
+		pla
+nmi		rti
+
+;---------------------
+
+sound_init	sei             ;Must set SEI -  midi irq must not interrupt this part.
+				;Quickly copy data you need into the sound player data
+				;if this routine is slow you will loose midi data
+sinit		lda ncount	;More bytes left in buffer ?
+		beq nonote
+		ldy countby
+		lda buffnotes,y
+		bmi noteoff1
+keyset		jsr set_concate
+		inc countby
+		dec ncount
+		jmp sinit
+noteoff1	and #$7f
+keyclear	jsr clear_concate
+		inc countby
+		dec ncount
+		jmp sinit
+nonote		cli		;CLI - MIDI irq can now occur again
+		rts
+
+
+set_concate	ldx chan		;Concate
+		sta note,x
+		lda #HARDRESTART	;1or2
+		sta hreset,x
+		inx
+		cpx #3
+		bne rer
+		ldx #0
+rer		stx chan
+		rts
+
+clear_concate	sta tempnot2+1
+		ldx #2
+tempnot2	lda #0
+		cmp note,x
+		bne found2
+		lda #$fe
+		sta gate,x		;Gate off
+		sta hreset,x
+found2		dex
+		bpl tempnot2
+		rts
+
+;--------- Reset buffer counters and sid chip
+
+init_soundplayer			
+		lda #0
+		sta ncount
+		sta countby
+		sta mibcount
+		ldx #$17
+ressid		sta $d400,x
+		dex
+		bpl ressid
+		rts
+
+;---------- 3 voice music player
+;TinySDI Player (c) GRG/SHAPE 2007
+
+sound_play	ldx #2
+mloop		stx savx+1
+		ldy sidvoice,x
+		lda hreset,x
+		bmi next_sid		;FF
+		pha
+		cmp #HARDRESTART	;1or2
+		bne nn
+		lda #1
+		sta $d406,y		;ADSR high
+		lda #$0f
+		sta $d405,y
+		lda #$fe
+		sta gate,x		;Gate off
+nn		dec hreset,x
+		pla
+		bne next_sid
+		lda #$ff
+		sta gate,x
+		sta hreset,x
+		lda note,x
+		sta note2,x
+		lda #$01
+		sta $d405,y		;AD
+		lda #$da
+		sta $d406,y		;SR
+next_sid	lda note2,x
+		tax
+		lda freqlo,x
+		sta $d400,y
+		lda freqhi,x
+		sta $d401,y
+		ldx savx+1
+		lda #$21
+		and gate,x
+		sta $d404,y
+savx		ldx #0
+		dex
+		bpl mloop
+		lda #$0f
+		sta $d418
+		rts
+
+chan     .byte 0
+note     .byte 0,0,0
+note2    .byte 0,0,0
+hreset   .byte $ff,$ff,$ff
+gate     .byte $fe,$fe,$fe
+sidvoice .byte 0,7,14
+
+;PAL tuned frequence table:
+freqlo   .byte $16,$27,$39,$4b,$5f,$74
+         .byte $8a,$a1,$ba,$d4,$f0,$0e
+         .byte $2d,$4e,$71,$96,$be,$e7
+         .byte $14,$42,$74,$a9,$e0,$1b
+         .byte $5a,$9c,$e2,$2d,$7b,$cf
+         .byte $27,$85,$e8,$51,$c1,$37
+         .byte $b4,$38,$c4,$59,$f7,$9d
+         .byte $4e,$0a,$d0,$a2,$81,$6d
+         .byte $67,$70,$89,$b2,$ed,$3b
+         .byte $9c,$13,$a0,$45,$02,$da
+         .byte $ce,$e0,$11,$64,$da,$76
+         .byte $39,$26,$40,$89,$04,$b4
+         .byte $9c,$c0,$23,$c8,$b4,$eb
+         .byte $72,$4c,$80,$12,$08,$68
+         .byte $39,$80,$45,$90,$68,$d6
+         .byte $e3,$99,$00,$24,$10,$ff
+freqhi   .byte $01,$01,$01,$01,$01,$01
+         .byte $01,$01,$01,$01,$01,$02
+         .byte $02,$02,$02,$02,$02,$02
+         .byte $03,$03,$03,$03,$03,$04
+         .byte $04,$04,$04,$05,$05,$05
+         .byte $06,$06,$06,$07,$07,$08
+         .byte $08,$09,$09,$0a,$0a,$0b
+         .byte $0c,$0d,$0d,$0e,$0f,$10
+         .byte $11,$12,$13,$14,$15,$17
+         .byte $18,$1a,$1b,$1d,$1f,$20
+         .byte $22,$24,$27,$29,$2b,$2e
+         .byte $31,$34,$37,$3a,$3e,$41
+         .byte $45,$49,$4e,$52,$57,$5c
+         .byte $62,$68,$6e,$75,$7c,$83
+         .byte $8b,$93,$9c,$a5,$af,$b9
+         .byte $c4,$d0,$dd,$ea,$f8,$ff
+
+message	.byte $93,$05
+	.text "tinymidi by grg/shape"
+	.byte 0
+</code>

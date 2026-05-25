@@ -1,0 +1,81 @@
+# PAGE: base:fastloaders
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:fastloaders
+
+====== Fastloader ======
+
+Fastloaders have been there on the c64 ever since the 1541 was introduced, as it comes along with a pretty slow serial transfer. Meanwhile the fastloaders available are pretty well developed and some like Krill's loader support nearly any drive available in a native way. Others, that are mainly developed for trackmos were developed with a focus on speed and size, like Spindle, Bitfire, Bongo or the loader being used by Booze Design. Each loader however follows a kind of different approach, each coming with its pros and cons. First of all i want to explain the different kind of different techniques the loaders could contain.
+
+===== In order loading =====
+
+Data is stored on disk in 256 byte sectors, where each sector begins with a track/sector link of two bytes. This means, 254 bytes of payload remain for data, and two bytes are used to either link to the next available block (in that case the full sector size is assumed) or signal the end of file and the size of the last block (track = 0, sector = size). One can now just straight walk along that chain, block by block and thus load the blocks in the order they are linked at. If the interleave is defined static for the whole disk one can theoretically forgo on the link chain, as the location of the next block is then predictable as long as the first block is known. However then additional info is needed on how many blocks the file is long and what is the last block's size.
+The speed of in order loading depends a lot on cpu load on c64 side and interleave. Where a interleave of e.g. 4 would work pretty well with no load, performance might suffer a lot on e.g. interleave 7. One could of course write each file with a different interleave, but files with different interleaves sharing one track is somewhat impossible.
+
+===== Out of order loading =====
+
+Here the blocks are loaded and transferred in the order they happen to arrive at the read head of the floppy. In order to find out what blocks belong to the desired file, a so called scanner is needed that scans the track before hand in an extra revolution. A list of desired blocks is then build up by going through the sectors once. Then each block of the track is checked if it is in our list of wanted blocks and if so loaded and transferred until the list is empty and a track change can happen or the file's end is reached.
+
+===== Fixed interleave =====
+
+If working with a fixed interleave the scanning can be omitted as the next blocks belonging to our file can be predicted. Thus a list of wanted blocks can be build up beforehand and the desired blocks can be loaded and transferred straight away. As the track/sector link chain is not needed any more in that case, one can use the 2 bytes for other information or simply use the full 256 bytes payload, what makes sector-handling way easier, as one can calculate in multiples of $100 instead of multiples of $fe. Code shrinks, complexity decreases.
+However we here leave the path of supporting a standard file format that could also be read by any arbitrary loader. Usually a d64-tool is supported to create a .d64 with the respective format. Modern cross-compiled projects however use a .d64-tool anyway to create the final image. The formats are still compatible with full disk copies or BAM copies that copy just the used blocks being marked in the //Block Allocation Map//.
+
+===== Checksumming =====
+
+Checksumming is discussed controversial. Some state they never ran into problems when leaving the sector checksumming away, others state that under harsh conditions (demo party and alike) the disk drives are more error prone. Of course building a checksum after loading a sector costs extra time, but it also has further advantages: One can directly start loading after a track change, if the stepper has not yet settled the checksum will hit in and save us from loading junk. Settling time will be optimal. Same goes for when starting the motor, no need to wait until things are safe, one can load straight away without waiting for the motor to be at the right speed.
+Further advantages can be gained when the checksum is build on c64 side (spindle does so), as the checksum now would even fail if bits flip on the serial bus. So it secures the reading from disk, as well as the transfer to c64 in one go. A really perfect use of a checksum!
+
+===== GCR decoding =====
+
+The Loader from Booze Design, as well as Spindle manage to gcr-decode a sector completely while it is flying by under the read head. However for this to happen the received nibbles are stowed away in an interleaved way (Booze Loader) but therefore just require a small tab ($80 bytes) for further decoding to serial bits during transfer. The code complexity for sending however increases a lot and building a checksum would mean uncomfortable double lookups per byte and again huge code to cope with the interleaved data stored at 8 different locations. Spindle follows a different approach and uses two tables, each $100 big, to fully decode a sector on the fly. The resulting data is stored on the stack. This is especially cumbersome here, as no stack can be used until bytes are sent. So no pushing, pulling and subroutine calls can be made.
+Usually more or even a full GCR decoding is achieved by not shifting all nibbles right aligned, but leaving them also at other alignments and bit orders and let a lookup table sort out things when going into serial transfer. Here either multiple tables are needed or carefully chosen bit-combinations that won't overlap in a  smaller lookup table.
+Krill's loader and Bitfire follow the approach of decoding a sector mostly on the fly, but do some post-processing to have the data well aligned and split up in low- and hi-nibbles. Thus the data can be easily checksummed and directly used for transfer by using just a simple loop. This saves RAM in the floppy and gives space for extra functionality.
+
+For further details upon GCR decoding i strongly suggest that great [[http://www.linusakesson.net/programming/gcr-decoding/index.php|article from lft]] 
+===== Serial transfer =====
+
+To transfer the data to c64 (and instructions to the floppy) some kind of serial transfer protocol needs to be implemented. In the case of plain loading with disabled interrupts and disabled screen, no interruption like an irq or a badline needs to be coped with. Here one can load in sync and resync every now and then as the clocks of the disk drive and the c64 differ, jitter occurs, as well as the floppy drifting ahead as it's clock is faster. For PAL that is.
+For demo purposes turning off the screen and forgoing on interrupts is no option. Early versions of irq-loaders thus bonded their transfer starts to certain $d012 positions to cope with badline conditions. Later the so called 2 bit ATN protocol got introduced where the c64 toggles the ATN line on each bitpair and thus taking over the full control of the transfer commanding the floppy when to set the next to bits on the bus. However in that case no additional drives are allowed to be actively on the bus, as they would react on the ATN transitions as well.
+==== 2 bit ATN ====
+
+A code examples for the c64 side speaks for it's own here:
+
+<code>
+                ldx #$37
+                lda $dd00          ;receive the first two bits (7 and 6 data and clock in)
+                stx $dd02          ;set ATN hi and command floppy to put the next two bits on the bus
+                lsr                ;shift away bits
+                lsr
+                nop                ;waste cycles to be sure floppy has the new bits on the bus, if we get
+                                   ;interrupted, it does not hurt, bits will remain on the bus until fetched.
+                nop
+                ldy #$3f
+                ora $dd00          ;fetch next 2 bits
+                sty $dd02          ;toggle ATN
+                lsr
+                lsr
+                nop
+                nop
+                nop
+                ora $dd00          ;now ATN is 0 and ora can happen without killing bit 3 (else it would be set)
+                stx $dd02
+                lsr
+                lsr
+                sta .nibble + 1
+                lda #$c0   
+                and $dd00          ;grab the upper two bits only
+                sty $dd02          ;last toggle of ATN
+.nibble         ora #$00           ;glue bits together, and voila, we have transferred one byte
+</code>
+==== Resend ====
+
+==== Synchronous transfer ====
+
+===== On the fly decompressors =====
+
+When data arrives on c64 side and the floppy fetches the next sector, time can be used to decompress the chunk that arrived. Depending on the type of loading this however can lead to various problems. If you load to slow, the decompressor might stall and wait for new data, so one should take care to fetch enough data and priorize the fetching of blocks over decompressing. This is achieved by regularly polling for a new block from the floppy.
+
+When blocks arrive in order, this is not much of a deal, but when loading out of order, the decompressor can only then continue when a continuous amount of blocks is available. Now there's two solutions to cope with that problem. The idea that spindle follows here is, that each block is packed separately and is self contained. Thus it doesn't matter what block is loaded as each block will decompress on it's own. Tradeoff is, that the blocks do not compress as good, as dictionary size is small and offsets are limited to a small window. However the short offsets (< 8 bit?) and less complexity in the depacker make things faster.
+
+The other solution is to serialize the arriving blocks. Krill's loader does that on c64 side by maintaining a blockmap where each incoming block is noted. As soon as a continuous string of blocks is detected there, the decruncher will continue and wipes out any block that is decompressed from the map. This it is guaranteed that no empty block is fed to the decompressor.
+
+In Bitfire things are solved on drive side. As there is already a map of wanted blocks, it is easy to track what the last available block is (just find the minimum index in that list). Thus it is enough to calculate a delta on each round between the last and the actual minimum index. That delta cannot grow larger than the maximum track size, as we can only change the track when all blocks of the current track are loaded, and thus no gap can remain until the beginning of the new track. By transferring that delta to c64, the c64 can keep track of the maximum block position to depack from. A barrier holds the maximum block index and is updated with the respective delta on each transfer. As soon as a gap is filled, the barrier will advance and unlock the decompressor. In the wild, the decompressor is only locked in the beginning of files. The floppy keeps up well and soon manages to create an overhead of available blocks.

@@ -1,0 +1,4 @@
+# PAGE: base:drazlace
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:drazlace
+
+Drazlace is synonymous with Bitmap Interlace, switching between two bitmap images with d016-shift for simulating double x-resolution. The name Drazlace comes from the editor with the same name (or was it Drazpaint?), which has some unnecessary color restrictions.

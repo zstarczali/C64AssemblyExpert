@@ -1,0 +1,62 @@
+# PAGE: base:guide_to_programming_games
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:guide_to_programming_games
+
+===== Guide to making C64 games ====
+Do you have a dream about programming your own C64 game? Do you want to make it into something really good? Do you need good design? Well this brief little article should give you a simple guide to making a C64, using programming. I'll also mention about some of the things you should avoid doing.
+
+===== Planning =====
+
+Before you actually work on a game, you would need to think about your game idea in very careful way. You have to think very carefully that your game idea will work out extremely well. Especially when there is a huge audience who wants to play a game for a long time. Not five minutes. It might be wise to discuss to some of your friends or contacts to give out some game ideas, which you feel you can do. It can't be that difficult to listen to the people discussing about game ideas.
+
+===== Design =====
+This is a different issue compared to planning. Before you can code anything for your game, you would need to work on the design of the game. This can be handy by drawing your maps/screens on to a sheet of paper using a pencil, or to avoid wasting paper even try drawing rough ideas in paintbrush on the PC or something like that. Once you have done this and you or your friends are really happy with your design, you can create your graphics and sprites on the C64 or using cross-platform graphics editors. 
+
+When you actually draw your own graphics, you would need to make the graphics stand out really well. For example sprites - Those would need to be animated, when it comes to programming a good game. Or maybe charsets - for something like a simple Centipede type of game.
+
+There are a lot of good resources around to help you draw/design your own graphics and sprites. Many of those can be found on the CSDB. 
+
+===== Programming =====
+
+
+This is probably the longest process to making your game. When you are programming your game, you would need to implement various routines. For example sprite animation routines, maybe background animation. Most important of them all you would need to create routines that will synchronize your game code and loop the game engine continuously. For beginners, it is a bit awkward, but for advanced programmers it is more understandable. Most C64 games also use IRQ raster interrupts to perform various tasks. You may need to do a stable raster if you were to add loads of extreme routines, like sprite multiplexor (More than 8 sprites on screen), background scrolling, etc.
+
+Ideal routines in a game:
+
+  * Score + Hiscore detection routine
+  * Sprite animation
+  * Background display/mapping 
+  * $D016 or $D011 map scrolling (Not compulsory)
+  * Sprite multiplexor (Not compulsory)
+  * Sprite/Sprite collision registers 
+  * Sprite/Background collision registers (Depends on the type of game)
+  * Enemy sprite attack waves (Again, depends on the game)
+  * Bonus game/rounds(Not compulsory)
+
+===== Sound or Music =====
+
+
+Most C64 games today consist of music. When you add music to a game, it sort of enhances the title slightly, but using sound effects would be much better for the game as music can be annoyingly repetitive, depending on the length of the tune. It is always good to have sound in the game, because without sound it could be pretty boring indeed.
+
+===== Presentation =====
+
+Probably one of the most easiest tasks with game programming. You could program your own title screen without any planning. Most of the time when I code games I use a bitmap for the title screen's logo, a scroll text and maybe some colour washing or flashing. Don't go mad like me with the colour washing over the text, because these type of effects can sometimes be hard to read, depending on the colour scheme.
+
+Make a really good end part for your game. Don't just do a simple screen with a 1-liner saying "Well done, game complete". That is lame. Think more carefully and try more interesting things, like simple demo effects, with sprite animations and really good end music. That would make a good end screen.
+
+===== Bug fixing =====
+
+
+Yes, I know. It is one of the worst scenarios for the game coder. It is vital to check your game before the beta testing process. There could be certain bugs inside the code which might make your game crash, or go really funny or there could be code that corrupts your data/binary files without you knowing. There could be the odd raster flicker bug, which need to be timed correctly with a few nops, or rasters are out of place, etc. The bug fixes would be pretty easy to do.
+
+===== Beta Testing =====
+
+
+So do you think you have finished your game? If so, ask friends and contacts who you know you can trust to beta test your game. Preferrably people who are not involved in cracking groups and those who would want your game to be deliberately spread into the demo/cracking scene so soon. Especially when the game could still be working incorrectly. Plus it would annoy the scene to release too many bug fixed versions of your game. Once happy, it is time for the compression stage.
+
+===== Compression =====
+
+After your game is finally finished, it is time to face the compression stage. If you just want to release only the finished game, without intro, then you can crunch it all with the Exomizer or PUCrunch, cross platform cruncher. Or alternatively (Depending on the filesize) you could use the Lightimizer V6.3, or Unipacker V2.0 and crunch with Crest's version of the Cruncher AB, or maybe use the 2Mhz Time Cruncher V5.0, or whichever program you want.
+
+However, when it comes to linking something to your game i.e. docs, intro, etc it is best to use the Lightimizer V6.3 for the game (Set loadback to the nearest end address of the intro), then use it again for the intro, along with a cruncher. That way you will get a really positive pack result. 
+
+If your game is not going be a single file game, and is multiload. Always use a level cruncher and maybe IFFL packing method if you can. 

@@ -1,0 +1,243 @@
+# PAGE: base:int16_and_uint16_conversion_to_string
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:int16_and_uint16_conversion_to_string
+
+Conversion of a number in int16 (lo/hi) into a string in CnvStr.\\
+_ItoA converts a signed number\\
+_UtoA converts an unsigned number\\
+The conversion is obtained via a BCD intermediate value.
+<code 6502acme>
+bcd     = $61    ; system Fac, 3 bytes
+int16   = $64    ; system Fac, 2 bytes
+sgn     byte 0
+CnvStr  byte 0,0,0,0,0,0,0      ; 7 bytes: sgn + 5bytes + '\0'
+CnvTrm  byte 0,0,0,0,0,0,0
+
+
+;-------------------------------
+; Converts a 16bit signed integer into string
+;-------------------------------
+; by Verz - Jul2019
+;-------------------------------
+;
+;       Call with 16 bit number in int16
+;       result in CnvStr
+;-------------------------------
+
+_ItoA
+        ldy #$0
+        lda int16+1           ; is it positive?
+        bpl _pos
+
+_neg    clc                   ; it's negative: let's 2complement it
+        lda int16
+        eor #$ff
+        adc #1
+        sta int16
+        lda int16+1
+        eor #$ff
+        adc #0
+        sta int16+1
+        ldy #'-'              ; prepares the sign value
+
+_pos    sty sgn
+        jsr _UtoA             ; the work is done by _UtoA routine
+
+        ldy sgn               ; if the sign was negative
+        beq _enditoa          
+        dex                   ; adds '-' before the number
+        sta CnvStr,x
+_enditoa
+        rts
+
+
+
+;-------------------------------
+; Converts a 16bit unsigned integer into string
+;-------------------------------
+; by Verz - Jul2019
+;-------------------------------
+;
+;       Call with 16 bit number in int16
+;       result in CnvStr
+;-------------------------------
+
+
+_UtoA
+        jsr BINBCD16          ; converts the number to BCD
+        ;lda bcd+2
+        and #$0f              ; extracts every byte and adds $30
+        ora #$30
+        sta CnvStr+1
+
+        lda bcd+1
+        and #$0f
+        ora #$30
+        sta CnvStr+3
+        lda bcd+1
+        lsr
+        lsr
+        lsr
+        lsr
+        ora #$30
+        sta CnvStr+2
+
+        lda bcd+0
+        and #$0f
+        ora #$30
+        sta CnvStr+5
+        lda bcd+0
+        lsr
+        lsr
+        lsr
+        lsr
+        ora #$30
+        sta CnvStr+4
+        lda #$20
+        sta CnvStr+0
+        ;rts                    ; decomment to avoid stripping leading 0s
+
+        ldx #1                  ; remove 0s at beginning
+_rem0   lda CnvStr,x
+        cmp #$30                ; if it's a '0'
+        bne _rts
+        lda #$20                ; put a space instead
+        sta CnvStr,x 
+        inx
+        cpx #$5                 ; exits before last digit
+        bne _rem0
+
+_rts    rts
+
+;-------------------------------
+; Remove leading spaces from int string
+;-------------------------------
+; by Verz - Jul2019
+;-------------------------------
+;       use right after _ItoA or _UtoA
+;       needs the pos of the first digit in .X 
+;       result in CnvTrm
+;       if the result is to be in CnvStr then change CnvTrm to CnvStr
+;-------------------------------
+_TrimNum
+        ldy #0
+        cpx #0
+        beq _rts
+_trmlp  lda CnvStr,x
+        sta CnvTrm,y      ; Change to "sta CnvStr,y" to put the trimmed string in CnvStr
+        beq _rts
+        inx
+        iny
+        jmp _trmlp
+
+
+
+
+;-------------------------------
+; Converts a 16bit number to BCD
+;-------------------------------
+BINBCD16
+        SED             ; Switch to decimal mode        2
+        LDA #0          ; Ensure the result is clear    2
+        STA bcd+0;                                      3
+        STA bcd+1;                                      3
+        STA bcd+2;                                      3       13
+
+CBIT1   ASL int16       ; Shift out one bit             5
+        ROL int16+1     ;                               5
+;        LDA bcd+0      ;             
+        ADC bcd+0       ; And add into result           3
+        STA bcd+0       ;                               3
+        ASL int16       ;                               5
+        ROL int16+1     ;                               5
+        ADC bcd+0       ;                               3
+        STA bcd+0       ;                               3
+        ASL int16       ;                               5
+        ROL int16+1     ;                               5
+        ADC bcd+0       ;                               3
+        STA bcd+0       ;                               3
+        ASL int16       ;                               5
+        ROL int16+1     ;                               5
+        ADC bcd+0       ;                               3
+        STA bcd+0       ;                               3
+        ASL int16       ;                               5
+        ROL int16+1     ;                               5
+        ADC bcd+0       ;                               3
+        STA bcd+0       ;                               3
+        ASL int16       ;                               5
+        ROL int16+1     ;                               5
+        ADC bcd+0       ;                               3
+        STA bcd+0       ;                               3       96
+
+        LDX #7;                                         2       2
+CBIT7   ASL int16       ; Shift out one bit             5
+        ROL int16+1     ;                               5
+        LDA bcd+0       ; And add into result           3
+        ADC bcd+0       ;                               3
+        STA bcd+0       ;                               3
+        LDA bcd+1       ; propagating any carry         3
+        ADC bcd+1       ;                               3
+        STA bcd+1       ;                               3
+        DEX             ; And repeat for next bit       2
+        BNE CBIT7       ;                               3       33*7-1=230
+
+        LDX #3;                                         2       2
+CBIT13  ASL int16       ; Shift out one bit             5
+        ROL int16+1     ;                               5
+        LDA bcd+0       ; And add into result           3
+        ADC bcd+0       ;                               3
+        STA bcd+0       ;                               3
+        LDA bcd+1       ; propagating any carry         3
+        ADC bcd+1       ;                               3
+        STA bcd+1       ;                               3
+        LDA bcd+2       ; ... thru whole result         3
+        ADC bcd+2       ;                               3
+        STA bcd+2       ;                               3
+        DEX             ; And repeat for next bit       2
+        BNE CBIT13      ;                               3       42*3-1=125
+
+        CLD             ; Back to binary                2       2; tot 470
+        rts             ; All Done.                             
+</code>
+
+usage example:
+<code 6502tasm >
+Example
+        lda #$c0
+        sta int16
+        lda #$fd
+        sta int16+1
+
+        jsr _UtoA               ; converts UInt16 to String
+        jsr _trimnum            ; trims leading spaces
+
+        jsr _PrnNum
+
+
+        lda #$c0
+        sta int16
+        lda #$fd
+        sta int16+1
+
+        jsr _ItoA               ; converts Int16 to String
+        jsr _trimnum            ; trims leading spaces
+
+        jsr _PrnNum
+
+        rts
+
+_PrnNum
+                ; prints untrimmed string
+        lda #<CnvStr
+        ldy #>CnvStr
+        jsr $ab1e
+        lda #13
+        jsr $ffd2
+                ; prints trimmed string
+        lda #<CnvTrm
+        ldy #>CnvTrm
+        jsr $ab1e
+        lda #13
+        jsr $ffd2
+
+        rts
+</code>

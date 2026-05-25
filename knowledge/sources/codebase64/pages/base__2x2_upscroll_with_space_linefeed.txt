@@ -1,0 +1,213 @@
+# PAGE: base:2x2_upscroll_with_space_linefeed
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:2x2_upscroll_with_space_linefeed
+
+==== 2x2 Upscroll with line space ===
+
+A 1x1 scroll is quite simple, but a 2x2 upscroll is slightly a little more complex. This is because you need to calculate the specific character code. Sometimes it is useful to add a line space to each row to make the text slightly more readable. 
+
+A full screen 2x2 char up scroll consist of 20 chars. The moving of rows is the same as in the 1x1 char example. This means each row of text being read has to be 20 (not 40 characters). Here's an example piece of code with description (Of course you will need to code your own IRQ and ** jsr upscroll **.
+
+<code>
+
+;Example upscroll snippet by Richard/TND 
+
+;To call, use "jsr upscroll"
+      
+      ;Delay control of up scrolling message, so that 
+      ;it is easier to read
+      
+upscroll
+     lda ydelay
+     cmp #2
+     beq scrollit
+     inc ydelay
+skipshift     
+     rts
+     
+     ;Reset control delay, and work on vertical 
+     ;screen position pointer (which must be 
+     ;ORA #$10 and stored to some IRQs to make
+     ;the scroll much smoother)
+     
+scrollit
+     lda #0
+     sta ydelay
+     
+     lda ypos
+     sec
+     sbc #1
+     and #$07
+     sta ypos 
+     bcs skipshift 
+     
+      ;Move each row up a row
+      
+      ldx #$27
+shiftrows
+      lda screen+400,x
+      sta screen+360,x
+      lda screen+440,x
+      sta screen+400,x
+      lda screen+480,x
+      sta screen+440,x
+      lda screen+520,x
+      sta screen+480,x
+      lda screen+560,x
+      sta screen+520,x
+      lda screen+600,x
+      sta screen+560,x
+      lda screen+640,x
+      sta screen+600,x
+      dex
+      bpl shiftrows
+      
+      ldx #$27
+shiftrows2      
+      lda screen+680,x
+      sta screen+640,x
+      lda screen+720,x
+      sta screen+680,x
+      lda screen+760,x
+      sta screen+720,x
+      lda screen+800,x
+      sta screen+760,x
+      lda screen+840,x
+      sta screen+800,x
+      lda screen+880,x
+      sta screen+840,x
+      lda screen+920,x
+      sta screen+880,x
+
+      dex
+      
+      bpl shiftrows2
+      
+      ;Update scrolling message and check @
+      ;loop character.
+      
+updatemessage
+     ldx #0
+messread 
+      lda scrolltext,x
+      sta $02,x
+      cmp #$00
+      beq wraptext
+      inx
+      cpx #20
+      bne messread
+      jmp store
+wraptext
+      lda #<scrolltext 
+      sta messread+1
+      lda #>scrolltext
+      sta messread+2
+      jmp messread
+      
+      ;The fun part. This routine checks whether the
+      ;character is upper or lower case before storing
+      ;the message to the bottom screen row.
+      ;0 = upper row of 2x2, 1 = bottom row of 2x2, 2 = line space
+store 
+      lda charbit
+      cmp #1
+      beq lower
+      cmp #2
+      beq space
+      
+      ;Store the upper row of the message text
+upper
+      ldx #$00
+      ldy #$00
+      txa
+upperloop        
+      
+      lda $02,x
+      sta screen+880,y 
+      eor #$40
+      sta screen+880+1,y
+      iny
+      iny
+      inx
+      cpx #$14
+      bne upperloop
+      lda #1
+      sta charbit
+      rts
+      
+      ;Store the lower row of the message text
+      
+lower
+      ldx #$00
+      ldy #$00
+      txa
+lowerloop            
+      lda $02,x
+      eor #$80
+      sta screen+880,y 
+      eor #$40
+      sta screen+880+1,y
+      iny
+      iny
+      inx
+      cpx #$14
+      bne lowerloop
+      lda #2
+      sta charbit
+      rts
+      
+      ;Store the space bar line feed to the bottom row
+      ;in order to make the scrolling message more
+      ;readable.
+      
+space ldx #$00
+dospace
+      lda #$20
+      sta screen+880,x
+      inx
+      cpx #$28
+      bne dospace
+      lda #0
+      sta charbit
+      
+      ;Update message to next row in memory
+      
+      lda messread+1
+      clc
+      adc #20 
+      sta messread+1
+    
+      lda messread+2
+      adc #0
+      sta messread+2
+      bcs exit
+exit  rts
+      
+      
+ydelay !byte 0
+ypos !byte 0
+ypos2 !byte 0
+!ct scr
+scrolltext     
+ 
+!text "--------------------"
+!text " richard's 2x2 line "
+!text "  feed scroll text  "
+!text "--------------------"
+!text "this message        "
+!text "consists of 20      "
+!text "characters per row  "
+!text "the code converts   "
+!text "each character into "
+!text "2x2 char segments or"
+!text "line feed spacebar  "
+!text "to make the scroll  "
+!text "much more readable. "
+!text "                    "
+!text "your text can be    "
+!text "very long or short  "
+!text "and sweet.          "
+!byte 0 ;@ marker on last row 
+
+               
+
+</code>

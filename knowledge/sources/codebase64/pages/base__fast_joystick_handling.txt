@@ -1,0 +1,123 @@
+# PAGE: base:fast_joystick_handling
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:fast_joystick_handling
+
+====== Fast Joystick Handling ======
+
+==== Signed Movement ====
+
+Returnes signed movement in A & Y, and CARRY gives FIRE state (SET = No Fire, CLEAR = Fire).
+
+14 (or 16 depending on table memory location) cycles / 11 bytes code (Excl. jsr/rts) + 54 bytes tables = 65 bytes
+
+<code>
+Joystick:
+    ldx CIA1.DataPortB
+    cpx #%11110000      // Carry Clear = Fire, Set = No Fire.
+    ldy ytab - $e5,x
+    lda xtab - $e5,x
+    rts
+ytab:
+    .byte $01, $ff, $00, $00, $01, $ff, $00, $00, $01, $ff, $00, $00, $00, $00, $00, $00
+    .byte $01, $ff, $00, $00, $01, $ff, $00, $00, $01, $ff, $00
+xtab:
+    .byte $01, $01, $01, $00, $ff, $ff, $ff, $00, $00, $00, $00, $00, $00, $00, $00, $00
+    .byte $01, $01, $01, $00, $ff, $ff, $ff, $00, $00, $00, $00
+</code>
+
+The same routine, only smaller footprint at the cost of 4 cycles:
+
+<code>
+Joystick:
+    lda CIA1.DataPortB
+    cmp #%11110000
+    and #%00001111
+    tax
+    ldy ytab - 5,x
+    lda xtab - 5,x
+    rts
+ytab:
+    .byte $01, $ff, $00, $00, $01, $ff, $00, $00, $01, $ff, $00
+xtab:
+    .byte $01, $01, $01, $00, $ff, $ff, $ff, $00, $00, $00, $00
+</code>
+
+Having the X-Movement returned in A instead of X has proven to be more efficiant for further handling after the call, as you would normally do a signed addition following the routine (no need to TXA). The 'inverted' CARRY means swapping your BCS to a BCC so no issues at all.
+
+You could also change the values in the tables to different speeds (or even SMC to different tables for variable speed).
+
+The above routines are the **fastest**, but if you need smaller, the official routine by commodore is **the** smallest one know (bit rolling) but, however, you could inline the above into any code directly and skip the joystick subroutine call all together so it has the potential to win on size as well that way.
+
+Above routines by JAS/CTR.
+
+
+==== Explicit direction handling ====
+
+If you need explicit direction support (if you for example need to call specific routines according to the direction the joystick is moved (including diagonally) it can be done as follows:
+
+<code>
+    //-------------------------------------------
+    // Explicit direction joy-routine by TWW/CTR
+    //-------------------------------------------
+Joystick:
+    lda CIA1.DataPortB
+    cmp #%11110000
+    and #%00001111
+    tax
+    lda BranchOffsetTable - 5,x
+    sta SMC_BranchOffset
+    beq SMC_BranchOffset: *
+NoMove:
+    rts
+    //-------------------------------------------
+NE: jmp Sub_JoystickNorthEast
+E:  jmp Sub_JoystickEast
+NW: jmp Sub_JoystickNorthWest
+N:  jmp Sub_JoystickNorth
+SE: jmp Sub_JoystickSouthEast
+S:  jmp Sub_JoystickSouth
+SW: jmp Sub_JoystickSouthWest
+W:  jmp Sub_JoystickWest
+    //-------------------------------------------
+BranchOffsetTable:
+    .byte SE - NoMove, NE - NoMove, E - NoMove, $00
+    .byte SW - NoMove, NW - NoMove, W - NoMove, $00
+    .byte  S - NoMove,  N - NoMove, $00
+</code>
+
+The table may be expanded to include fire and subsequent routines as well, but the CARRY will be set/reset when the subroutines are called due to the CMP. Anyway here is how it looks with explicit fire included as well:
+
+<code>
+Joystick:
+    ldx CIA1.DataPortB
+    lda BranchTable - $e5,x
+    sta SMC_Branch
+    beq SMC_Branch: *
+NoMove:
+    rts
+NE: jmp UpRight
+E:  jmp Right
+NW: jmp UpLeft
+N:  jmp Up
+SE: jmp DownRight
+S:  jmp Down
+SW: jmp DownLeft
+W:  jmp Left
+FNE:jmp FireUpRight
+FE: jmp FireRight
+FNW:jmp FireUpLeft
+FN: jmp FireUp
+FSE:jmp FireDownRight
+FS: jmp FireDown
+FSW:jmp FireDownLeft
+FW: jmp FireLeft
+
+BranchTable:
+    .byte  SE - NoMove,  NE - NoMove,  E - NoMove, $00
+    .byte  SW - NoMove,  NW - NoMove,  W - NoMove, $00
+    .byte   S - NoMove,   N - NoMove, $00, $00, $00, $00, $00, $00
+    .byte FSE - NoMove, FNE - NoMove, FE - NoMove, $00
+    .byte FSW - NoMove, FNW - NoMove, FW - NoMove, $00
+    .byte  FS - NoMove,  FN - NoMove, $00
+</code>
+
+You could also skipp the jmp if the direction handling subroutines are within branch range (just update the table accordingly).

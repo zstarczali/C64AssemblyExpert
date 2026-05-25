@@ -1,0 +1,58 @@
+# PAGE: base:simple_basic_x-modem_receive
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:simple_basic_x-modem_receive
+
+===== Type-in BASIC program for X-Modem file download =====
+
+Transfer software is great, but how do you initially get it on your 64?  I wrote this to solve the bootstrapping problem.  It simply receives a single file through the user port RS232 via the X-Modem protocol.  IIRC, this should obey the full protocol, with complete error reporting as well.
+<code>
+    0 rem simple xmodem receive by white flame 2003-11-29
+   10 input"receive filename";f$
+   20 input"receive to drive";d
+   21 input"baud rate";br
+   22 reada,b:ifa<>brthen22
+   25 open5,d,5,f$+",p,w"
+   30 open2,2,0,chr$(b)+chr$(9)
+   31 dimp(128)
+   35 input"press return to start";a$
+   40 print#2,chr$(21);:rem send nak to start
+   50 e=1:goto3000
+  998 print"can ->":print#2,chr$(24);chr$(24);chr$(24);:rem send cancel
+  999 close5:close2:end
+ 1100 rem --- get char ---
+ 1105 tm=ti
+ 1110 geta$:iflen(a$)thenprint"aborted":goto998
+ 1115 ifti-tm>300theni=-1:return
+ 1120 get#2,i$:iflen(i$)=0andst<>0thengoto1110
+ 1125 i=asc(i$+chr$(0))
+ 1130 return
+ 2000 rem --- received eot ---
+ 2010 print"-> eot";
+ 2020 print#2,chr$(21);:rem send nak
+ 2030 gosub1100
+ 2040 ifi<>4thenprint"eot not received":goto999
+ 2050 print#2,chr$(6);:rem send ack
+ 2060 print"-> eot":goto999
+ 3000 rem --- receive loop ---
+ 3010 gosub 1100
+ 3020 ifi=4then2000:rem eot
+ 3025 ifi=24thenprint"sender cancelled":goto999
+ 3030 ifi<>1thenprint"unknown data";i:goto998
+ 3040 gosub1100:i2=i:gosub1100:print"packet";i2
+ 3050 ifi+i2<>255thenprint"bad packet number";i2;i:goto998
+ 3060 ifi2<>ethenprint"packet out of order (wanted ";e;")":goto998
+ 3080 c=0:n=0:t=0
+ 3081 gosub1100:ifi=-1then3110
+ 3082 p(t)=i:c=(c+i)and255:printt"{CRSR-UP}":t=t+1:ift<128thengoto3081
+ 3090 gosub1100:ifc<>ithenprint"checksum error":goto3110
+ 3095 fort=0to127:print#5,chr$(p(t));:next
+ 3096 e=(e+1)and255:print#2,chr$(6):print"-ok-"
+ 3100 goto3000
+ 3110 rem --- redo packet ---
+ 3115 print"aborting packet"
+ 3120 print#2,chr$(21);: rem send nak
+ 3130 goto 3010
+ 9000 rem --- baud rate codes ---
+ 9005 data 50,1, 75,2, 110,3, 134.5,4, 150,5
+ 9010 data 300,6
+ 9020 data 1200,8
+ 9030 data 2400,10</code>

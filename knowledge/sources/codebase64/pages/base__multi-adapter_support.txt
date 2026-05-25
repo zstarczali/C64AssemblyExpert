@@ -1,0 +1,401 @@
+# PAGE: base:multi-adapter_support
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:multi-adapter_support
+
+======  Multi-Adapter Support ====== 
+
+By Sokrates
+
+Several joystick/joypad adapters were available for the C64 (see also here: https://en.wikipedia.org/wiki/Commodore_64_joystick_adapters). Some are even available factory-new today.
+
+In the following it is described how to apply an automatic detection and query for three specific adapters in order to avoid manual configuration, as used in the game "RACE+". The adapters are:
+  * SuperPad64
+  * Inception
+  * 4-player adapter (protovision/icomp)
+
+Since the 4-player adapter is also supported in the VICE emulator, the multi-adapter code can be used for up to 8 players directly on the C64, and for up to 4 player on the PC.
+
+I don't know a way to detect the 4-player adapter. But fortunately this is not necessary in this constellation, because on the one hand the other two adapters can be detected. On the other hand, the query of the additional two ports of the 4-player adapter does not generate any input for these additional ports in the absence of the adapter. This means that the 4-player adapter query routine can also be used for the two joysticks in the standard control ports if there is no adapter connected at all.
+
+Detection is done in the following steps:
+  - SuperPad64 detected? If yes, initialize and use it. If not, continue with 2.
+  - Inception detected? If yes, initialize and use it. If not, continue with 3.
+  - Initialize and use the 4-player adapter
+
+The detection routine of the first two adapters works correctly if no adapter is connected. The other way around, it could theoretically happen that another connected device is mistakenly recognized as an adapter (no case known so far).
+
+The prioritization from a player's perspective:
+  - SuperPad64
+  - Inception
+  - 4-player adapter and standard control ports
+  - Only standard control ports
+
+If more than one adapter are connected, the adapter with the higher priority is taken (for example if SuperPad64 and the Inception adapter are both connected, then only the SuperPad64 can be used). If no adapter is connected, the standard control ports can be used. 
+
+Source Code:
+<code>
+;; multi-adapter handling test code
+DETECTION     = $0400       ; so you can see, if something happens
+OUTLINE0      = $0450
+OUTLINE1      = OUTLINE0 + $28
+OUTLINE2      = OUTLINE1 + $28
+OUTLINE3      = OUTLINE2 + $28
+OUTLINE4      = OUTLINE3 + $28
+OUTLINE5      = OUTLINE4 + $28
+OUTLINE6      = OUTLINE5 + $28
+OUTLINE7      = OUTLINE6 + $28
+ZEROPAGE_TMP_LO = $FB	
+ZEROPAGE_TMP_HI = $FC
+
+;; generate BASIC Header
+BASIC_START = $0801
+CODE_START = $080d
+
+* = BASIC_START
+!byte 12,8,0,0,158
+!if CODE_START >= 10000 {!byte 48+((CODE_START/10000)%10)}
+!if CODE_START >= 1000 {!byte 48+((CODE_START/1000)%10)}
+!if CODE_START >= 100 {!byte 48+((CODE_START/100)%10)}
+!if CODE_START >= 10 {!byte 48+((CODE_START/10)%10)}
+!byte 48+(CODE_START % 10),0,0,0
+
+* = CODE_START
+main
+  jsr Screen_init
+  jsr Adapter_init
+  jsr Draw_detection
+main_loop
+  jsr Inception_wait		
+  jsr Adapter_read
+  jsr Draw_lines
+  jmp main_loop
+
+;; some time must pass by until the inception adapter can be read again
+;; otherwise there might be wrong results
+Inception_wait:
+  lda joystickAdapter
+  cmp #JOYSTICK_ADAPTER_INCEPTION
+  bne Inception_waitIsNoInception
+  ldy #$20
+  ldx #$00
+Inception_waitLoop:
+  nop
+  dex
+  bne Inception_waitLoop
+  dey
+  bne Inception_waitLoop
+Inception_waitIsNoInception:
+  rts
+  
+	
+	
+outLineHi
+!byte >OUTLINE0, >OUTLINE1, >OUTLINE2, >OUTLINE3, >OUTLINE4, >OUTLINE5, >OUTLINE6, >OUTLINE7 
+outLineLo
+!byte <OUTLINE0, <OUTLINE1, <OUTLINE2, <OUTLINE3, <OUTLINE4, <OUTLINE5, <OUTLINE6, <OUTLINE7 
+drawBitsTmp
+!byte $00
+	
+Draw_bits:
+  ldx #7
+  stx drawBitsTmp         ; Bit counter 7..0
+Draw_bitsLoop:
+  asl				; set carry flag
+  tax				; x = a
+  lda #$30			; zero
+  bcc Draw_bitsIsActive
+  lda #$31			; one
+Draw_bitsIsActive:	
+  sta (ZEROPAGE_TMP_LO),y
+  iny 
+  txa				; a = x
+  dec drawBitsTmp
+  bpl Draw_bitsLoop
+  rts
+	
+drawLineTmpX
+!byte $00
+drawLineTmpLoop
+!byte $00
+
+Draw_detection
+  lda #$30			; char "0"
+  clc
+  adc joystickAdapter
+  sta DETECTION
+  rts
+	
+Draw_lines:
+  lda #7
+  sta drawLineTmpLoop
+  lda #$00
+  sta drawLineTmpX
+Draw_linesLoop:
+  ldy #$00
+  ldx drawLineTmpX
+  lda outLineLo, x
+  sta ZEROPAGE_TMP_LO
+  lda outLineHi, x
+  sta ZEROPAGE_TMP_HI
+  lda joystickInput,x
+  jsr Draw_bits			; destroys x register
+  inc drawLineTmpX
+  dec drawLineTmpLoop
+  bpl Draw_linesLoop
+  rts
+
+	
+Screen_init:	
+  jsr $e544    ; clear screen
+  ldx #$00     ; black and counter
+  stx $d021    ; set background 
+  stx $d020    ; set border 
+  lda #$0f     ; grey 
+Screen_fillColorRam:	
+  sta $d800,x  
+  sta $d900,x
+  sta $da00,x
+  sta $db00,x
+  inx           
+  bne Screen_fillColorRam     
+  rts
+
+	
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; copy from here on for the multi adapter handling ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	
+;; Adapter_init: call this routine first one time to detect and initialize the adapters
+;; joystickAdapter: result of the initialization routine. Encoding:
+;; 0: no adapter or 4 player adapter
+;; 1: Inception
+;; 2: SuperPad64
+;; When multiple adapters are connected at the same time, the adapters are used in the following order:
+;; 1: SuperPad64
+;; 2: Inception
+;; 3: 4 player adapter
+	
+;; Adapter_read: routine to read the joystick input
+;; joystickInput: result of the read routine. 8 bytes, one for each joystick. Encoding:
+;; Bit 0: up
+;; Bit 1: down
+;; Bit 2: left
+;; Bit 3: right
+;; Bit 4: fire
+;; Bits 5-7: do not use, values depend on used adapter
+;; Please keep in mind: when button/direction is pressed, the according bit is 0 (and not 1)  
+
+JOYSTICK_ADAPTER_NONE_OR_4_PLAYER = $00
+JOYSTICK_ADAPTER_INCEPTION        = $01
+JOYSTICK_ADAPTER_SUPERPAD64       = $02
+
+joystickAdapter
+!byte JOYSTICK_ADAPTER_NONE_OR_4_PLAYER
+
+joystickInput
+!byte $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+
+Adapter_init:
+  jsr Adapter_init_SuperPad64
+  lda joystickAdapter
+  bne Adapter_initDetectionDone ; is value not JOYSTICK_ADAPTER_NONE_OR_4_PLAYER any more?
+	               ; (==SuperPad64 detected)
+  jsr Adapter_init_Inception
+  lda joystickAdapter
+  bne Adapter_initDetectionDone ; is value not JOYSTICK_ADAPTER_NONE_OR_4_PLAYER any more?
+	               ; (==Inception detected)
+  jsr Adapter_init_4Player ; init 4-player adapter (even when not connected)
+Adapter_initDetectionDone:
+  ldx #$07
+  lda #$ff
+Adapter_initFillLoop:
+  sta joystickInput,x
+  dex
+  bpl Adapter_initFillLoop
+  rts
+
+;; detect SuperPad64: read byte16 and byte17. Cases:
+;; * byte16!=byte17: SuperPad64 adapter detected and at least 1 pad plugged in
+;; * else: no SuperPad64 adapter detected or no pad plugged in
+Adapter_init_SuperPad64:
+  lda #$00  			; PB = input
+  sta $dd03
+  lda $dd02
+  ora #$04
+  sta $dd02     		; PA2 = output for latch signal
+  lda $dd00
+  ora #$04 		        ; PA2 = high
+  sta $dd00     		
+  and #$fb 		        ; PA2 = high
+  sta $dd00     		
+  ldx #$0f
+Adapter_init_SuperPad64Loop:
+  lda $dd01			; read 16 bytes
+  dex
+  bpl Adapter_init_SuperPad64Loop
+  cmp $dd01			; byte 16==byte 17?
+  beq Adapter_init_SuperPad64Done		; yes
+  ldy #JOYSTICK_ADAPTER_SUPERPAD64
+  sty joystickAdapter		; detected with at least one pad plugged in 
+Adapter_init_SuperPad64Done:
+  rts
+
+Adapter_init_Inception:
+  jsr Adapter_read_Inception
+  ldy #$00
+  lda joystickInput,y
+  and #$e0
+  bne Adapter_init_InceptionDone
+  lda #JOYSTICK_ADAPTER_INCEPTION ; adapter detected 
+  sta joystickAdapter	
+Adapter_init_InceptionDone:
+  rts
+	
+Adapter_init_4Player:
+  lda #$80	       
+  sta $DD03 ; CIA2 PortB Bit7 as OUT
+  lda $DD01 ; force Clock-Stretching (SuperCPU)
+  sta $DD01 ; and release Port
+  rts
+	
+	
+Adapter_read:
+  lda joystickAdapter
+  bne Adapter_readIsSuperPad64OrInception ; jump if not JOYSTICK_ADAPTER_NONE_OR_4_PLAYER = $00
+  jsr Adapter_read_4Player
+  rts
+Adapter_readIsSuperPad64OrInception:
+  cmp #JOYSTICK_ADAPTER_SUPERPAD64
+  bne Adapter_read_Inception ; jump for inception
+  jsr Adapter_read_SuperPad64
+  rts
+Adapter_readIsInception:
+  jsr Adapter_read_Inception
+  rts
+	
+Adapter_read_SuperPad64:	
+  lda $dd00
+  ora #$04 		        ; PA2 = high
+  sta $dd00     		
+  and #$fb 		        ; PA2 = low
+  sta $dd00     		
+  lda $dd01     ; get values for firebutton "b"
+  ;eor #$ff	; invert bits
+  pha		; remember firebutton values in heap
+  lda $dd01     ; get and forget values for "y"
+  lda $dd01     ; get and forget values for "select"
+  lda $dd01     ; get and forget values for "start"
+  ldy #$03			; get 4 directions
+Adapter_read_SuperPad64NextDirection:	
+  lda $dd01     ; get direction values "up", "down", "left", and "right"
+  ;eor #$ff	; invert bits
+  ldx #$07			; store direction in joystick variables
+Adapter_read_SuperPad64BitsToJoysticks:	
+  rol                           ; shift bit left into carry...
+  ror joystickInput,x                     ; ...then into its destination
+  dex
+  bpl Adapter_read_SuperPad64BitsToJoysticks
+  dey
+  bpl Adapter_read_SuperPad64NextDirection
+  ;; now values in each joy: right, left, down, up, x, x, x, x 
+  pla		; restore firebutton values from heap to accu
+  ldx #$07	; add firebutton and generate encoding compatible to
+	        ; standard joystick format:
+	        ;  0,0,0, fire, right, left, down, up
+Adapter_read_SuperPad64ConvertToStandardLoop:	
+  rol                           ; shift fire bit to carry ...
+  ror joystickInput,x           ; ...then into its destination
+  lsr joystickInput,x		; fill left three bits with 0
+  lsr joystickInput,x			
+  lsr joystickInput,x
+  dex
+  bpl Adapter_read_SuperPad64ConvertToStandardLoop
+  rts
+
+
+inceptionJoystickTmp
+!byte $00
+
+; 8-Player Adapter Inception
+; wait by using NOPs is needed for timing
+Adapter_read_Inception:
+  lda #$00 ; #init_opcode
+  sta $DC00 
+  lda #$1f 
+  sta $DC02 
+  nop
+  nop
+  nop
+  lda #$10 
+  sta $DC00 
+  sta $DC02 
+  ldx #$00 
+  nop				
+  nop
+  nop
+  nop
+  nop
+  nop
+Adapter_read_InceptionLoop:
+  lda $DC00 
+  asl 
+  asl 
+  asl 
+  asl 
+  ldy #$00 
+  sty $DC00 
+  sta inceptionJoystickTmp ; sta rcv+1
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  lda $DC00 
+  ldy #$10 
+  sty $DC00 
+  and #$0f 
+  ora inceptionJoystickTmp ; rcv: ora #$00
+  eor #$1f ; use only when JOY are required negated (like direct read)
+  sta joystickInput,x
+  inx 
+  cpx #$08 ; data_length
+  bne Adapter_read_InceptionLoop
+  lda #$7F ;joy_def
+  sta $DC00 
+  lda #$FF 
+  sta $DC02 
+  rts	
+
+	
+Adapter_read_4Player:	
+  lda $DC01 ; read Port1
+  ;and #$1F
+  sta joystickInput+$00
+
+  lda $DC00 ; read Port2
+  ;and #$1F
+  sta joystickInput+$01
+
+  lda $DD01 ; CIA2 PortB Bit7 = 1
+  ora #$80
+  sta $DD01
+
+  lda $DD01 ; read Port3
+  ;and #$1F
+  sta joystickInput+$02
+
+  lda $DD01 ; CIA2 PortB Bit7 = 0
+  and #$7F
+  sta $DD01
+
+  lda $DD01 ; read Port4
+  tax  ; x = a
+  and #$0F
+  sta joystickInput+$03
+  txa ; a = x
+  and #$20
+  lsr
+  ora joystickInput+$03
+  sta joystickInput+$03
+  rts	
+</code>

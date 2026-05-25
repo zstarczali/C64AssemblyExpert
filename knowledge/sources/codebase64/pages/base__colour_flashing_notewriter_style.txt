@@ -1,0 +1,72 @@
+# PAGE: base:colour_flashing_notewriter_style
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:colour_flashing_notewriter_style
+
+==== Colour Flashing Notewriter Style ====
+Have you saw programs like Face Noter, Octanoter, etc. All those programs use a special extra colour mode, to activate char flashing. Some of you may find it to be really difficult to understand how it works, but it is actually *that* easy to remember. All you need to do is switch $D011 to $5b to get extra colour mode, and create a colour cycling routine. Here's a routine for it.
+
+<code> 
+;===============================
+;Flashing colours in EBC mode
+;===============================
+
+flashpt = $02
+
+           !to "flasher.prg",cbm
+           * = $0810
+           sei
+           lda #$00
+           sta flashpt
+           sta $d020
+           sta $d021
+           lda #<irq
+           ldx #>irq
+           sta $314
+           stx $315
+           lda #$7f
+           sta $dc0d
+           lda #$5b
+           sta $d011 ;Swich on EBC mode
+           lda #$01
+           sta $d01a
+           cli
+           rts ;Just end here for now
+irq        inc $d019
+           jsr flash
+           jmp $ea31
+
+flash      inc flashpt
+           lda colour1,x
+           sta $d022 ;EBC Multicolour 1
+           lda colour2,x
+           sta $d023 ;EBC Multicolour 2
+           lda colour3,x
+           sta $d024 ;EBC Multicolour 3
+           inx
+           cpx #$28
+           beq resetf
+           inc flashpt
+           rts
+resetf     ldx #$00
+           stx flashpt
+           rts
+
+colour1    !byte $09,$09,$02,$02,$08,$08,$0a,$0a
+           !byte $07,$07,$01,$01,$07,$07,$0a,$0a
+           !byte $08,$08,$02,$02,$09,$09,$00,$00
+           !byte $00,$00,$00,$00,$00,$00,$00,$00
+           !byte $00,$00,$00,$00,$00,$00,$00,$00
+           !byte $00
+
+colour2    !byte $06,$06,$04,$04,$0e,$0e,$05,$05
+           !byte $0d,$0d,$01,$01,$0d,$0d,$05,$05
+           !byte $0e,$0e,$04,$04,$06,$06,$00,$00
+           !byte $00,$00,$00,$00,$00,$00,$00,$00
+           !byte $00,$00,$00,$00,$00,$00,$00,$00
+           !byte $00
+
+colour3    !byte $00,$00,$00,$00,$00,$00,$00,$00
+           !byte $00,$00,$09,$09,$02,$02,$08,$08
+           !byte $05,$05,$0d,$0d,$01,$01,$0d,$0d
+           !byte $05,$05,$08,$08,$02,$02,$09,$09
+           !byte $00,$00,$00,$00,$00,$00,$00,$00
+</code>

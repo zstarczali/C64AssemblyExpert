@@ -1,0 +1,10 @@
+# PAGE: base:ufli
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:ufli
+
+====== UFLI ======
+
+Underlayer FLI is based on [[base:hires_fli|Hires FLI]] and a low-priority sprite-layer. 7 sprites are used, where one covers the FLI-bug and the other 6 are x-expanded and covering 288 pixels of the screen width. The rightmost 8 pixels are left unused as well as the FLI-bug area. Due to timing limits this mode only uses FLI every 2:nd line, though the colorfullness is somewhat compensated by the sprite-layer, which originally was in multicolor (correct me if wrong). I'm not 100% sure, but i think the hight of the picture was originally limited to 168 pixels to fit into one video bank, but it's possible to use two video banks to fill the whole screen hight.
+
+UFLI was expectedly developed into UIFLI, the same thing but interlaced. Later on sprite-color splits were added to the timing code, and the result was called MUFLI and MUIFLI.
+
+The latest invention (at the time of writing) in the UFLI-series is NUFLI. The spec of NUFLI is quite complicated, and it is more like a rendering format. An original picture is used as input to a converter tool, which does its best to represent the picture within the given limits. The timing code is then generated, including as many sprite-color or other HW-register manipulations as there is room for. When the code is generated, you can use an editor to hand-fix the areas that you are not satisfied with. NUFLI covers the whole screen, thus the resolution is 320x200 pixels, though the amount of availible colors is not the same on the whole screen.

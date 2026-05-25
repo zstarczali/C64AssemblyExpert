@@ -1,0 +1,61 @@
+# PAGE: base:supercpu_dec
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:supercpu_dec
+
+====== DEC ======
+
+<code>
+    //---------------------------------------------------------------------------------------------
+    // PseudoCommand-OPC: DEC16 (DECrement)
+    //
+    // Addressing Modes:
+    //   Accumulator                        ($3a - 1 bytes, 2 cycles)
+    //   Absolute                        ($ce - 3 bytes, 6 cycles¹)
+    //   Direct Page (Also DP)            ($c6 - 2 bytes, 5 cycles¹²)
+    //   Absolute Indexed,X                ($de - 3 bytes, 7 cycles¹³)
+    //   DP Indexed,X                    ($d6 - 2 bytes, 6 cycles¹²)
+    //   ¹ - Add 2 cycles if m = 0 (16-bit memory/accumulator)
+    //   ² - Add 1 cycle if low byte of Direct Page register is other than zero (DL<>0)
+    //   ³ - Subtract 1 cycle if 65C02 and no page boundary crossed
+    //
+    // Flags Affected:
+    //   n Set if most significant bit of result is set; else cleared.
+    //   z Set if result is zero; else cleared.
+    //
+    // Description:
+    //   Decrement by one the contents of the location specified by the operand (subtract one from
+    //   the value).
+    //
+    //   Unlike subtracting a one using the SBC instruction, the decrement instruction is neither
+    //   affected by nor affected the carry flag. You can test for wraparound only by testing after
+    //   every decrement to see if the value is zero or negative. On the other hand, you don’t need
+    //   to set the carry before decrementing.
+    //
+    //   DEC is unaffected by the setting of the d (decimal) flag.
+    //
+    //   8-bit accumulator/memory (all processors): Data decremented is eight-bit.
+    //
+    //   16-bit accumulator/memory (65802/65816 only, m = 0): Data Decremented is sixteen-bit:
+    //    - if in memory, the low-order eight bits are located at the effective address;
+    //    - the high-order eight bits are located at the effective address plus one.
+    //---------------------------------------------------------------------------------------------
+
+    .pseudocommand dec16 val {
+        .if (val.getType()==AT_NONE) {
+            .byte $3a
+        }
+        .if (val.getType()==AT_ABSOLUTE) {
+            .if (val.getValue()<256) {
+                .byte $c6, <val.getValue()       // Direct Page
+            } else {
+                .byte $ce, <val.getValue(), >val.getValue()
+            }
+        }
+        .if (val.getType()==AT_ABSOLUTEX) {
+            .if (val.getValue()<256) {
+                .byte $d6, <val.getValue()       // Direct Page
+            } else {
+                .byte $de, <val.getValue(), >val.getValue()
+            }
+        }
+    }
+</code>

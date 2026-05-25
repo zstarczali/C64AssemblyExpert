@@ -1,0 +1,230 @@
+# PAGE: base:spectrometer
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:spectrometer
+
+This is the code from T.P.C.T.S. demo that calculates the index values for the spectrometer. There are a few tricks in there, but I am sure many people could have written a more optimized version.
+
+I hope it will help you understand how I did it.
+
+Code can be compiled using KickAss.
+
+/Trap
+
+
+<code>
+.const SID_Ghostbytes = $40                                     // Location of SID Ghostbytes (16 bytes)
+
+/////////////////////////////////////////////////////////////////////////////////
+// Spectrometer
+/////////////////////////////////////////////////////////////////////////////////
+
+Spectrometer:               // Call this every frame. You can then use the values in the dBMeterValue table as index for drawing your spectrometer bands.
+
+DecreaseBarIndexes:         ldx #16                             // MeterTemp contains the index values, or height, of each of the 16 bands.
+!:                          lda MeterTemp,x                     // This code will go through each of these values and decrease them until = 0.
+                            beq dBMeterUpdate_NoDec    
+                            dec MeterTemp,x
+dBMeterUpdate_NoDec:        tay
+                            lda SoundbarSine,y                  // The index value from MeterTemp is used to get a value from a bouncing sinewave.
+                            sta dBMeterValue,x                  // SoundbarSine is the sine, it contains a 90 degree drop and a small 180 degree bounce.
+                            dex
+                            bpl !-
+
+                            ldx SID_Ghostbytes                  // Get Channel 1 Note
+                            lda SID_Ghostbytes+1
+                            jsr GetNote
+                            lda SID_Ghostbytes+6                // Isolate sustain value
+                            and #$f0
+                            lsr
+                            lsr
+                            lsr
+                            lsr
+                            clc
+                            adc #6
+                            sta MeterTemp,x                     // Store new index for band representing the node played. X was received by GetNote function.
+                            jsr CalculateSurroundings           // Calculate polarization of neighbouring bands
+
+                            ldx SID_Ghostbytes+7                // Channel 2 Note
+                            lda SID_Ghostbytes+8
+                            jsr GetNote
+                            lda SID_Ghostbytes+$d               // Repeat channel 2
+                            and #$f0
+                            lsr
+                            lsr           
+                            lsr           
+                            lsr
+                            clc
+                            adc #6
+                            sta MeterTemp,x
+                            jsr CalculateSurroundings
+
+                            ldx SID_Ghostbytes+$e               // Repeat channel 3
+                            lda SID_Ghostbytes+$f
+                            jsr GetNote
+                            lda SID_Ghostbytes+$14
+                            and #$f0
+                            lsr
+                            lsr           
+                            lsr           
+                            lsr
+                            clc
+                            adc #6
+                            sta MeterTemp,x
+                            jsr CalculateSurroundings
+                            rts
+
+GetNote:                    stx NoteLo                  // Input is the node frequency
+                            sta NoteHi                  // We'll search the shortened frequency tables to approximate the node playing on a linear scale
+                            ldx #8
+                            ldy #0                      // Search iteration counter
+IterateBinarySearch:        lda FreqTableLookupHilsb,x  
+                            sta CompareHi+1
+                            lda FreqTableLookupHimsb,x
+                            sta CompareHi+2
+                            lda FreqTableLookupLolsb,x
+                            sta CompareLo+1
+                            lda FreqTableLookupLomsb,x
+                            sta CompareLo+2
+
+                            lda NoteHi                  // compare high bytes
+CompareHi:                  cmp FreqTablePalHi
+                            bcc Lower1                  // if NUM1H < NUM2H then NUM1 < NUM2
+                            bne Higher1                 // if NUM1H <> NUM2H then NUM1 > NUM2 (so NUM1 >= NUM2)
+                            lda NoteLo                  // compare low bytes
+CompareLo:                  cmp FreqTablePalLo
+                            bcs Higher1                 // if NUM1L >= NUM2L then NUM1 >= NUM2
+                            rts
+
+Lower1:                     txa
+                            sec
+                            sbc Delta,y
+                            tax                         
+                            iny 
+                            cpy #4                      // Control max number of iterations
+                            beq Done
+                            jmp IterateBinarySearch     
+
+Higher1:                    txa
+                            clc
+                            adc Delta,y
+                            tax
+                            iny
+                            cpy #4
+                            beq Done
+                            jmp IterateBinarySearch     
+
+Done:                       rts                         // X register contains the node played approximated to a table of 16 positions.
+
+CalculateSurroundings:      lda MeterTemp-2,x           // Rudimentary, but it works :)
+                            cmp MeterTemp,x             // Current band index in X.
+                            bcc LeftIsLower             // Take Current band from index-2 and calculate the value between these two and use it for band index-1.
+                            lda MeterTemp-2,x           // Do the same for the other side, index1=index2+((index-index2)/2)
+                            sec
+                            sbc MeterTemp,x
+                            lsr
+                            clc
+                            adc MeterTemp,x
+                            sta MeterTemp-1,x
+                            jmp LeftSurround
+LeftIsLower:                lda MeterTemp,x
+                            sec
+                            sbc MeterTemp-2,x
+                            lsr
+                            clc
+                            adc MeterTemp-2,x
+LeftSurround:               cmp #21
+                            bcc !+
+                            lda #21
+!:                          sta MeterTemp-1,x
+
+                            lda MeterTemp+2,x
+                            cmp MeterTemp,x
+                            bcc LeftIsLower2
+                            lda MeterTemp+2,x
+                            sec
+                            sbc MeterTemp,x
+                            lsr
+                            clc
+                            adc MeterTemp,x
+                            sta MeterTemp+1,x
+                            jmp LeftSurround2
+LeftIsLower2:               lda MeterTemp,x
+                            sec
+                            sbc MeterTemp+2,x
+                            lsr
+                            clc
+                            adc MeterTemp+2,x
+LeftSurround2:              cmp #21
+                            bcc !+
+                            lda #21
+!:                          sta MeterTemp+1,x
+                            rts
+
+
+FreqTableLookupHilsb:       .for(var i=0; i<16; i++) {          // SID Frequency lsb/msb lookup tables
+                                   .byte <FreqTablePalHi+(i*6)
+                            }
+FreqTableLookupHimsb:       .for(var i=0; i<16; i++) {
+                                   .byte >FreqTablePalHi+(i*6)
+                            }
+FreqTableLookupLolsb:       .for(var i=0; i<16; i++) {
+                                   .byte <FreqTablePalLo+(i*6)
+                            }
+FreqTableLookupLomsb:       .for(var i=0; i<16; i++) {
+                                   .byte >FreqTablePalLo+(i*6)
+                            }
+
+temp:                       .byte 0
+NoteLo:                     .byte 0
+NoteHi:                     .byte 0
+Delta:                      .byte 4,2,1,0
+
+FreqTablePalLo:
+                            .byte $17,$27,$39,$4b,$5f,$74,$8a,$a1,$ba,$d4,$f0,$0e  // Shortened frequency table, because I don't need full granularity.
+                            .byte $2d,$4e,$71,$96,$be,$e8,$14,$43,$74,$a9,$e1,$1c  // 2
+                            .byte $5a,$9c,$e2,$2d,$7c,$cf,$28,$85,$e8,$52,$c1,$37  // 3
+                            .byte $b4,$39,$c5,$5a,$f7,$9e,$4f,$0a,$d1,$a3,$82,$6e  // 4
+                            .byte $68,$71,$8a,$b3,$ee,$3c,$9e,$15,$a2,$46,$04,$dc  // 5
+                            .byte $d0,$e2,$14,$67,$dd,$79,$3c,$29,$44,$8d,$08,$b8  // 6
+                            .byte $a1,$c5,$28,$cd,$ba,$f1,$78,$53,$87,$1a,$10,$71  // 7
+                            .byte $42,$89,$4f,$9b,$74,$e2,$f0,$a6,$0e,$33,$20,$ff  // 8
+FreqTablePalHi:
+                            .byte $01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$02  // 1
+                            .byte $02,$02,$02,$02,$02,$02,$03,$03,$03,$03,$03,$04  // 2
+                            .byte $04,$04,$04,$05,$05,$05,$06,$06,$06,$07,$07,$08  // 3
+                            .byte $08,$09,$09,$0a,$0a,$0b,$0c,$0d,$0d,$0e,$0f,$10  // 4
+                            .byte $11,$12,$13,$14,$15,$17,$18,$1a,$1b,$1d,$1f,$20  // 5
+                            .byte $22,$24,$27,$29,$2b,$2e,$31,$34,$37,$3a,$3e,$41  // 6
+                            .byte $45,$49,$4e,$52,$57,$5c,$62,$68,$6e,$75,$7c,$83  // 7
+                            .byte $8b,$93,$9c,$a5,$af,$b9,$c4,$d0,$dd,$ea,$f8,$ff  // 8
+
+                            .byte 0,0
+dBMeterValue:               .fill 16,0
+                            .byte 0,0
+MeterTemp:                  .fill 16,0
+                            .byte 0,0
+               
+                            // Quick'n'dirty 180degree + 90degree drop sine.
+SoundbarSine:               .byte 0,2,4,5,6,6,5,4,2,0,2,4,6,8,9,10,11,12,13,14,14,15
+
+///////////////////////////////////////////////////////////////////////////////////////////
+// Play music using ghostbytes
+///////////////////////////////////////////////////////////////////////////////////////////
+PlayMusic:                  lda $01                             // Grab SID data. This is called from IRQ.
+                            pha
+                            lda #$30
+                            sta $01
+                            jsr $1003
+                            ldx #$19
+!CopySIDData:               lda $d400,x
+                            sta SID_Ghostbytes,x
+                            dex
+                            bpl !CopySIDData-
+                            pla 
+                            sta $01
+                            ldx #$19
+!CopyToSID:                 lda SID_Ghostbytes,x
+                            sta $d400,x
+                            dex
+                            bpl !CopyToSID-
+                            rts
+</code>

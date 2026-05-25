@@ -1,0 +1,26 @@
+# PAGE: base:midi_on_the_c64
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:midi_on_the_c64
+
+====== MIDI on the C64 ======
+A number of MIDI interfaces exist for the C64. Most of them take the form of cartridges. 
+
+====== Specs ======
+
+  * [[ C64 MIDI Interfaces ]] - Description of C64 Midi interfaces and registers, by GRG.
+  * [[ C64 MIDI Data ]] - Short Description of data, by GRG.
+
+====== Sources ======
+
+  * [[ TinyMidi ]] - by GRG. A working example program in tass format.
+  * [[ Triad MidiSlave Manager V1.1 ]] - by King Fisher/TRIAD. ([[Triad MidiSlave Manager V1.1 Docs|Docs here]])
+
+====== C64 MIDI info links ======
+
+  * [[http://www.buchty.net/articles/midikurs.html]] - C64 MIDI tutorial in German from GO64! (5-8/98) 
+
+====== General MIDI info links ======
+Worth a read if you don't know what MIDI is.
+
+  * [[http://en.wikipedia.org/wiki/MIDI]]
+  * [[http://www.midi.org/]]
+

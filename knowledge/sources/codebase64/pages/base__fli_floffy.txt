@@ -1,0 +1,2659 @@
+# PAGE: base:fli_floffy
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:fli_floffy
+
+====== FLI Floffy ======
+
+{{flifloffy.png|}}
+
+
+===== Concept =====
+A FLI logo is sine-waved first on the Y axis (DYPP) and then on the X axis (tech-tech.)
+The most tricky part of this is that in FLI, the colors and bitmap are interconnected in every 8x1 byte, as well as in every char.
+So it's hard to shift single rows of pixels up'n'down independently, without getting color clashed.
+And even if the graphics was designed to avoid this, the process would be rather cumbersome rastertime exhaustive.
+
+To get around these problems, the precision of the DYPP has been lowered to every 2nd multicolor pixel, and the maximum difference for the Y-position of each of these segments has been set to 1 pixel. So for each char, there is only 3 cases - up, straight or down.
+The graphics has then been designed to be able to handle these cases without color clashes.
+Storing the DYPP'ed gfx into FLI is done with some routines that have been specialized for each byte in the gfx, and for each DYPP case, so it can load it directly in immediate mode, without having to look it up in a table.
+
+===== Sourcecode =====
+
+<code>
+;------------------------------------------------------------
+; FLI Fluffy
+;------------------------------------------------------------
+; Coded by Cruzer/Camelot 2003-2004
+; Asm'ed with mxass
+;------------------------------------------------------------
+
+;zeropage...
+
+.la gfxadrs   = $02 ;
+.la coladrs   = $72 ;
+.la segment   = $e0 ;1
+.la cnt       = $e1 ;1
+.la techpoint = $e2 ;2
+.la dypppoint = $e4 ;2
+.la generate  = $e6 ;1
+.la char      = $e7 ;1
+
+;memory...
+
+;0340-07ff ysiner
+;0801-08ff basic
+;0900-0aff tech-tech sine
+;0b00-0fff shower
+;1000-15ff noise
+;1600-28ff main
+;29c0-c4ff dypper
+;c500-cc7f fli-bitmap
+;ce00-d3ff dypper pointers
+;d400-dfff logo source
+;e000-ffff fli colors + other stuff like...
+; e000-e6ff tech-techer
+; e700-eaff zpmover
+; eb00-ebff temp
+; ee00-eeff lut
+; ef00-efff zp-initer
+; f000-f7ff font
+; f800-fbff text-screen
+; fe00-ffff dypp sine
+
+.la ysiner       = $0340
+;la basic        = $0801
+.la loadersrc1   = $0840
+.la techsine     = $0900
+.la shower       = $0b00 ;0f3f
+.la loadersrc2   = $0f40
+;la music        = $1000
+.la main         = $1600
+.la loadersrc3   = $2900
+.la dypper       = $29c0 ;c63f
+.la bitmap       = $c000 ;(c640-cdff)
+.la dypppnt      = $ce00 ;ceff
+.la logosrc      = $d400
+;la screens      = $e000 ;efff
+.la techtecher   = $e000
+.la zpmover      = $e700
+.la temp         = $eb00
+.la dypppp       = $ee00
+.la zpiniter     = $ef00
+;la font         = $f000
+;la textscreen   = $f800 ;fbff
+.la dyppsine     = $fe00
+
+.ba main
+.la border=$d020
+
+;------------------------------------------------------------
+	jmp start
+
+
+d011	.by $78,$79,$7a,$7b,$7c,$7d,$7e,$7f
+	.by $78,$79,$7a,$7b,$7c,$7d,$7e,$7f
+d018	.by $a0,$b0,$c0,$d0,$e0,$f0,$80,$90
+
+fadein	.by 0
+fadeout	.by 0
+fadepnt	.by 0
+
+fxs	.wo fx1,fx2,fx3,fx4,fx5,fx6,fx7,fx8,fx9,fx10,fx11,fx12,fx13,fx14
+fx	.by $ff
+numfx	.by 14
+
+thisfx
+techspread .by $00,$00
+techspeed  .by $00,$00
+techoffset .by $00,$00
+dyppspread .by $00,$00
+dyppspeed  .by $00,$00
+dyppoffset .by $00,$00
+updatetype .by 0	; 0=each frame  1=jumps
+fxtimer    .wo $00
+
+fx1
+	.by $00,$00 ;techspread
+	.by $00,$00 ;techspeed
+	.by $00,$00 ;techoffset
+	.by $00,$00 ;dyppspread
+	.by $00,$00 ;dyppspeed
+	.by $00,$00 ;dyppoffset
+	.by 0       ;updatetype
+	.wo $300    ;fxtimer
+
+fx2
+	.by $03,$04  ;+techspread
+	.by $02,$03  ;+techspeed
+	.by $00,$00  ;+techoffset
+	.by $04,$04  ;+dyppspread
+	.by $02,$02  ;+dyppspeed
+	.by $00,$00  ;+dyppoffset
+	.by 0        ;+updatetype
+	.wo $1aa     ;+fxtimer
+
+
+fx3
++techspread .by $06,$06
++techspeed  .by $04,$04
++techoffset .by $00,$00
++dyppspread .by $05,$05
++dyppspeed  .by $05,$05
++dyppoffset .by $00,$00
++updatetype .by 0
++fxtimer    .wo $122
+
+fx4
++techspread .by $03,$05
++techspeed  .by $04,$03
++techoffset .by $00,$00
++dyppspread .by $04,$04
++dyppspeed  .by $fd,$fd
++dyppoffset .by $00,$00
++updatetype .by 0
++fxtimer    .wo $1aa
+
+fx5
++techspread .by $08,$08
++techspeed  .by $06,$05
++techoffset .by $00,$00
++dyppspread .by $04,$04
++dyppspeed  .by $fd,$fd
++dyppoffset .by $00,$00
++updatetype .by 0
++fxtimer    .wo $1aa
+
+fx6
++techspread .by $04,$04
++techspeed  .by $03,$fd
++techoffset .by $00,$00
++dyppspread .by $00,$00
++dyppspeed  .by $00,$00
++dyppoffset .by $00,$00
++updatetype .by 0
++fxtimer    .wo $144
+
+fx7
++techspread .by $06,$09
++techspeed  .by $03,$fc
++techoffset .by $00,$00
++dyppspread .by $08,$07
++dyppspeed  .by $fc,$03
++dyppoffset .by $00,$00
++updatetype .by 0
++fxtimer    .wo $1aa
+
+fx8
++techspread .by $06,$06
++techspeed  .by $03,$fd
++techoffset .by $00,$00
++dyppspread .by $05,$05
++dyppspeed  .by $fd,$03
++dyppoffset .by $00,$00
++updatetype .by 0
++fxtimer    .wo $144
+
+fx9
++techspread .by $84,$05
++techspeed  .by $05,$04
++techoffset .by $00,$00
++dyppspread .by $04,$04
++dyppspeed  .by $03,$03
++dyppoffset .by $00,$00
++updatetype .by 0
++fxtimer    .wo $1aa
+
+fx10
++techspread .by $04,$fb
++techspeed  .by $02,$03
++techoffset .by $00,$00
++dyppspread .by $03,$03
++dyppspeed  .by $fa,$fa
++dyppoffset .by $00,$00
++updatetype .by 0
++fxtimer    .wo $144
+
+fx11
++techspread .by $06,$06
++techspeed  .by $04,$04
++techoffset .by $00,$00
++dyppspread .by $05,$05
++dyppspeed  .by $05,$05
++dyppoffset .by $00,$00
++updatetype .by 1
++fxtimer    .wo $122
+
+fx12
++techspread .by $01,$01
++techspeed  .by $04,$fd
++techoffset .by $00,$00
++dyppspread .by $02,$02
++dyppspeed  .by $fc,$03
++dyppoffset .by $00,$00
++updatetype .by 0
++fxtimer    .wo $1aa
+
+fx13
++techspread .by $12,$06
++techspeed  .by $0c,$06
++techoffset .by $00,$00
++dyppspread .by $06,$06
++dyppspeed  .by $02,$02
++dyppoffset .by $00,$00
++updatetype .by 0
++fxtimer    .wo $1aa
+
+fx14
++techspread .by $06,$06
++techspeed  .by $02,$fe
++techoffset .by $00,$00
++dyppspread .by $05,$05
++dyppspeed  .by $03,$fd
++dyppoffset .by $00,$00
++updatetype .by 0
++fxtimer    .wo $144
+
+;fx15
+;+techspread .by $02,$02
+;+techspeed  .by $fc,$03
+;+techoffset .by $00,$00
+;+dyppspread .by $03,$03
+;+dyppspeed  .by $fe,$03
+;+dyppoffset .by $00,$00
+;+updatetype .by 0
+;+fxtimer    .wo $7777
+
+;------------------------------------------------------------
+start
+
+	sei
+	lda #<startirq
+	sta $0314
+	lda #>startirq
+	sta $0315
+	asl $d019
+	lda #$7b
+	sta $dc0d
+	lda #$81
+	sta $d01a
+	lda #$1b
+	sta $d011
+	lda #$58
+	sta $d012
+
+	lda #$00
+	sta $d020
+	sta $d021
+
+	jsr init
+
+	lda #$00
+	jsr $1000
+
+;------------------------------------------------------------
+	cli	
+
+-	lda generate
+	beq -
+	
+	jsr clear
+	jsr maketechtecher
+	jsr makeysiner
+	
+	lda #0
+	sta generate
+	sta fadepnt
+	lda #1
+	sta fadein
+	
+	jmp -	
+	
+;------------------------------------------------------------
+
+startirq
+
+	inc border
+	
+	ldx #$77
+-
+	dex
+	bne -
+	
+	dec border
+
+	lda #<mainirq
+	sta $0314
+	lda #>mainirq
+	sta $0315
+
+	jmp ri
+
+mainirq
+
+	inc border
+
+	lda #$94
+	sta $dd00
+
+	ldx #4
+-	dex
+	bne -
+
+	jsr shower
+
+	ldx #$33
+-	dex
+	bne -
+	
+	lda #$1f
+	sta $d011
+	lda #$c8
+	sta $d016
+	lda #$ec
+	sta $d018
+	
+
+	inc border
+	jsr $1003
+
+	lda generate
+	bne +skip
+	
+	inc border
+	jsr techtech
+
+	inc border
+	jsr fluffy
+
+	inc border
+	jsr fade
+	jsr update
+	jsr textcontrol
+
+	jmp +skip2
++skip
+
+	lda #$e0
+-	cmp $d012
+	bne -
+	lda #$ee
+	sta $d018
+	
++skip2
+	
+	jsr spacecontrol
+		
+	lda #$05
+	sta border
+
+ri
+	asl $d019
+	pla
+	tay
+	pla
+	tax
+	pla
+	rti
+
+
+
+fadeoutirq
+
+	ldx cnt
+	lda fadecolz,x
+	sta $d020
+	lda cnt
+	cmp #9
+	beq +loadnext
+	inc cnt
+	jmp ri
+
+fadecolz .by $0,$b,$c,$f,$1,$1,$f,$c,$b,$0
+
+
++loadnext
+	
+	sei
+	lda #$00
+	sta $d01a
+	lda #$08
+	sta $2e
+	lda #$03
+	sta $2f
+	
+	ldx #$00
+-	
+	lda loadersrc1,x
+	sta $c000,x
+	lda loadersrc2,x
+	sta $c0c0,x
+	lda loadersrc3,x
+	sta $c180,x
+	inx
+	cpx #$c0
+	bne -
+		
+	jmp $c1f0
+
+	
+;------------------------------------------------------------
+spacecontrol
+
+	lda $dc01
+	cmp #$ef
+	bne +r
+
++space
+
+	lda #<fadeoutirq
+	sta $0314
+	lda #>fadeoutirq
+	sta $0315
+	lda #$00
+	sta $d012
+	sta cnt
+		
+	sta $d418
+	lda #$60
+	sta $d011
+
++r	rts
+
+
+;------------------------------------------------------------
+textcontrol
+
+	lda msgtimer
+	beq +
+	dec msgtimer
+	rts
++
+	lda msg
+	asl
+	tax
+	lda mul20,x
+	sta +l+1
+	lda mul20+1,x
+	sta +l+2
+	
+	ldx charx
++l	lda messages,x
+	sta char
+	jsr writechar
+	inc charx
+	lda charx
+	cmp #20
+	bne +b
+	lda #0
+	sta charx
+	lda msg
+	clc
+	adc #$01
+	cmp #40
+	bne +
+	lda #$00
++	sta msg
+	lda #$55
+	sta msgtimer
++b	
+		
+	rts
+
+	
+writechar
+
+
+	lda charx
+	asl
+	clc
+	adc #$30
+	sta $f8
+	lda #$fa
+	sta $f9	
+		
+	lda char
+	sec
+	sbc #$60
+	bcs +
+	lda char
++	tax
+	lda chars,x
+	asl
+	asl
+	ldy #$00
+	sta ($f8),y
+	ldy #$28
+	clc
+	adc #1
+	sta ($f8),y
+	ldy #$01
+	adc #1
+	sta ($f8),y
+	ldy #$29
+	adc #1
+	sta ($f8),y
+		
+	rts
+
+
+charx	.by 0
+
+
+chars
+	.by 0,1,2,3, 4,5,13,14, 15,16,17,18, 19,20,21,22, 23,24,25,26, 27,28,29,30, 31,32,33,0
+	.by 0,0,0,0, 0,51,52,0,   0,0,0,55,     0,0,0,0,     54,0,53,0,     34,35,36,37, 45,46,47,48,49,50
+	.by 0,0, 0,56,0,57
+	
+msg	.by 0
+msgtimer .by 0
+
+	;.text "***** abcdefghijklmnopqrstuvwxyz0123456789!".,'=?"
+
+messages
+	
+msg01	.text "                    "
+msg02	.text "     hmmmmm.....    "
+msg03	.text "     a fli logo     "
+msg04	.text " that says "fluffy" "
+msg05	.text "guess that only can "
+msg06	.text "  mean one thing... "
+;msg07	.text "                    "
+msg08	.text "    fli fluffy!!!   "
+
+msg09	.text "        yeah!       "
+msg10	.text " an oldskool dream  "
+msg11	.text " finally cums true  "
+msg12	.text "    thanx 2 the     "
+msg13	.text "    utter rulage    "
+msg14	.text "     and ownage     "
+msg15	.text "of cruzer slash cml!"
+;msg16	.text "                    "
+
+msg17	.text "  mmmmm... yummie!  "
+msg18	.text "      mcfluffy      "
+msg19	.text "  with fli flavour  "
+msg20	.text "      full of...    "
+msg21	.text " quality ingredients"
+msg22	.text " like fli each line "
+msg23	.text " double sine dyppin'"
+msg24	.text "  and tech=techin'  "
+
+msg25	.text " all upd8in' with..."
+msg26	.text " 50 frames per 2nd! "
+;msg27	.text "                    "
+msg28	.text "     camelot...     "
+msg29	.text "  keepin' it real!  "
+;msg30	.text "                    "
+msg31	.text "  faster...         "
+msg32	.text "      harder...     "
+msg33	.text "          kroozer!  "
+;msg34	.text "                    "
+msg35	.text "  b=boys, fli=girls "
+msg36	.text "  throw ya hands... "
+msg37	.text "     in the air     "
+msg38	.text " aah yeah, like ya  "
+msg39	.text "  just don't care!  "
+;msg40	.text "                    "
+	
+	;.text "little fluffy clouds"
+	;.text "        bah!        "
+	
+
+mul20
+	.wo msg01,msg02,msg03,msg04,msg05,msg06,msg01,msg08,msg09,msg10
+	.wo msg11,msg12,msg13,msg14,msg15,msg01,msg17,msg18,msg19,msg20
+	.wo msg21,msg22,msg23,msg24,msg25,msg26,msg01,msg28,msg29,msg01
+	.wo msg31,msg32,msg33,msg01,msg35,msg36,msg37,msg38,msg39,msg01
+
+mul80	.wo 0,80,160,240,320,400
+
+;------------------------------------------------------------
+fade
+	lda fadein
+	bne +in
+	lda fadeout
+	bne +out
+	rts
++in
+	ldx fadepnt
+	lda d011,x
+	and #$3f
+	sta d011,x
+	inx
+	stx fadepnt
+	cpx #8
+	bne +
+	lda #0
+	sta fadein
++	
+	rts
++out
+	ldx fadepnt
+	lda d011,x
+	ora #$70
+	sta d011,x
+	inx
+	stx fadepnt
+	cpx #8
+	bne +
+	lda #0
+	sta fadeout
+	jmp newfx
++
+	rts
+
+;------------------------------------------------------------
+update
+
+	inc cnt
+
+	lda updatetype
+	beq +
+	lda cnt
+	and #$04
+	bne +skip
++
+	lda techpoint+0
+	clc
+tadd1	adc #$00 ;techspeed+0
+	sta techpoint+0
+	lda techpoint+1
+	clc
+tadd2	adc #$00 ;techspeed+1
+	sta techpoint+1
+	
+	lda dypppoint+0
+	clc
+dadd1	adc #$00 ;dyppspeed+0
+	sta dypppoint+0
+	lda dypppoint+1
+	clc
+dadd2	adc #$00 ;dyppspeed+1
+	sta dypppoint+1
+	
+
++skip
+	lda fadeout
+	beq +
+	rts
++	
+	lda fxtimer
+	sec
+	sbc #1
+	sta fxtimer
+	lda fxtimer+1
+	sbc #0
+	sta fxtimer+1
+	bmi +
+	rts
++
+	lda #1
+	sta fadeout
+	lda #0
+	sta fadepnt
+	rts
+	
+
+;------------------------------------------------------------
+newfx
+
+	lda #1
+	sta generate
+	
+	ldx fx
+	inx
+	cpx numfx
+	bne +
+	ldx #1
++	stx fx
+	
+	txa
+	asl
+	tax
+	lda fxs,x
+	sta +l+1
+	lda fxs+1,x
+	sta +l+2
+
+	ldx #0
+-
++l	lda fx1,x
+	sta thisfx,x
+	inx
+	cpx #15
+	bne -
+	
+	lda techoffset+0
+	sta techpoint+0
+	lda techoffset+1
+	sta techpoint+1
+	lda dyppoffset+0
+	sta dypppoint+0
+	lda dyppoffset+1
+	sta dypppoint+1
+	
+	lda techspeed+0
+	sta tadd1+1
+	lda techspeed+1
+	sta tadd2+1
+	lda dyppspeed+0
+	sta dadd1+1
+	lda dyppspeed+1
+	sta dadd2+1
+
+	rts
+
+;------------------------------------------------------------
+
+fluffy
+
+	lda #$34
+	sta $01
+	
+	clc
+	jsr zpiniter
+
+	lda #$37
+	sta $01
+	inc border
+	lda #$34
+	sta $01
+
+
+	ldx dypppoint+0
+	ldy dypppoint+1
+	jsr ysiner
+
+	
+	lda #$37
+	sta $01
+	inc border
+	lda #$ee
+	sta $d018
+	lda #$34
+	sta $01
+
+	lda #0
+	sta segment	
+-loop
+
+	jsr dyppcontrol2
+
+	inc segment
+	lda segment
+	cmp #3
+	beq +
+
+	;jmp +
+
+	lda #$37
+	sta $01
+	inc border
+	lda #$34
+	sta $01
+	
+	;move zp-adrs 1 char up...
+	jsr zpmover
+
+	lda #$37
+	sta $01
+	dec border
+	lda #$34
+	sta $01
+	
+	jmp -loop
++
+
+	lda #$37
+	sta $01
+	
+	rts	
+	
+
+
+
+	
+;------------------------------------------------------------
+dyppcontrol2
+
+;uses pointer-tables instead of dypperjumpvec
+
+
+
+;recycle.by 0,1,2,3,4,5,6,7,8,5,10,11,12,1,2,3,4,1,2,3,4,21,22,23,24,0
+;orig	.by 1,1,1,1,1,1,1,1,1,0,1, 1, 1, 0,0,0,0,0,0,0,0, 1, 1, 1, 1,0
+
+
+;-16
+
+	ldx segment
+	
+cpydisp	cpx #$00 ;ydisp+0
+	bne +
+ldys	lda #$00 ;ys+0
+	and #$07
+	tax
+ldp1	lda dypppnt+$00,x
+	sta +j+1
+ldp2	lda dypppnt+$08,x
+	sta +j+2
+	ldy #$00+24
+	ldx #$00+3
++j	jsr dypper
+	ldx segment
++
+	cpx #$00 ;ydisp+2
+	bne +
+	lda #$00 ;ys+2
+	and #$07
+	tax
+	lda dypppnt+$10,x
+	sta +j+1
+	lda dypppnt+$18,x
+	sta +j+2
+	ldy #$08+24
+	ldx #$01+3
++j	jsr dypper
+	ldx segment
++
+	cpx #$00 ;ydisp+2
+	bne +
+	lda #$00 ;ys+2
+	and #$07
+	tax
+	lda dypppnt+$20,x
+	sta +j+1
+	lda dypppnt+$28,x
+	sta +j+2
+	ldy #$10+24
+	ldx #$02+3
++j	jsr dypper
+	ldx segment
++
+	cpx #$00 ;ydisp+6
+	bne +
+	lda #$00 ;ys+6
+	and #$07
+	tax
+	lda dypppnt+$30,x
+	sta +j+1
+	lda dypppnt+$38,x
+	sta +j+2
+	ldy #$18+24
+	ldx #$03+3
++j	jsr dypper
+	ldx segment
++
+	cpx #$00 ;ydisp+8
+	bne +
+	lda #$00 ;ys+8
+	and #$07
+	tax
+	lda dypppnt+$40,x
+	sta +j+1
+	lda dypppnt+$48,x
+	sta +j+2
+	ldy #$20+24
+	ldx #$04+3
++j	jsr dypper
+	ldx segment
++
+	cpx #$00 ;ydisp+10
+	bne +
+	lda #$00 ;ys+10
+	and #$07
+	tax
+	lda dypppnt+$50,x
+	sta +j+1
+	lda dypppnt+$58,x
+	sta +j+2
+	ldy #$28+24
+	ldx #$05+3
++j	jsr dypper
+	ldx segment
++
+	cpx #$00 ;ydisp+12
+	bne +
+	lda #$00 ;ys+12
+	and #$07
+	tax
+	lda dypppnt+$60,x
+	sta +j+1
+	lda dypppnt+$68,x
+	sta +j+2
+	ldy #$30+24
+	ldx #$06+3
++j	jsr dypper
+	ldx segment
++
+	cpx #$00 ;ydisp+14
+	bne +
+	lda #$00 ;ys+14
+	and #$07
+	tax
+	lda dypppnt+$70,x
+	sta +j+1
+	lda dypppnt+$78,x
+	sta +j+2
+	ldy #$38+24
+	ldx #$07+3
++j	jsr dypper
+	ldx segment
++
+	cpx #$00 ;ydisp+16
+	bne +
+	lda #$00 ;ys+16
+	and #$07
+	tax
+	lda dypppnt+$80,x
+	sta +j+1
+	lda dypppnt+$88,x
+	sta +j+2
+	ldy #$40+24
+	ldx #$08+3
++j	jsr dypper
+	ldx segment
++
+	cpx #$00 ;ydisp+18
+	bne +
+	lda #$00 ;ys+18
+	and #$07
+	tax
+	lda dypppnt+$50,x
+	sta +j+1
+	lda dypppnt+$58,x
+	sta +j+2
+	ldy #$48+24
+	ldx #$09+3
++j	jsr dypper
+	ldx segment
++
+	cpx #$00 ;ydisp+20
+	bne +
+	lda #$00 ;ys+20
+	and #$07
+	tax
+	lda dypppnt+$a0,x
+	sta +j+1
+	lda dypppnt+$a8,x
+	sta +j+2
+	ldy #$50+24
+	ldx #$0a+3
++j	jsr dypper
+	ldx segment
++
+	cpx #$00 ;ydisp+22
+	bne +
+	lda #$00 ;ys+22
+	and #$07
+	tax
+	lda dypppnt+$b0,x
+	sta +j+1
+	lda dypppnt+$b8,x
+	sta +j+2
+	ldy #$58+24
+	ldx #$0b+3
++j	jsr dypper
+	ldx segment
++
+	cpx #$00 ;ydisp+24
+	bne +
+	lda #$00 ;ys+24
+	and #$07
+	tax
+	lda dypppnt+$c0,x
+	sta +j+1
+	lda dypppnt+$c8,x
+	sta +j+2
+	ldy #$60+24
+	ldx #$0c+3
++j	jsr dypper
+	ldx segment
++
+	cpx #$00 ;ydisp+26
+	bne +
+	lda #$00 ;ys+26
+	and #$07
+	tax
+	lda dypppnt+$10,x
+	sta +j+1
+	lda dypppnt+$18,x
+	sta +j+2
+	ldy #$68+24
+	ldx #$0d+3
++j	jsr dypper
+	ldx segment
++
+	cpx #$00 ;ydisp+28
+	bne +
+	lda #$00 ;ys+28
+	and #$07
+	tax
+	lda dypppnt+$20,x
+	sta +j+1
+	lda dypppnt+$28,x
+	sta +j+2
+	ldy #$70+24
+	ldx #$0e+3
++j	jsr dypper
+	ldx segment
++
+	cpx #$00 ;ydisp+30
+	bne +
+	lda #$00 ;ys+30
+	and #$07
+	tax
+	lda dypppnt+$30,x
+	sta +j+1
+	lda dypppnt+$38,x
+	sta +j+2
+	ldy #$78+24
+	ldx #$0f+3
++j	jsr dypper
+	ldx segment
++
+	cpx #$00 ;ydisp+16
+	bne +
+	lda #$00 ;ys+16
+	and #$07
+	tax
+	lda dypppnt+$40,x
+	sta +j+1
+	lda dypppnt+$48,x
+	sta +j+2
+	ldy #$80+24
+	ldx #$10+3
++j	jsr dypper
+	ldx segment
++
+	cpx #$00 ;ydisp+34
+	bne +
+	lda #$00 ;ys+34
+	and #$07
+	tax
+	lda dypppnt+$10,x
+	sta +j+1
+	lda dypppnt+$18,x
+	sta +j+2
+	ldy #$88+24
+	ldx #$11+3
++j	jsr dypper
+	ldx segment
++
+	cpx #$00 ;ydisp+36
+	bne +
+	lda #$00 ;ys+36
+	and #$07
+	tax
+	lda dypppnt+$20,x
+	sta +j+1
+	lda dypppnt+$28,x
+	sta +j+2
+	ldy #$90+24
+	ldx #$12+3
++j	jsr dypper
+	ldx segment
++
+	cpx #$00 ;ydisp+38
+	bne +
+	lda #$00 ;ys+38
+	and #$07
+	tax
+	lda dypppnt+$30,x
+	sta +j+1
+	lda dypppnt+$38,x
+	sta +j+2
+	ldy #$98+24
+	ldx #$13+3
++j	jsr dypper
+	ldx segment
++
+	cpx #$00 ;ydisp+40
+	bne +
+	lda #$00 ;ys+40
+	and #$07
+	tax
+	lda dypppnt+$40,x
+	sta +j+1
+	lda dypppnt+$48,x
+	sta +j+2
+	ldy #$a0+24
+	ldx #$14+3
++j	jsr dypper
+	ldx segment
++
+	cpx #$00 ;ydisp+42
+	bne +
+	lda #$00 ;ys+42
+	and #$07
+	tax
+	lda dypppnt+$0150,x
+	sta +j+1
+	lda dypppnt+$0158,x
+	sta +j+2
+	ldy #$a8+24
+	ldx #$15+3
++j	jsr dypper
+	ldx segment
++
+	cpx #$00 ;ydisp+44
+	bne +
+	lda #$00 ;ys+44
+	and #$07
+	tax
+	lda dypppnt+$0160,x
+	sta +j+1
+	lda dypppnt+$0168,x
+	sta +j+2
+	ldy #$b0+24
+	ldx #$16+3
++j	jsr dypper
+	ldx segment
++
+	cpx #$00 ;ydisp+46
+	bne +
+	lda #$00 ;ys+46
+	and #$07
+	tax
+	lda dypppnt+$0170,x
+	sta +j+1
+	lda dypppnt+$0178,x
+	sta +j+2
+	ldy #$b8+24
+	ldx #$17+3
++j	jsr dypper
+	ldx segment
++
+	cpx #$00 ;ydisp+48
+	bne +
+	lda #$00 ;ys+48
+	and #$07
+	tax
+	lda dypppnt+$0180,x
+	sta +j+1
+	lda dypppnt+$0188,x
+	sta +j+2
+	lda dypppnt+$00,x
+	sta +j2+1
+	lda dypppnt+$08,x
+	sta +j2+2
+	ldy #$c0+24
+	ldx #$18+3
++j	jsr dypper
+
+	ldy #$c8+24
+	ldx #$19+3
++j2	jsr dypper
+
++
+	rts
+	
+
+	
+;------------------------------------------------------------
+techtech
+
+	lda #$34
+	sta $01
+	
+	ldx techpoint+0
+	ldy techpoint+1
+	
+	clc	
+	jsr techtecher
+	
+	lda #$37
+	sta $01
+	
+	rts
+	
+;------------------------------------------------------------
+
+init
+
+	lda #$36
+	sta $01
+
+	jsr vicinit
+	jsr clear
+	jsr newfx
+	jsr makeluts
+	jsr makedypper
+	jsr makeshower	
+	jsr makezpiniter
+	jsr makezpmover
+	jsr maketechtecher
+	jsr makeysiner
+	
+	lda #0
+	sta generate
+	lda #1
+	sta fadein
+
+	lda #$0b
+	sta $d011
+	jsr colorinit2
+	
+	
+	rts
+
+;------------------------------------------------------------
+vicinit
+
+	lda #$94
+	sta $dd00
+	lda #$ee
+	sta $d018
+	lda #$c8
+	sta $d016
+	lda #$1b
+	sta $d011
+	lda #$00
+	sta $d015
+
+
+	ldx #0
+	txa
+-	
+	sta $d800,x
+	sta $d900,x
+	sta $da00,x
+	sta $db00,x
+	inx
+	bne -
+-	
+	lda #$05
+	sta $d800,x
+	lda #$01
+	sta $d9c0,x
+	inx
+	cpx #$c0
+	bne -
+
+
+	ldx #0
+	lda #$00
+-	
+	sta $fa30,x
+	inx
+	cpx #$50
+	bne -
+
+	rts
+
+
+;------------------------------------------------------------
+colorinit2
+
+
+	lda #$00
+	ldx #$80
+-	
+	sta $d800,x
+	dex
+	bne -
+
+	ldx #0
+	lda #$04
+-	
+	sta $d8c8,x
+	inx
+	cpx #$f0
+	bne -
+
+	rts
+	
+;------------------------------------------------------------
+clear
+
+	
+	lda #0
+	tax
+-	
+	sta bitmap+$0640,x
+	sta bitmap+$0700,x
+	sta bitmap+$0800,x
+	sta bitmap+$0900,x
+	sta bitmap+$0a00,x
+	sta bitmap+$0b00,x
+	sta bitmap+$0c00,x
+	sta bitmap+$0d00,x
+	inx
+	bne -
+	
+	rts
+	
+;------------------------------------------------------------
+makeluts
+
+
+	lda #$34
+	sta $01
+	
+	
+	
+	;make dypppp (used to determine which of the 3 dypp "anims" (up/straight/down) to use)
+	 
+	lda #>dypppnt+$02
+	sta dypppp
+	
+	ldx #1
+-
+	txa
+	bmi +
+	lda #>dypppnt+$00
+	jmp +j
++	lda #>dypppnt+$04
++j	sta dypppp,x
+	inx
+	bne -
+
+
+	jmp +notest
+	;test...
+	lda #>dypppnt+$02
+	ldx #0
+-
+	sta dypppp,x
+	inx
+	bne -
+
++notest
+
+	
+	
+	lda #$37
+	sta $01
+	
+	rts
+		
+;------------------------------------------------------------
+makedypper
+
+
+.la height=26
+
+	sei
+	lda #$34
+	sta $01
+
+
+	lda #<dypper
+	sta $fe
+	lda #>dypper
+	sta $ff
+
+
+	lda #0
+	sta +version
+
+-loop4
+
+	lda #0
+	sta +x
+
+	
+
+-loop3
+
+
+	;if not original, skip it...
+	 
+	ldx +x
+	lda orig,x
+	bne +
+	jmp +skipit
++
+
+	;fetch gfx/cols...
+
+	ldx +x
+	lda recycle,x
+	beq +black
+	sec
+	sbc #1
+	pha
+	sta $f8
+	lda #0
+	sta $f9
+	;*18...
+	asl $f8
+	rol $f9
+	asl $f8
+	rol $f9
+	asl $f8
+	rol $f9
+	asl $f8
+	rol $f9
+	pla
+	asl
+	clc
+	adc $f8
+	sta $f8
+	lda #0
+	adc $f9
+	sta $f9
+
+	lda $f8
+	sta $fa
+	
+	lda +version
+	asl
+	asl
+	clc
+	adc $f9
+	adc #>logosrc
+	sta $f9
+	adc #$02
+	sta $fb
+	
+	ldy #0
+-
+	lda ($f8),y
+	sta dyppergfx+4,y
+	lda ($fa),y
+	sta dyppercols+4,y
+	iny
+	cpy #18
+	bne -
+	
+	jmp +
+
++black
+
+	ldy #0
+	tya
+-
+	sta dyppergfx+3,y
+	sta dyppercols+3,y
+	iny
+	cpy #18
+	bne -
+
++	
+
+	
+	lda #0
+	sta +ydisp
+	
+
+
+	
+
+-loop2
+
+
+
+	ldy #0
+	tya
+-
+	sta gfxused,y
+	sta colused,y
+	iny
+	cpy #height
+	bne -
+
+
+	;skip upper/lower bytes, depending which way it points...
+	lda +version
+	cmp #0
+	bne +
+	;version==0 (up)
+	lda #1
+	;sta gfxused+0
+	;sta colused+0
+	jmp +j
++
+	cmp #1
+	bne +
+	;version==1 (straight)
+	lda #1
+	sta gfxused+0
+	sta colused+0
+	sta gfxused+height-1
+	sta colused+height-1
+	jmp +j
++
+	;version==2 (down)
+	lda #1
+	;sta gfxused+height-1
+	;sta colused+height-1
++j
+	
+	
+	
+	
+	;store dypper-pointers (replaces jumpers)...
+	lda +x
+	sta $f0
+	lda #$00
+	sta $f1
+	asl $f0
+	rol $f1
+	asl $f0
+	rol $f1
+	asl $f0
+	rol $f1
+	asl $f0
+	rol $f1
+	lda +version
+	asl
+	clc
+	adc $f1
+	adc #>dypppnt
+	sta $f1
+	ldy +ydisp
+	lda $fe
+	sta ($f0),y
+	tya
+	ora #$08
+	tay
+	lda $ff
+	sta ($f0),y
+	
+	
+	
+;make gfx-dypper...
+
+	
+	lda +ydisp
+	asl
+	clc
+	adc #$02
+	sta +s1+1
+		
+	lda #0
+	sta +y
+
+-loop
+
+	ldy +y
+	lda gfxused,y
+	bne +skip
+	lda dyppergfx,y
+	sta +l1+1
+	
+
+	ldy #0
+-
+	lda dyppersrc,y
+	sta ($fe),y
+	iny
+	cpy #4
+	bne -
+	
+	jsr yaddfe
+	
+	
+	ldx +y
+	lda #1
+	sta gfxused,x
+	
+	;check for other similar bytes...
+	
+	ldy +s1+1
+	iny
+	iny
+	sty +s2+1
+	
+	inx
+	cpx #height
+	beq +skip
+-check	
+	lda +l1+1
+	cmp dyppergfx,x
+	beq +found
+-cont	
+	inc +s2+1
+	inc +s2+1
+	inx
+	cpx #height
+	bne -check
+	jmp +skip
++found	
+	lda gfxused,x
+	bne -cont
+	lda #1
+	sta gfxused,x
+	ldy #0
+	lda dyppersrc2+0
+	sta ($fe),y
+	iny
+	lda dyppersrc2+1
+	sta ($fe),y
+	iny
+	jsr yaddfe
+	jmp -cont
+	
+	
++skip
+	
+
+	inc +s1+1
+	inc +s1+1
+	
+	inc +y
+	lda +y
+	cmp #height
+	bne -loop
+	
+
++end
+
+
+
+
+;make color-dypper...
+		
+
+	lda +ydisp
+	asl
+	clc
+	adc #$72
+	sta +s1+1
+
+	lda #0
+	sta +y
+	sta +txycop
+-loop
+
+	ldy +y
+	lda colused,y
+	beq +
+	jmp +skip   ;if color is allready drawn, skip it
++
+	lda dyppercols,y
+	sta +l1+1
+	bne +
+	jmp +skip   ;if byte=black, skip color
++
+
+	;copy txa,tay for 1st byte...
+	lda +txycop
+	bne +
+	ldy #0
+	lda +txysrc
+	sta ($fe),y
+	iny
+	lda +txysrc+1
+	sta ($fe),y
+	iny
+	jsr yaddfe
+	lda #1
+	sta +txycop
++
+
+	jsr singlecolorcheck
+	
+	ldy #0
+-
+	lda dyppersrc,y
+	sta ($fe),y
+	iny
+	cpy #4
+	bne -
+
+	jsr yaddfe
+
+
+
+	ldx +y
+	lda #1
+	sta colused,x
+	
+	;check for other similar bytes...
+	
+	ldy +s1+1
+	iny
+	iny
+	sty +s2+1
+	
+	inx
+	cpx #height
+	beq +skip
+-check	
+	;check for same color...
+	lda +l1+1
+	cmp dyppercols,x
+	beq +found
+
+	;check for singlecolors with same color in left nybble...
+	lda +l1+1
+	and #$f0
+	cmp dyppercols,x
+	beq +found
+
+	;if(singlecolor) singlecolorcheck has allready checked for non-singlecolors that matches...
+
+-cont	
+	inc +s2+1
+	inc +s2+1
+	inx
+	cpx #height
+	bne -check
+	jmp +skip
++found	
+	lda colused,x
+	bne -cont
+	lda #1
+	sta colused,x
+	ldy #0
+	lda dyppersrc2+0
+	sta ($fe),y
+	iny
+	lda dyppersrc2+1
+	sta ($fe),y
+	iny
+	jsr yaddfe
+	jmp -cont
+	
+
++skip
+
+
+	inc +s1+1
+	inc +s1+1
+	
+	inc +y
+	lda +y
+	cmp #height
+	beq +end
+	jmp -loop
+	
+
++end
+
+	ldy #0
+	lda #$60
+	sta ($fe),y
+	iny
+	jsr yaddfe
+	
++skippy
+	
+	inc +ydisp
+	lda +ydisp
+	cmp #8
+	beq +
+	jmp -loop2
+	
++
+
+
++skipit
+
+	
+	inc +x
+	lda +x
+	cmp #26
+	beq +
+	
+	jmp -loop3
+
++
+	
+	inc +version
+	lda +version
+	cmp #3
+	beq +
+	jmp -loop4
++
+
+
+	lda #$36
+	sta $01
+
+	rts
+
+
+
+
+
+
+singlecolorcheck
+
+	;if(singlecolor) check for non-singlecolors that matches...
+	;if(match found) color is corrected from singlecolor to the matching "multicolor",
+	;and it will be found later, hopefully
+	
+	lda +l1+1
+	and #$0f
+	beq +
+	rts
++
+	ldx +y
+	inx
+	cpx #height
+	beq +end
+-loop	
+	lda dyppercols,x
+	and #$f0
+	cmp +l1+1
+	bne +
+
+	;match found!
+	lda dyppercols,x
+	sta +l1+1
+	rts
++
+	inx
+	cpx #height
+	bne -loop
+	
++end
+	rts
+
+
+
+
+
+
++x	.by 0
++y	.by 0
++ydisp	.by 0
++version .by 0
+
++txycop	.by 0
++txysrc
+	txa
+	tay
+	
+dyppersrc
+	
++l1	lda #%00000000
++s1	sta ($02),y
+
+dyppersrc2
+	
++s2	sta ($02),y
+
+
++last	.by 0
+
+dyppergfx
+
+	.by 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+
+	
+dyppercols
+
+	.by 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+
+	
+
+gfxused	.text "                          "
+colused	.text "                          "
+	
+recycle	.by 0,1,2,3,4,5,6,7,8,5,10,11,12,1,2,3,4,1,2,3,4,21,22,23,24,0
+orig	.by 1,1,1,1,1,1,1,1,1,0,1, 1, 1, 0,0,0,0,0,0,0,0, 1, 1, 1, 1,0
+
+
+
+		
+;------------------------------------------------------------
+makeshower
+
+	lda #<shower
+	sta $fe
+	lda #>shower
+	sta $ff
+	
+	lda #0
+	sta +y
+	
+-loop
+	lda +y
+	and #$07
+	tay
+	clc
+	adc #<d011
+	sta +l1+1
+
+	lda +y
+	sec
+	sbc #7
+	bcs +
+	lda +l1+1
+	clc
+	adc #$08
+	sta +l1+1
++
+	lda d018,y
+	sta +l2+1
+	;lda +l3+1
+	;clc
+	;adc #1
+	;sta +l3+1
+	;lda +l3+2
+	;adc #0
+	;sta +l3+2
+	
+	ldy #0
+-
+	lda showersrc,y
+	sta ($fe),y
+	iny
+	cpy #20
+	bne -
+	jsr yaddfe
+	
+	inc +y
+	lda +y
+	cmp #$34
+	bne -loop
+	
+	lda #$60
+	ldy #0
+	sta ($fe),y
+	
+	rts
+	
++y	.by 0
+	
+showersrc
+
++l1	lda d011
+	sta $d011
++l2	lda #$00
+	sta $d018
+	lda #$00
+	and #$07
+	ora #$d8
+	sta $d016
+	nop
+	;nop
+		
+	
+;------------------------------------------------------------
+makezpmover
+
+	lda #<zpmover
+	sta $fe
+	lda #>zpmover
+	sta $ff
+	
+	lda #0
+	sta +y
+	
+-loop
+
+	;check adr for splitting...
+	
+	lda $fe
+	sec
+	sbc #$c0
+	bcc +
+	lda $ff
+	and #$03
+	bne +
+	
+	ldy #$00
+	lda #$4c
+	sta ($fe),y
+	iny
+	lda #$e0
+	sta ($fe),y
+	iny
+	lda $ff
+	clc
+	adc #$01
+	sta ($fe),y
+	
+	sta $ff
+	lda #$e0
+	sta $fe
++
+
+	
+	ldy #0
+-
+	lda zpmoversrc,y
+	sta ($fe),y
+	iny
+	cpy #8
+	bne -
+	jsr yaddfe
+
+	inc +l1+1
+	inc +s1+1
+	inc +l2+1
+	inc +s2+1
+
+	inc +y
+	lda +y
+	cmp #$50
+	bne -loop
+	
+	lda #$60
+	ldy #0
+	sta ($fe),y
+	
+	rts
+	
++y	.by 0
+	
+zpmoversrc
+
++l1	lda $12
++s1	sta $02
++l2	lda $82
++s2	sta $72
+		
+	
+;------------------------------------------------------------
+makezpiniter
+
+
+
+	lda #$34
+	sta $01
+
+	;calc gfx-adrs...
+	
+	lda #$40
+	sta +adr
+	lda #$c6
+	sta +adr+1
+
+	ldy #$00
+	ldx #$00
+-	
+	lda +adr
+	sta temp+$02,y
+	lda +adr+1
+	sta temp+$03,y
+	
+	inc +adr
+
+	inx	
+	iny
+	iny
+	tya
+	and #$0f
+	bne +
+	
+	lda +adr
+	clc
+	adc #$38
+	sta +adr
+	lda +adr+1
+	adc #$01
+	sta +adr+1
++	
+	cpy #$60
+	bne -
+
+
+
+	;calc color-adrs...
+	
+	lda #$c8
+	sta +adr
+	lda #$e0
+	sta +adr+1
+
+	ldy #$00
+	ldx #$00
+-	
+	lda +adr
+	sta temp+$72,y
+	lda +adr+1
+	sta temp+$73,y
+	
+	lda +adr+1
+	clc
+	adc #$04
+	sta +adr+1
+	
+	inx
+	iny
+	iny
+	tya
+	and #$0f
+	bne +
+	
+	lda +adr+1
+	and #$03
+	ora #$e0
+	sta +adr+1
+	
+	lda +adr
+	clc
+	adc #$28
+	sta +adr
+	lda +adr+1
+	adc #$00
+	sta +adr+1
++	
+	cpy #$60
+	bne -
+
+
+
+
+
+	lda #<zpiniter
+	sta $fe
+	lda #>zpiniter
+	sta $ff
+	
+	
+	
+	;gfx-adrs...
+	
+	ldx #0
+-loop1
+
+	lda temp+$03,x
+	sta +l2+1
+
+	txa
+	and #$0f
+	beq +ldasta
+	
+	ldy #0
+-
+	lda zpinitersrc+2,y
+	sta ($fe),y
+	iny
+	cpy #2
+	bne -
+	jsr yaddfe
+	jmp +
+	
++ldasta
+	
+	ldy #0
+-
+	lda zpinitersrc,y
+	sta ($fe),y
+	iny
+	cpy #4
+	bne -
+	jsr yaddfe
+
++
+	inc +s2+1
+	inc +s2+1
+	
+	inx
+	inx
+	cpx #$60
+	bne -loop1
+	
+
+
+	
+
+	;color-adrs...
+	
+	
+	ldx #0
+-loop2
+	
+	lda temp+$73,x
+	beq +skip
+	sta +l2+1
+	
+	txa
+	clc
+	adc #$73
+	sta +s2+1
+	
+	ldy #0
+-
+	lda zpinitersrc,y
+	sta ($fe),y
+	iny
+	cpy #4
+	bne -
+	jsr yaddfe
+
+	
+	;search for similar bytes...
+
+	cpx #$60-2
+	beq +end
+
+	txa
+	pha
+
+-search
+	inx
+	inx
+	cpx #$60
+	beq +done
+
+	lda temp+$73,x
+	cmp +l2+1
+	bne -search
+
+	txa
+	clc
+	adc #$73
+	sta +s2+1
+
+	ldy #0
+-	
+	lda zpinitersrc+2,y
+	sta ($fe),y
+	iny
+	cpy #2
+	bne -
+	jsr yaddfe
+	lda #0
+	sta temp+$73,x
+	jmp -search
++done
+	pla
+	tax
++skip
+	inx
+	inx
+	cpx #$60
+	bne -loop2
++end
+	
+	lda #$60
+	ldy #0
+	sta ($fe),y
+
+
+	lda #$37
+	sta $01
+	
+	rts
+	
+	
+zpinitersrc
+
++l2	lda #$00
++s2	sta $03
+		
+
++adr	.wo $c640
+
+
+;------------------------------------------------------------
+maketechtecher
+
+
+	lda #<techtecher
+	sta $fe
+	lda #>techtecher
+	sta $ff
+	
+	lda #0
+	sta +y
+
+	ldy #0
+-
+	lda techtechersrc_,y
+	sta techtechersrc,y
+	iny
+	cpy #25
+	bne -
+	
+-loop
+	
+	
+	ldy #0
+-
+	lda techtechersrc,y
+	sta ($fe),y
+	iny
+	cpy #25
+	bne -
+	jsr yaddfe
+
+
+	;check adr for splitting...
+	
+	lda $fe
+	sec
+	sbc #$c0
+	bcc +
+	lda $ff
+	and #$03
+	bne +
+	
+	ldy #$00
+	lda #$4c
+	sta ($fe),y
+	iny
+	lda #$e0
+	sta ($fe),y
+	iny
+	lda $ff
+	clc
+	adc #$01
+	sta ($fe),y
+	
+	sta $ff
+	lda #$e0
+	sta $fe
++
+
+
+	lda +l1+1
+	clc
+	adc techspread+0 ;#$04
+	sta +l1+1
+
+	lda +l2+1
+	clc
+	adc techspread+1 ;#$07
+	sta +l2+1
+
+	lda +s1+1
+	clc
+	adc #20
+	sta +s1+1
+	lda +s1+2
+	adc #$00
+	sta +s1+2
+
+	lda +s2+1
+	clc
+	adc #$02
+	sta +s2+1
+
+	lda +o1+1
+	clc
+	adc #$01
+	sta +o1+1
+	and #$07
+	bne +
+	lda +o1+1
+	and #$c0
+	clc
+	adc #$40
+	sta +o1+1
+	lda +o2+1
+	clc
+	adc #$28
+	sta +o2+1
++
+	lda +s3+1
+	clc
+	adc #$02
+	sta +s3+1
+	
+	inc +y
+	lda +y
+	cmp #$30
+	beq +
+	jmp -loop
++
+	
+	lda #$60
+	ldy #0
+	sta ($fe),y
+	
+	rts
+	
++y	.by 0
+	
+techtechersrc
+
+;********* COPIED FROM BELOW!!! ***********
+
++l1	lda techsine,x
++l2	adc techsine,y
+	lsr
++s1	sta shower+132 ;(20*6+12)
+	and #$38
++o1	ora #$40
++s2	sta $02
+	and #$38
+	lsr
+	lsr
+	lsr
++o2	ora #$c8
++s3	sta $72
+
+;********* COPIED FROM BELOW!!! ***********
+
+
+techtechersrc_
+
++l1	lda techsine,x
++l2	adc techsine,y
+	lsr
++s1	sta shower+132 ;(20*6+12)
+	and #$38
++o1	ora #$40
++s2	sta $02
+	and #$38
+	lsr
+	lsr
+	lsr
++o2	ora #$c8
++s3	sta $72
+
+
+;------------------------------------------------------------
+
+.la cpydisp_=cpydisp+1
+.la ldys_=ldys+1
+.la subys_=0; subys+1
+
+
+makeysiner
+
+	lda #<ysiner
+	sta $fe
+	lda #>ysiner
+	sta $ff
+	
+	lda #0
+	sta +x
+	
+	lda #$00
+	sta +l1+1
+	sta +a1+1
+	lda dyppspread+0
+	sta +l2+1
+	lda dyppspread+1
+	sta +a2+1
+
+
+	ldy #0
+-
+	lda ysinersrc_,y
+	sta ysinersrc,y
+	iny
+	cpy #43
+	bne -
+
+
+	
+-loop
+
+	ldx +x
+	lda +os,x
+	sta +o+1
+		
+	ldy #0
+-
+	lda ysinersrc,y
+	sta ($fe),y
+	iny
+	cpy #35
+	bne -
+	jsr yaddfe
+
+	;skip copying "ora" if it's "ora #0"...
+	
+	;ldx #0
+	lda +o+1
+	eor #1
+	asl
+	tax
+	ldy #0
+-
+	lda +o,x ;ysinersrc+35,y
+	sta ($fe),y
+	iny
+	inx
+	cpx #8
+	bne -
+	jsr yaddfe
+
+	lda +l1+1
+	clc
+	adc dyppspread+0
+	clc
+	adc dyppspread+0
+	sta +l1+1
+	clc
+	adc dyppspread+0
+	sta +l2+1
+
+	lda +a1+1
+	clc
+	adc dyppspread+1
+	clc
+	adc dyppspread+1
+	sta +a1+1
+	clc
+	adc dyppspread+1
+	sta +a2+1
+	
+	
+	lda +s1+1
+	clc
+	adc #30
+	sta +s1+1
+	sta +sub1+1
+	lda +s1+2
+	adc #0
+	sta +s1+2
+	sta +sub1+2
+
+	lda +s2+1
+	clc
+	adc #30
+	sta +s2+1
+	lda +s2+2
+	adc #0
+	sta +s2+2
+	
+	;lda #43
+	lda +o+1
+	asl
+	clc
+	adc #41
+	clc
+	adc +s3+1
+	sta +s3+1
+	lda +s3+2
+	adc #0
+	sta +s3+2
+
+	lda +s4+1
+	clc
+	adc #30
+	sta +s4+1
+	lda +s4+2
+	adc #0
+	sta +s4+2
+
+	lda +s5+1
+	clc
+	adc #30
+	sta +s5+1
+	lda +s5+2
+	adc #0
+	sta +s5+2
+	
+	
+	inc +x
+	lda +x
+	cmp #26-1
+	beq +
+	jmp -loop
++	
+	lda #$60
+	ldy #0
+	sta ($fe),y
+	
+	rts
+	
++x	.by 0
+
+
++os	.by 0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 1,1,1,1, 0
+
+ysinersrc
+
+; ****** copied from ysinersrc_! *******
+
++l1	lda dyppsine,x
+	clc
++a1	adc dyppsine,y
+	lsr
++s1	sta ldys_ ;ys
+	lsr
+	lsr
+	lsr
++s2	sta cpydisp_ ;ydisp
++l2	lda dyppsine+4,x
+	clc
++a2	adc dyppsine+4,y
+	lsr
+	sec
++sub1	sbc ldys_
++s3	sta ysiner+33; +smc+1
++smc	lda dypppp
++o	ora #$00
++s4	sta ldp1+2
++s5	sta ldp2+2
+
+; ****** copied from ysinersrc_! *******
+
+
+ysinersrc_
+
+
++l1	lda dyppsine,x
+	clc
++a1	adc dyppsine,y
+	lsr
++s1	sta ldys_ ;ys
+	lsr
+	lsr
+	lsr
++s2	sta cpydisp_ ;ydisp
++l2	lda dyppsine+4,x
+	clc
++a2	adc dyppsine+4,y
+	lsr
+	sec
++sub1	sbc ldys_
++s3	sta ysiner+33; +smc+1
++smc	lda dypppp
++o	ora #$00
++s4	sta ldp1+2
++s5	sta ldp2+2
+
+	;43 bytes
+
+
+	
+;------------------------------------------------------------
+
+yaddfe
+	tya
+	clc
+	adc $fe
+	sta $fe
+	lda #0
+	adc $ff
+	sta $ff
+	rts
+;------------------------------------------------------------
+
+</code>
+
+
+

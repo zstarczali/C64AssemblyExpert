@@ -1,0 +1,86 @@
+# PAGE: base:realtime_8x_char_zoom
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:realtime_8x_char_zoom
+
+====== realtime_8x_char_zoom ======
+<code>
+; charzoomer 8x
+; by Raf/Vulture Design
+; June 2007
+;
+; made in DASM 2.20 in mind,
+; probably will work every
+; assembler around.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+	*= $1000
+
+; text screen address
+screen_pos_lo = $10
+screen_pos_hi = $11
+
+; font sddress
+font_addr_lo = $12
+font_addr_hi = $13
+
+;helper variable
+fontlineoffs = $14
+
+; screen position to place char at
+	lda #$00
+	sta screen_pos_lo
+	lda #$04
+	sta screen_pos_hi
+
+; font position addy, 
+; add (8*char_id) to select character you want to display
+; this code is meant to be ass small as possible so no 
+; exact address is calculated , I don't need that in my 
+; program by the way
+	lda #$00
+	sta font_addr_lo
+	lda #$20
+	sta font_addr_hi
+
+; font-line offset
+	lda #0
+	sta fontlineoffs
+	
+_begin	ldy fontlineoffs
+	LDA (font_addr_lo),y ;linia znaku
+	
+	LDY #7
+	
+_shift	LSR			; shift one bit and see if it is 1 or 0
+	tax
+	BCS _c_1		
+	
+_c_0	LDA #32			; 0
+	STA (screen_pos_lo),y
+	jmp __1
+	
+_c_1	LDA #160		; 1
+	STA (screen_pos_lo),y
+__1	
+	txa
+	DEY
+	BPL _shift		; did we shift every bit already?
+
+	lda screen_pos_lo	; add 40 (go down one pixel)
+	clc
+	adc #40
+	sta screen_pos_lo
+	bcc __2
+	inc screen_pos_hi
+__2	inc fontlineoffs
+	lda fontlineoffs
+	cmp #8			; DID WE PUT EVERY LINE OF CHAR?
+	bmi _begin
+
+	RTS
+	
+	*= $2000
+.incprg font.prg		; any standard font
+	
+</code>
+
+~~DISCUSSION~~

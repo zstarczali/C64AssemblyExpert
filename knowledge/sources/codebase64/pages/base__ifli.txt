@@ -1,0 +1,13 @@
+# PAGE: base:ifli
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:ifli
+
+====== IFLI ======
+
+Taken from [[http://www.editorix.org/congo/html/c64_image_formats__part_ii.html|this site]].
+
+Multicolour-Interlace-FLI-Formats (“IFLI”): To create IFLI images, two multicolour [[base:fli|FLI]] images are shown interlaced, in most cases the second image is moved by one pixel to the right to (virtually) improve resolution to 320x200. It’s also possible to increase the number of available colours, resolution then stays at 160x200.
+
+^Editor^File extension^
+|Funpainter 2|.fp2|
+|Funpaint|.fun|
+|Gunpaint|.gun|

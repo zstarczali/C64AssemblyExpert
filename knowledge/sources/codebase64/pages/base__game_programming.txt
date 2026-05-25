@@ -1,0 +1,70 @@
+# PAGE: base:game_programming
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:game_programming
+
+====== Game Programming ======
+
+This section contains material specifically related to issues of game coding. Of course, "game coding" involves many things that are also covered elsewhere on the wiki, such as graphics programming, disk/keyboard/joystick access, sound programming, and so forth, but the articles listed on this page are nevertheless written with the specific topic of game programming in mind. For example, optimization priorities may be a bit different when coding a demo effect and when coding a game engine.
+
+===== General Tutorials =====
+
+  * From the "Learning ML" series by Craig Bruce, in C= Hacking:
+    * [[magazines:chacking4#learning_machine_language_-_part_4|Learning ML 4]] - Development of a Space Invaders game (for the 64 and 128), part 1
+
+  * From the "Rants" series by Cadaver/Covert BitOps
+    * [[base:rant4|Multidirectional scrolling and the "game world"]] - aka [[http://cadaver.homeftp.net/rants/scroll.htm|"Rant 4"]] - article by Cadaver
+    * [[base:rant9|Frameskipping, interpolation and re-entrant IRQ code]] - aka [[http://cadaver.homeftp.net/rants/interp.htm|"Rant 9"]] - article by Cadaver
+    * [[base:rant11|Significant tricks & techniques in Metal Warrior 4]] - aka [[http://cadaver.homeftp.net/rants/mw4trick.htm|"Rant 11"]] - article by Cadaver
+
+  * [[4 ways scroll]] - By Malcolm Bamber. How To Scroll Around A 2 By 2 Tile Based Map. 
+    * [[4 ways scroll Part 1]]
+    * [[4 ways scroll Part 2]]
+  
+ 
+  * Tile Maps - by Achim
+    * [[base:Decoding tile based maps|Decode full screen]]
+    * [[base:Extract column from tile based map|Extract column]]
+    * [[base:Extract row from tile based map|Extract row]]
+    * [[base:Freedirectional scrolling using map dumps]]
+
+  * Graphic effects
+     * [[base:Static starfield]] - by Achim
+     * [[base:Simple parallax shifting|Simple parallax shifting]] - by Achim
+     * [[base:Merge char bullets|Merge char bullets with background chars]] - by Achim
+     * [[Character bullets]] - by Achim
+
+===== Sprites =====
+Sprites, aka hardware supported freely movable objects, are an essential part of most games.
+
+  * [[base:sprites|Sprites]] - General wiki section devoted to sprite programming
+  * [[base:Sprite collision detection]] - Using individual sprite 'boxes' to detect sprite-sprite collisions - by Achim
+  * [[base:Moving sprites]] - Sort sprite movement from updating VIC registers - by Achim
+  * [[base:Sprite projectiles]] - moving sprite projectiles in any direction - by Achim
+===== Various =====
+
+  * [[High Score detection]] - By Richard Bayliss
+  * [[Guide to programming games]] -  An article about designing, writing and compressing your own C64 game - by Richard Bayliss
+  * [[Scoring points|Scoring points]] - by Achim
+===== Sources for games =====
+Here are sources for a few small games.
+
+==== by Hannu Nuotio ====
+  * [[Quest for Cash]] - A puzzle game 
+  * [[Pallo]] - A "collect and avoid" game
+
+==== by HMVDVA/HeMa! ====
+  * [[MicroPong]] - The classic videogame for 2 players in 824bytes by Scout/Silicon Ltd. (as HMVDVA/HeMa!)
+
+==== by Richard Bayliss ====
+  * [[Balloonacy II]] (DASM Source code) - The crazy balloon style adventure game
+  * [[Duo Blast]] - A simple 2 player game
+  * [[For Speed We Need]] - A dodge racing game
+  * [[Jeffy]] (TASS Source Code) - The crazy grab and avoid game written in 2005.
+  * [[Racked Off]] (ACME Source code) - The funny arcade game
+  * [[Hyper Duel]] (ACME Source code) - Fun 2 player game based on Super Dogfight, but weirder!
+  * [[Bomb Chase 2009]] (ACME Source code) 
+
+
+===== Sources for PC/Mac Development Tools =====
+
+  * [[http://dark-well.pwp.blueyonder.co.uk/|Dev Tools written in Dark Basic]] - by Malcolm Bamber
+  * [[https://github.com/GeorgRottensteiner/C64Studio|C64 Studio Source Code]] - by Georg Rottensteiner

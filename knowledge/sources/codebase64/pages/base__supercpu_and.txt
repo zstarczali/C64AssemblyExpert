@@ -1,0 +1,120 @@
+# PAGE: base:supercpu_and
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:supercpu_and
+
+====== AND ======
+
+<code>
+    //---------------------------------------------------------------------------------------------
+    // PseudoCommand-OPC: AND16 (AND accumulator with memory)
+    //
+    // Addressing Modes:
+    //   Immediate                               ($29 - 2 bytes*, 2 cycles¹)
+    //   Absolute                                ($2d - 3 bytes, 4 cycles¹)
+    //   Absolute Long                           ($2f - 4 bytes, 5 cycles¹)
+    //   Direct Page (also DP)                   ($25 - 2 bytes, 3 cycles¹²)
+    //   DP Indirect                             ($32 - 2 bytes, 5 cycles¹²)
+    //   DP Indirect Long                        ($27 - 2 bytes, 6 cycles¹²)
+    //   Absolute Indexed, X                     ($3d - 3 bytes, 4 cycles¹³)
+    //   Absolute Long Indexed, X                ($3f - 4 bytes, 5 cycles¹)
+    //   Absolute Indexed, Y                     ($39 - 3 bytes, 4 cycles¹³)
+    //   DP Indexed, X                           ($35 - 2 bytes, 4 cycles¹²)
+    //   DP Indexed Indirect, X                  ($21 - 2 bytes, 6 cycles¹²)
+    //   DP Indirect Indexed, Y                  ($31 - 2 bytes, 5 cycles¹²³)
+    //   DP Indirect Long Indexed, Y             ($37 - 2 bytes, 6 cycles¹²)
+    //   Stack Relative (also SR)                ($23 - 2 bytes, 4 cycles¹)
+    //   SR Indirect Indexed, Y                  ($33 - 2 bytes, 7 cycles¹)
+    //   * - Add 1 byte if m = 0 (16-bit memory/accumulator)
+    //   ¹ - Add 1 cycle if m = 0 (16-bit memory/accumulator)
+    //   ² - Add 1 cycle if low byte of Direct Page register is other than zero (DL< >0)
+    //   ³ - Add 1 cycle if adding index crosses a page boundary
+    //
+    // Flags Affected:
+    //   n - Set if most significant bit of result is set; else cleared.
+    //   z - Set if result is zero; else cleared.
+    //
+    // Description:
+    //   Bitwise logical AND the data located at the effective address specified by the operand
+    //   with the contents of the accumulator. Each bit in the accumulator is ANDed with the
+    //   corresponding bit in memory, with the result being stored in the respective accumulator
+    //   bit.
+    //
+    //   The truth table for the logical AND operation is:
+    //     1st Operand     2nd Operand     Result
+    //          0               0            0
+    //          0               1            0
+    //          1               0            0
+    //          1               1            1
+    //
+    //   That is, a 1 or logical true results in given bit being true only if both elements of the
+    //   respective bits being ANDed are 1s, or logically true.
+    //   8-bit accumulator (all processors): Data ANDed from memory is eight-bit.
+    //   16-bit accumulator (65816 only, m = 0):
+    //     Data ANDed from memory is sixteen-bit:
+    //      - the loworder byte is located at the effective address;
+    //      - the high-order byte is located at the effective address plus one.
+    //---------------------------------------------------------------------------------------------
+
+    .pseudocommand and16 val {
+        .if (val.getType()==AT_IMMEDIATE) {
+            .byte $29, <val.getValue(), >val.getValue()
+        }
+
+        .if (val.getType()==AT_ABSOLUTE) {
+            .if (val.getValue()<256) {
+                .byte $25, <val.getValue()       // Direct Page
+            } else {
+                .if (val.getValue()<65536) {
+                    .byte $2d, <val.getValue(), >val.getValue()
+                } else {
+                    .byte $2f, <val.getValue(), >val.getValue(), val.getValue() >> 16
+                }
+            }
+        }
+
+        .if (val.getType()==AT_ABSOLUTEX) {
+            .if (val.getValue()<256) {
+                .byte $35, <val.getValue()       // Direct Page
+            } else {
+                .if (val.getValue()<65536) {
+                    .byte $3d, <val.getValue(), >val.getValue()
+                } else {
+                    .byte $3f, <val.getValue(), >val.getValue(), val.getValue() >> 16
+                }
+            }
+        }
+
+        .if (val.getType()==AT_ABSOLUTEY) {
+            .byte $39, <val.getValue(), >val.getValue()
+        }
+        .if (val.getType()==AT_IZEROPAGEX) {
+            and (val.getValue(),x)
+        }
+        .if (val.getType()==AT_IZEROPAGEY) {
+            and (val.getValue()),y
+        }
+        .if (val.getType()==AT_INDIRECT) {
+            .byte $32, val.getValue()
+        }
+
+    }
+
+    // Handle long addressing modes for Indirect and Indirect,y:
+    .pseudocommand and16_l val {
+        .if (val.getType()==AT_INDIRECT) {
+            .byte $27, val.getValue()
+        }
+        .if (val.getType()==AT_IZEROPAGEY) {
+            .byte $37, val.getValue()
+        }
+    }
+
+    // Handle stack addressing modes for Stack Relative and Stack Indirect Indexed,y:
+    .pseudocommand and16_s val {
+        .if (val.getType()==AT_INDIRECT) {
+            .byte $23, val.getValue()
+        }
+        .if (val.getType()==AT_IZEROPAGEY) {
+            .byte $33, val.getValue()
+        }
+    }
+</code>

@@ -1,0 +1,6 @@
+# PAGE: base:sprite_fpd
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:sprite_fpd
+
+====== Sprite FPD ======
+
+There is no HW-tweak that directly gives you a sprite-fpd, like when using bitmap graphics. Easiest way is probably to use a normal [[base:stretching_sprites|sprite stretcher]], combined with switching sprite-pointer bank each line (by setting $d018). Two banks are necessary, one that points to the sprite graphics that you want, one that points to an empty sprite.

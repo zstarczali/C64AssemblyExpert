@@ -1,0 +1,266 @@
+# PAGE: vic:opening_up_the_borders_-_a_further_explanation
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=vic:opening_up_the_borders_-_a_further_explanation
+
+====== Opening up the borders - a further explanation ======
+
+Author: Wouter Bovelander
+Date: March 2016
+Location: http://www.thehilander.nl
+
+===== Introduction =====
+When I read articles by other writers I am always happy that they are willing to share their knowledge. However, at the end of reading some articles I am left with questions. One of those articles is Pasi ‘Albert’ Ojala's "Opening up the borders". A great article with lots of information and example code that works right out of the gate. But there's so much information besides what is necessary to open those borders, that I am left wondering what it all means. With this article I would like to add (and maybe chip away) content that will hopefully help you understand the subject even if you had little prior knowledge. 
+
+Please note that I shall use assembly language for the MOS 6502/6510 inside a PAL Commodore 64. I am using the Kick Assembler format and I shall explain as many language constructs as I think is necessary.
+
+===== The Challenge =====
+When you boot up the C64 it shows a character screen of 40 columns and 25 lines surrounded by borders. To be more specific, there are border areas directly above and below the text area. There are also borders to the left and the right of the text area. This description leaves the four corners, that is the areas not directly above, below or beside the text area. This article is mostly concerned with the border areas directly below and above the text area.
+
+Since each character is 8 by 8 pixels, the text area is 40 * 8 = 320 pixels wide and 25 * 8 = 200 pixels high. Please note that we're only talking about the bits of the screen not covered by any border. In actual fact, the entire (PAL) screen is 312 lines high and 504 pixels wide. The fact that the VIC-2 chip draws nothing but border in some areas of the screen, doesn't mean that it takes no time or effort to draw them. 
+
+We want to be able to utilise the border areas directly above and below the text area. Right off the bat I can tell you that we won't just be able to display any text there, but we could place sprites there. All we can do is to prevent the VIC-2 from drawing the borders but we will need to apply a dirty trick to achieve it.
+
+===== The Theory =====
+Alright, here's how it's supposed to work. After the VIC-2 has finished drawing all the characters on screen it starts drawing the border. Basically this process consists of repeatedly drawing something out of a fixed memory location (I'll come back to this later) and in a set color, namely the border color. Where the VIC-2 normally busies itself with reading information from RAM for every character, it behaves differently while drawing the borders. This border drawing is not an active process; it stops reading bytes from RAM for every location. But rather the VIC-2 draws a single character until it reaches the top of the screen again. Once there it draws more border color (which is the top border) until the text area is to be drawn again. What we want to do is to tell the VIC-2 to not draw border. But there's no feature built in to handle that. So we have to create a situation where the VIC-2 is tricked in a way so that the color switch from text area color to border color is skipped. That way the VIC-2 will simply keep drawing text area color, which is exactly what we want. This is where our trickery starts!
+
+I'll explain what the trick actually is. The VIC-2 can be set to 25 or to 24 line mode. In 24 line mode the last line of the text area will be drawn in the border color. In 25 line mode this last line will be drawn in the regular text area color. Our trick comes down to this: we start drawing the screen in 25 line mode. But after the VIC-2 has started drawing the last line we quickly set it to 24 line mode. Naturally we will set a raster interrupt to detect where exactly the VIC-2 is drawing at the moment. Setting 24 line mode before the end of the screen is reached will cause the VIC-2 to skip the code that is executed normally to switch to the border color. In short, the VIC-2 thinks it's already in the border and simply continues drawing (as it always does) but it will not draw the border.
+
+We will have to keep doing this until the VIC-2 starts again at the top of the screen. In fact it can keep NOT drawing the border until...well, until just before we reach the last line of the text area again. What I'm trying to say is that at some point we will have to switch back to 25 line mode because our trick depends on switching from 25 to 24 line mode at the exact right moment. Which means we’ll have to also switch from 24 back to 25 mode again.
+
+Granted, this is a nasty trick and definitely not a feature intended by the C64 designers. Which means we will have to live with whatever the VIC-2 leaves, which isn't much as you will see.
+
+===== Garbage =====
+We haven't coded a single line yet, but imagine we have. Imagine we've opened up the borders by setting the VIC-2 from 25 to 24 lines at the end of drawing the last scan line of the last character line using a raster interrupt. Imagine the clear dark blue area the VIC-2 draws in what would normally be the border area. Well, don't attach too much to that image because there will be garbage. Black garbage to be precise. 
+
+It appears that the VIC-2 has to draw something (it cannot draw nothing). It can draw a different color fine, but it has to transfer something from memory to the screen. All the time. Either a sprite or character data, but during our imagining we were probably imagining the VIC-2 to be drawing nice spaces, but in reality it is drawing something from memory. Something? Well a specific something. At this point you should know that the VIC-2 can see only 16K at one time. By default the VIC-2 is set to look at the first 16K of memory which runs from address $0000 to $3FFF, which can be influenced by manipulating bit 0 and 1 of register $DD00. Apparently the VIC-2 takes its data from the last byte of its addressable area, in the default case from $3FFF. If you change the bank at which the VIC-2 looks in memory, this address will change too of course. Just remember that it's the last byte of the address space the VIC-2 can see. This is the byte the VIC-2 uses to fill the border area. We never see it because of the border color but now that we’ve tricked the VIC-2 into not drawing the normal border color we start to see whatever it was drawing all this time. Whenever you see a reference to $3FFF, now you know what that it means.
+
+So whatever is there, the VIC-2 will draw to the screen, using a character color of 0, being black. And that's what we have to deal with. So if we simply cleared $3FFF, the VIC-2 would just draw nothing. But this is where Pasi shows what he can do and introduces us to some more advanced stuff that I'll talk about as well.
+
+===== Side note on fancy wobbling =====
+Naturally dear old Albert wasn't satisfied with just printing garbage or spaces in the borders. He does a little trick. I won't explain it completely here but it comes down to this. He copies character shapes from the character ROM area to RAM and then switches the ROM out of the memory map. Next he copies the values from RAM to $3FFF. All of it? Yes. Naturally the CPU will overwrite whatever is in $3FFF, but remember that the VIC-2 is 8 times faster than the CPU and will draw whatever it finds in $3FFF each time it looks. So when the CPU is ready to change the value of $3FFF, the VIC-2 has already drawn the character that was there completely. 
+Now if that wasn't enough Albert also wants to show off is programming prowess by making the text wobble. He does so by defining the mathematical equivalent of a sinus wave in memory and changing the horizontal scrolling according to those values. This makes the text do its fancy wobble which looks great. But it has nothing to do with opening up the borders so I'll just leave it for what it is.
+
+===== Side note on side borders =====
+In this article I've chosen to write about the areas directly above and below the text area because our trick only affects those areas. There are however other areas we call 'border', like the areas to the left and right of the screen. We can make those areas disappear as well! Quite magically the same trick works here, but we need to switch between 38 and 40 column modes at the right moment. A tad more difficult and beyond the scope of this article so we'll just forget about that one for now.
+
+===== Side note on scrolling lines =====
+At this point in the article I'd like to say a few words about Pasi ‘Albert’ Ojala's article. In it he goes into a technique called "scrolling". While the term is the same used in soft scrolling characters (either vertically or horizontally), this scrolling is an entirely different thing which has to do with so called bad lines. So here goes: the C64 was designed primarily to draw character screens. Let's get our terminology correct here: there's scan lines and character lines. Each character line is 8 scan lines high. At the start of every character line the VIC-2 retrieves image and color information that it requires to draw be able to draw the next line. The VIC-2 needs the data and address bus to do that. There's only so much time to achieve this. You should know that each clock tick in the system is divided into two phases: the first phase is for the VIC-2 chip, the second for the CPU. Each gets equal time to use the data and address bus. But when the VIC-2 needs to fetch data it claims more time. The CPU gets much less time consequently. The scan lines at which this happens are called bad lines because of this reduction of CPU time. 
+
+Logically it follows that every 8th line is a bad line because every character line's first scan line is used to fetch the data. Now, there are two system registers that come into play here: $D012 and $D011. We know $D012 as the one that holds the current raster line number. Because there are 312 scan lines to count and one byte can hold only 256 values $D011 contains another bit (the most significant bit, bit #7 when counting from 0-7) that is set when scan line 257 is reached. This register $D011 also contains the setting for the horizontal scroll position (bits 0, 1 and 2) and the 24 or 25 line mode (bit 3). 
+So if every 8th scan line is a bad line, then it follows that every time $D012 is a multiple of 8, we are at a scan line. If you look at the value of bits 0,1,2 and 3 of $D011 when we are in 25 line mode and in a neutral scrolling position you will find that its value is 8. This is no coincidence. Really. It gets even crazier. The VIC-2 actually uses this behaviour to determine whether it is at a bad line or not. When bits 0-3 of $D012 match those of $D011, the VIC-2 knows it is at a bad line. The proof of this is that when we change the value of $D011 at the correct time, the VIC-2 never knows it's at a bad line and consequently doesn't fetch any data. When we postpone this bad line detection a few lines, the VIC-2 starts drawing stuff further down the screen, thereby "scrolling" it!  
+
+Please remember that these are just side notes. They have nothing to do with opening up the borders but I am mentioning them because they appear in Pasi's article and I thought they deserved some extra attention. Now let's put all the side notes aside and go back to opening up them borders.
+	
+===== The Code =====
+Some notes on the code. In Kick Assembler the ".pc" directive sets the program counter. There is a macro called "BasicUpstart()" which generates a basic program which starts the machine language program. 
+Using constructs like <irq and >irq resolves into the least significant byte and most significant byte of a 16 bit address respectively.
+This code does not use sprites to create a stable interrupt but the double interrupt technique described in my article called "Double irq explained" which can be found under the "Interrupts" section on codebase64.net. That article also explains the interrupt construct.
+
+<code>
+.pc = $0801
+:BasicUpstart(main)
+
+.pc = $2000		//Assemble to $2000
+main: 
+         sei		//Disable IRQ's
+         lda #$7f	//Disable CIA IRQ's
+         sta $dc0d
+         sta $dd0d
+
+         lda #$35	//Bank out kernal and basic
+         sta $01	//$e000-$ffff
+ 
+         lda #<irq1	//Install RASTER IRQ
+         ldx #>irq1	//into Hardware
+         sta $fffe	//Interrupt Vector
+         stx $ffff
+ 
+ 
+         lda #$01	//Enable RASTER IRQs
+         sta $d01a
+         lda #$34	//IRQ on line 52
+         sta $d012
+         lda #$1b	//Clear the High bit (lines 256-318)
+         sta $d011
+         lda #$0e	//Set Background
+         sta $d020	//and Border colors
+         lda #$06
+         sta $d021
+         lda #$00
+         sta $d015	//turn off sprites
+ 
+         jsr clrscreen
+         jsr clrcolor
+         jsr printtext
+ 
+         asl $d019	// Ack any previous raster interrupt
+         bit $dc0d   	// reading the interrupt control registers 
+         bit $dd0d	// clears them
+ 
+         cli		//Allow IRQ's
+ 
+         jmp *		//Endless Loop
+ 
+//===========================================================================================
+// Main interrupt handler
+// [x] denotes the number of cycles 
+//=========================================================================================== 
+irq1:
+			//The CPU cycles spent to get in here		[7]
+         sta reseta1	//Preserve A,X and Y				[4]
+         stx resetx1	//Registers					[4]
+         sty resety1	//using self modifying code			[4]
+ 
+         lda #<irq2	//Set IRQ Vector				[4]
+         ldx #>irq2	//to point to the				[4]
+			//next part of the	
+         sta $fffe	//Stable IRQ					[4]
+         stx $ffff   	//						[4]
+         inc $d012	//set raster interrupt to the next line		[6]
+         asl $d019	//Ack raster interrupt				[6]
+         tsx		//Store the stack pointer! It points to the	[2]
+         cli		//return information of irq1.			[2]
+         		//Total spent cycles up to this point		[51]
+         nop		//						[53]
+         nop		//						[55]
+         nop		//						[57]
+         nop		//						[59]
+         nop		//Execute nop's					[61]
+         nop		//until next RASTER				[63]
+         nop		//IRQ Triggers					
+
+//===========================================================================================
+// Part 2 of the Main interrupt handler
+//===========================================================================================                  
+irq2:
+         txs		//Restore stack pointer to point the the return
+			//information of irq1, being our endless loop.
+	
+         ldx #$09	//Wait exactly 9 * (2+3) cycles so that the raster line
+         dex		//is in the border				[2]
+         bne *-1							[3]
+ 
+         lda #$00	//Set the screen and border colors
+         ldx #$05
+         sta $d020	
+         stx $d021
+ 
+         lda #<irq3	//Set IRQ to point
+         ldx #>irq3	//to subsequent IRQ
+         ldy #$68	//at line $68
+         sta $fffe
+         stx $ffff
+         sty $d012
+         asl $d019	//Ack RASTER IRQ
+ 
+lab_a1:	lda #$00	//Reload A,X,and Y
+.label reseta1 = lab_a1+1
+
+lab_x1:	ldx #$00
+.label resetx1 = lab_x1+1
+
+lab_y1:	ldy #$00
+.label	resety1 = lab_y1+1
+ 
+         rti		//Return from IRQ
+
+//===========================================================================================
+// Part 3 of the Main interrupt handler
+//===========================================================================================           
+irq3:
+         sta reseta2	//Preserve A,X,and Y
+         stx resetx2	//Registers
+         sty resety2         
+
+         ldy #$13	//Waste time so this
+         dey		//IRQ does not try	[2]
+         bne *-1	//to reoccur on the	[3]
+			//same line!
+         
+         lda #$0f	//More colors
+         ldx #$07 
+         sta $d020
+         stx $d021
+ 
+         lda #<irq1	//Reset Vectors to
+         ldx #>irq1	//first IRQ again
+         ldy #$34	//at line $34
+         sta $fffe
+         stx $ffff
+         sty $d012
+         asl $d019	//Ack RASTER IRQ
+ 
+lab_a2:	lda #$00	//Reload A,X,and Y
+.label reseta2  = lab_a2+1
+
+lab_x2:	ldx #$00
+.label resetx2  = lab_x2+1
+
+lab_y2:	ldy #$00
+.label resety2  = lab_y2+1
+ 
+         rti		//Return from IRQ
+
+//===========================================================================================
+// Clrscreen - clears the screen memory at $0400
+//===========================================================================================         
+clrscreen:
+	lda #$20	//Clear the screen
+	ldx #$00
+clrscr:	sta $0400,x
+	sta $0500,x
+	sta $0600,x
+	sta $0700,x
+	dex
+	bne clrscr
+	rts
+
+//===========================================================================================
+// Clrcolor - clears the color memory at $d800
+//===========================================================================================         
+clrcolor:
+         lda #$03    //Clear color memory
+         ldx #$00
+clrcol:	sta $d800,x
+         sta $d900,x
+         sta $da00,x
+         sta $db00,x
+         dex
+         bne clrcol
+         rts
+
+//===========================================================================================
+// Printtext - prints a text in lower case
+//===========================================================================================                   
+printtext:
+         lda #$16    //C-set = lower case
+         sta $d018
+ 
+         ldx #$00
+moretext: lda text1,x
+ 
+         bpl lower   //upper case ?
+         eor #$80    //yes
+ 
+         bne lower+2
+ 
+lower:    and #$3f    //lower case
+         sta $0450,x
+         inx
+         cpx #$78
+         bne moretext
+exit:     rts
+ 
+
+//===========================================================================================
+// Data
+//===========================================================================================         
+text1:
+         .text "Stable Raster IRQ sourc"
+         .text "Stable Raster IRQ sourc"
+         .text "Stable Raster IRQ sourc"
+         .text "Stable Raster IRQ sourc"
+         .text "Stable Raster IRQ sourc"
+         .text "Stable Raster IRQ sourc"
+
+
+</code>

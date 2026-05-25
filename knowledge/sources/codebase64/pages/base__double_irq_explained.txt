@@ -1,0 +1,298 @@
+# PAGE: base:double_irq_explained
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:double_irq_explained
+
+====== Double IRQ explained ======
+
+Writing a raster interrupt routine on the Commodore 64, stabilised using the double interrupt technique
+
+Author: Wouter Bovelander
+Date: july 2015
+Location: http://www.thehilander.nl
+
+==== Introduction ====
+There are many reasons why you would want to split the Commodore 64's screen into different parts, each part doing something independently from the other. You may want to have each part use a different display mode, like text or high resolution bitmap mode. Or you may want a particular line to do soft scrolling text while the other shows some sprites dancing around. Chances are that you are reading this article to learn the basics of how to do that. It is equally probable that you've already read many articles, seen many different routines and just don't understand how they work. Not all articles are as complete or comprehensive as you would like. Certainly not all of them are aimed at explaing things from the ground up. This article intends to do just that. It's hard enough to simply change the colors of the border and screen for a specific section of the screen, without having it flickering so we're going to try and do that: write a raster interrupt routine that changes the color of the border and background of a part of the screen, without flickering.
+
+Please note that I shall use assembly language for the MOS 6502 inside a PAL Commodore 64. I am using the Kick Assembler format and I shall explain as many language constructs as I think is necessary.
+
+==== The Challenge ====
+Right, why is this so hard? Personally I've had to wrap my head around the timing and take that very seriously. When you get right down to it, the nuts and bolts of how the CPU cooperates with the VIC-2 chip, sharing the data bus is really complex. If you look hard enough you'll find highly technical and hardware oriented explanations of the hows and whys. To write a stable routine you won't have to understand all that, but I'm certain that those who are hardware savvy will have a deeper understanding and will be able to analyse certain problems better than software programmers. Let's just roll with what we know. They key is realising that you have to start writing your code for something other than functionality, but for timing. We have to be aware of timing. And really, it isn't that hard to understand.
+
+==== So what are we looking at? ====
+You've probably already discovered that the VIC-2 chip paints the screen line by line. On a PAL C64 each line takes 63 clock cycles to paint. That includes the off-screen parts, the parts that make up the borders and the regular screen that normally holds the characters. Each clock cycle paints 8 bits, which is the width of a normal character. Remember that, it's important.
+
+You may also know that there are 318 raster lines on a screen. There are lines that are off screen, behind the borders and on the regular screen. To keep track of which line is currently being drawn the VIC-2 chip writes the number of this line in a register: $D012. Simply reading it gives us the current line being drawn. But there's a catch. Register $D012 is a byte and can hold values from $00 to $FF. But with 318 lines in total the register is too small to hold all the values. That is why the highest bit (#7 if you count from bits #0 to #7) is stored in another location: $D011. It is stored in the highest bit of this register to be exact. So every time the raster is done drawing line number $FF bit #7 of $D011 is set and $D012 starts counting from $00 again. When all 318 lines have been drawn bit #7 of $D011 is cleared and $D012 starts from $00 once more.
+
+Please take a moment to realise that drawing a line is hard work for the VIC-2 chip! It has to access character data, bitmap data, sprite data and color data which all has to be painted on the screen at the exact correct location. And it has to do this using the data bus which it has to share with the CPU. If you thought the CPU has all of 63 clock cycles per line to do its work, you are wrong. In the worst case the VIC-2 chip has to access color data and blocks the CPU out of the bus for a while, so that the CPU has only 23 cycles left on a line! Not much time to do anything. The lines at which this happens are called "bad lines". Of course, judging this from the VIC-2's point of view they are "good lines" but we're rooting for the CPU team. What's important to remember here is that the VIC-2 chip doesn't stop for anything. While we're executing our code, the VIC-2 chip keeps on chugging along. It can't stop the raster line drawing lines so it has to keep going. Even when we're calling our precious interrupt handlers.
+
+==== Why use interrupts at all? ====
+I've seen routines that simply wait for the raster to hit a certain line, draw sprite 0 according to a certain shape, wait for another line further down the screen, change the sprite shape, and so on. This waiting is done by just reading the $D012 register, comparing it to a certain value and branching back until the correct value is reached. It works. And if we didn't paint sprites but changed the background color it would work too. Great. 
+But now we want to write a game, or do a certain effect that requires super exact timing. We can't have the CPU busy doing nothing but loop around. We call that busy waiting and in timing critical routines, keeping the system busy with doing nothing is a crime. So in order to prevent all this waiting around we set an interrupt, exit our code and respond when the interrupt happens. Besides, knowing how to handle interrupts is cool.
+
+==== Interrupts ====
+The C64 has a number of chips that we have to be aware of: the CPU (of course), we've met the VIC-2 but there's also the two Complex Interface Adapter (CIA) chips. They are the main causes for interrupting normal program flow. The CIA chips can cause interrupts based on timers, which can be very handy in some cases. The VIC-2 chip helps us in its own way by allowing us to have it cause an interrupt at a certain raster line. We can set this line by writing to the $D011 and $D012 registers. When the VIC-2 chip reaches this line it causes an interrupt so we can start doing our stuff. But remember that the VIC-2 doesn't wait for us. It starts drawing the line immediately. So we have to be quick!
+
+We can choose to have the VIC-2 chip to cause in interrupt or not. We can choose the CIA's to cause interrupts or not. We could live an interrupt-less life if we wanted, barring the non-maskable interrupts of course. Some things happen whether we want to or not, like checking for cartdiges or the run/stop key. We can turn everything (that's maskable) off and have only the VIC-2's raster interrupt fire. Whenever that happens the system calls the routine who's address is stored in $FFFE and $FFFF. That routine checks whether it was a BRK or an IRQ and IRQ's are routed to the routine who's address is stored in $0314 and $0315. Now, you must have seen dozens of interrupt routines that change the vector in $0314 to point to a new interrupt handling routine. So each time an interrupt occurs these routines let the system decide whether it's a BRK or IRQ and only then jump to their own handler. When time is of the essence (the VIC-2 is drawing) we cannot waste any cycles without knowing about it. So, always use the $FFFE vector if you're not concerned with BRK instructions.
+
+But there's something else. When the CPU receives an interrupt signal, it doesn't just drop everything to jump to our interrupt handler. It has to first finish the instruction it was on. Some instructions are only 2 cycles (remember that 1 cycle is 8 bits which is one whole character width), but some take up to 7! Add to that all the registers that need to be saved and jumps to be performed. Before our routine is actually started the VIC-2 can have drawn half a line! Now if the work that needs to be done before our routine is started was the same every time, we wouldn't have to worry. But since we don't know which instruction the CPU was working on, we will never know how many cycles have passed before we were called....but wait. Why should we worry at all?
+
+==== Flickering ====
+When starting with writing raster interrupts, everybody always does a color bar. We have the VIC-2 generate a raster interrupt at some line, change the background color, generate another interrupt at another line, change the color back to normal. If you've ever tried this you may have noticed that it looks a bit jittery. At the start and end of the bar the lines seem to jump around really quickly. They even seem to respond to keypresses and stuff. You already may have an idea about why that is now. Sure, we can set the color of the background because, hey, we've just set the interrupt to occur on this raster line. And yes, the VIC-2 chip indeed fired the interrupt at the very moment our desired raster line was reached. But then it just continued on its merry way leaving us to drop our stuff, pack our bags and get with the program. When you look at it, our routine is kept waiting for the CPU to get its shit together. And we don't know what it was doing at the moment the interrupt came in. So depending on what it was doing, we get to change the background color when the CPU is good and ready which can be anywhere on that first raster line. And this happens every time the screen is drawn. So each time we are actually called, the VIC-2 chip will be at a different point on the line. And that is what we call flicker.
+
+==== So how about this double interrupt thing? ====
+I don't think anybody knows who came up with the idea, but what I'm about to describe is both simple and brilliant. Sounds like a perfect idea to me. Mind you, there are different ways of solving this flicker problem but this is one I understand.
+
+So, we can't prevent the fact that time passes between the time the VIC-2 chip starts drawing the raster line we requested to be notified of and the moment our code is called. There is no telling how many cycles have passed because we don't know which instruction the CPU was performing when the interrupt occurred. What if we found a way of being able to predict that. Of course there is. Here's the idea: we set the interrupt to occur at a certain raster line and have the interrupt handling routine perform a load of NOP operations which are only 2 cycles long each. If we can make sure that our REAL interrupt handler routine is called while these NOPS are being performed we're home free aren't we? It will mean that we know exactly how much time will have passed before our own handler is called. Of course there's a few things to think about.
+
+==== Interrupt, step 1 ====
+For starters our first interrupt handler must set a new handler routine, the second part. The part that will actally do what we want done. Also it must set the raster interrupt to occur at the next raster line from our current one. After that's been done it's all NOPs for as long as the VIC-2 is drawing the screen. But how long do we performs NOPS at the least? How many cycles have passed since the interrupt occurred? How long has the VIC-2 been drawing the current line?
+
+When the interrupt occurred the CPU was performing an unknown operation. The longest known operation takes 7 cycles, so we have to assume the worst. Next, the CPU takes 7 cycles to store its return address and processor status. Because we've already altered the routine at $FFFE that's all she wrote. In any normal case the code there decides whether the interrupt was caused by a BRK or not, taking even more cycles. 
+So we're at least 14 cycles into the first line, leaving (63 - 14 = ) 49 cycles. Assuming we're not on a bad line that is, but we'll leave that thought for what it is. If we did choose a bad line to start our routine on, then we have to either redo the math for that situation or move to another, good line.
+
+Just a funny thought here...if we did things right we could let our interrupt handler perform an exact number of NOPs that would last until the raster beam ended up on the next line. In a perfect situation we could let the code run over into the second interrupt handler at the exact time the VIC-2 started to draw the new line. However I suspect we could never get -that- cycle exact so setting the interrupt is probably the best thing.
+
+==== Ending the first interrupt ====
+Normally we would have to end our interrupt service routine with an RTI. That would cause the CPU to pull the status word and program counter off the stack and jump to the previous location. But we would really like a clean exit from our first interrupt; NOP operations only! We can do this: simply don't RTI out of the interrupt, but let the code run into the second interrupt. We will have a challenge with the return address. Why? It was called from our first interrupt, remember? We don't actually want to return there, we want to return to the program that called our first interrupt. 
+It's simple again: just save the stack pointer from the first interrupt. It points to the information that takes us back to the correct code. When the second interrupt runs just use the stack pointer we saved and we're in like Flynn.
+
+==== Interrupt, step 2 ====
+So here we are, the VIC-2 has reached the next line and has generated our second interrupt. By now we're sure of the fact that it was executing a NOP. It takes the CPU at least 2 and then another 7 cycles before our code is called. Yay! We're being very cycle exact at the moment. So now what do we do? Naturally we're into the routine very quickly somewhere early on the raster line. If we changed the screen color immediately we would start drawing in a location where we can see it happening. It's probably best in our case to wait until the VIC-2 chip has drawn the line to a point where it is in the border.
+Why do all this timing and then wait all the time you ask? Well for our example it's important to draw a straight, non-jagged line. At least we know exactly what we're doing now. That may be very important to know if you're doing a different effect. In this case the best we can do is have the VIC-2 draw the line, but at least we're in control now.
+
+Once we're sure the raster is in the border, we can change the colors. We can now safely set up the last interrupt handler and set the last raster interrupt to where we want to bottom of our color bar to be. It's fine to just return out of our routine since we're waiting for the last line to happen and there's plenty of time, depending of course on where we set the bottom line.
+
+==== Interrupts interrupted? ====
+I always chuckle when I see an interrupt handling routine setting the interrupt flag with a SEI. The C64 sets the interrupt flag upon entering an interrupt handler, cancelling interrupts in order to prevent re-entrant interrupt service routines which are very likely to hang your system. 
+
+==== Interrupt, step 3 ====
+If you're thinking that this article was about the double interrupt technique and you're wondering why you're reading about a third interrupt then I have to point out that the double interrupt is really about the first and second steps. They work together to make the timing exact. The third interrupt here is just a part of the effect we're trying to achieve: a stable color bar.
+
+Again we enter the routine, but this time we're not entirely sure where again. In order to make sure we're being called from a NOP we should really setup another double interrupt call, but you catch the drift by now. We'll just wait until the entire line is drawn beyond the edge of the border, change the color back to normal, set the interrupt to our very first interrupt again and set the raster interrupt to our initial value again. 
+
+==== Thanks ====
+And that's it really. I hope you've learned something you didn't know already. In this article we took a few liberties that we could get away with. That is it didn't hurt the effect we were after. What you should really remember that thinking about timing in cycle exactness helps you gain control. But you should apply that control wherever you need it. That is why changing code in existing examples very quickly messes up the stability and the timing. When you're looking at code like that you should realise you're not just look at function, but at a program that is carefully set in time.
+
+So thanks for your patience and thanks to Fungus for supplying the base of the code.
+
+==== The Code ====
+Some notes on the code. In Kick Assembler the ".pc" directive sets the program counter. There is a macro called "BasicUpstart()" which generates a basic program which starts the machine language program.
+There is an efficient technique of storing and restoring the registers at the start and end of an interrupt handler respectively. It uses loads the values of the registers with simple STA, STX and STY instructions but saves their values in memory locations at the end of the routine. These memory locations exactly coincide with LDA, LDX and LDY instructions. Basically we write the values we want to store directly into the loading instructions which saves using the stack. 
+In order to achieve this I need Kick Assembler to generate labels for which I use the ".label" directive. This allows me to point to an address where an STA instruction lives and access the byte directly behind it by stating ".label MyLabel + 1", where "MyLabel" points at the byte where the instruction lives. So:
+
+<code>
+	lab_a1:	lda #$00	//Reload A,X,and Y
+	.label reseta1 = lab_a1+1
+</code>
+
+means to define a label called "lab_a1" to point to the first of a two-byte instruction "LDA #$00". Next, "reset_a1" is made to point to "lab_a1" plus 1 byte, which makes it point at the byte where the value "#$00" is stored. So if we enter the routine and write the current value of the Accumulator into "reseta1", we're basically loading the stored value back into the Accumulator when we leave the routine. The wonders of self-modifying code. 
+
+<code>
+.pc = $0801
+:BasicUpstart(main)
+
+.pc = $2000		//Assemble to $2000
+main: 
+         sei		//Disable IRQ's
+         lda #$7f	//Disable CIA IRQ's
+         sta $dc0d
+         sta $dd0d
+
+         lda #$35	//Bank out kernal and basic
+         sta $01	//$e000-$ffff
+ 
+         lda #<irq1	//Install RASTER IRQ
+         ldx #>irq1	//into Hardware
+         sta $fffe	//Interrupt Vector
+         stx $ffff
+ 
+ 
+         lda #$01	//Enable RASTER IRQs
+         sta $d01a
+         lda #$34	//IRQ on line 52
+         sta $d012
+         lda #$1b	//Clear the High bit (lines 256-318)
+         sta $d011
+         lda #$0e	//Set Background
+         sta $d020	//and Border colors
+         lda #$06
+         sta $d021
+         lda #$00
+         sta $d015	//turn off sprites
+ 
+         jsr clrscreen
+         jsr clrcolor
+         jsr printtext
+ 
+         asl $d019	// Ack any previous raster interrupt
+         bit $dc0d   	// reading the interrupt control registers 
+         bit $dd0d	// clears them
+ 
+         cli		//Allow IRQ's
+ 
+         jmp *		//Endless Loop
+ 
+//===========================================================================================
+// Main interrupt handler
+// [x] denotes the number of cycles 
+//=========================================================================================== 
+irq1:
+			//The CPU cycles spent to get in here		[7]
+         sta reseta1	//Preserve A,X and Y				[4]
+         stx resetx1	//Registers					[4]
+         sty resety1	//using self modifying code			[4]
+ 
+         lda #<irq2	//Set IRQ Vector				[4]
+         ldx #>irq2	//to point to the				[4]
+			//next part of the	
+         sta $fffe	//Stable IRQ					[4]
+         stx $ffff   	//						[4]
+         inc $d012	//set raster interrupt to the next line		[6]
+         asl $d019	//Ack raster interrupt				[6]
+         tsx		//Store the stack pointer! It points to the	[2]
+         cli		//return information of irq1.			[2]
+         		//Total spent cycles up to this point		[51]
+         nop		//						[53]
+         nop		//						[55]
+         nop		//						[57]
+         nop		//						[59]
+         nop		//Execute nop's					[61]
+         nop		//until next RASTER				[63]
+         nop		//IRQ Triggers					
+
+//===========================================================================================
+// Part 2 of the Main interrupt handler
+//===========================================================================================                  
+irq2:
+         txs		//Restore stack pointer to point the the return
+			//information of irq1, being our endless loop.
+	
+         ldx #$09	//Wait exactly 9 * (2+3) cycles so that the raster line
+         dex		//is in the border				[2]
+         bne *-1							[3]
+ 
+         lda #$00	//Set the screen and border colors
+         ldx #$05
+         sta $d020	
+         stx $d021
+ 
+         lda #<irq3	//Set IRQ to point
+         ldx #>irq3	//to subsequent IRQ
+         ldy #$68	//at line $68
+         sta $fffe
+         stx $ffff
+         sty $d012
+         asl $d019	//Ack RASTER IRQ
+ 
+lab_a1:	lda #$00	//Reload A,X,and Y
+.label reseta1 = lab_a1+1
+
+lab_x1:	ldx #$00
+.label resetx1 = lab_x1+1
+
+lab_y1:	ldy #$00
+.label	resety1 = lab_y1+1
+ 
+         rti		//Return from IRQ
+
+//===========================================================================================
+// Part 3 of the Main interrupt handler
+//===========================================================================================           
+irq3:
+         sta reseta2	//Preserve A,X,and Y
+         stx resetx2	//Registers
+         sty resety2         
+
+         ldy #$13	//Waste time so this line is drawn completely
+         dey		//	[2]
+         bne *-1	//	[3]
+			//same line!
+         
+         lda #$0f	//Back to our original colors
+         ldx #$07 
+         sta $d020	//
+         stx $d021	//
+ 
+         lda #<irq1	//Reset Vectors to
+         ldx #>irq1	//first IRQ again
+         ldy #$34	//at line $34
+         sta $fffe
+         stx $ffff
+         sty $d012
+         asl $d019	//Ack RASTER IRQ
+ 
+lab_a2:	lda #$00	//Reload A,X,and Y
+.label reseta2  = lab_a2+1
+
+lab_x2:	ldx #$00
+.label resetx2  = lab_x2+1
+
+lab_y2:	ldy #$00
+.label resety2  = lab_y2+1
+ 
+         rti		//Return from IRQ
+
+//===========================================================================================
+// Clrscreen - clears the screen memory at $0400
+//===========================================================================================         
+clrscreen:
+	lda #$20	//Clear the screen
+	ldx #$00
+clrscr:	sta $0400,x
+	sta $0500,x
+	sta $0600,x
+	sta $0700,x
+	dex
+	bne clrscr
+	rts
+
+//===========================================================================================
+// Clrcolor - clears the color memory at $d800
+//===========================================================================================         
+clrcolor:
+         lda #$03    //Clear color memory
+         ldx #$00
+clrcol:	sta $d800,x
+         sta $d900,x
+         sta $da00,x
+         sta $db00,x
+         dex
+         bne clrcol
+         rts
+
+//===========================================================================================
+// Printtext - prints a text in lower case
+//===========================================================================================                   
+printtext:
+         lda #$16    //C-set = lower case
+         sta $d018
+ 
+         ldx #$00
+moretext: lda text1,x
+ 
+         bpl lower   //upper case ?
+         eor #$80    //yes
+ 
+         bne lower+2
+ 
+lower:    and #$3f    //lower case
+         sta $0450,x
+         inx
+         cpx #$78
+         bne moretext
+exit:     rts
+ 
+
+//===========================================================================================
+// Data
+//===========================================================================================         
+text1:
+         .text "Stable Raster IRQ sourc"
+         .text "Stable Raster IRQ sourc"
+         .text "Stable Raster IRQ sourc"
+         .text "Stable Raster IRQ sourc"
+         .text "Stable Raster IRQ sourc"
+         .text "Stable Raster IRQ sourc"
+
+</code>
+
+

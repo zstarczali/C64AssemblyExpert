@@ -1,0 +1,214 @@
+# PAGE: base:c64_midi_interfaces
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:c64_midi_interfaces
+
+====== MIDI Interfaces ======
+
+Here is a list of Interfaces, 6850 UART registers and
+the most important values you will be feeding the Control Register with.
+
+
+^SEQUENTIAL CIRCUITS INC.                                          ^^^
+^Mode              | 1 MHZ IRQ |                                     |
+^Control Register  | $DE00     |Write only                           |
+^Status Register   | $DE02     |Read only                            |
+^Transmit Data (Tx)| $DE01     |Write only                           |
+^Receive Data (Rx) | $DE03     |Read only                            |
+^Midi Reset        | $03       |Master Reset                        |
+^Midi Enable       | $15       |Word Select & Counter Divide         |
+^Midi IRQ Enable   | $95       |IRQ ON, Word Select & Counter Divide |
+
+
+^PASSPORT & SENTECH                                                ^^^
+^Mode              | 1 MHZ IRQ |                                     |
+^Control Register  | $DE08     |Write                                |
+^Status Register   | $DE08     |Read                                 |
+^Transmit Data (Tx)| $DE09     |Write                                |
+^Receive Data (Rx) | $DE09     |Read                                 |
+^Midi Reset        | $03       |Master Reset                        |
+^Midi Enable       | $15       |Word Select & Counter Divide         |
+^Midi IRQ Enable   | $95       |IRQ ON, Word Select & Counter Divide |
+
+
+^DATEL/SIEL/JMS/C-LAB                                               ^^^
+^Mode              | 2 MHZ IRQ |                                     |
+^Control Register  | $DE04     |Write only                           |
+^Status Register   | $DE06     |Read only                            |
+^Transmit Data (Tx)| $DE05     |Write only                           |
+^Receive Data (Rx) | $DE07     |Read only                            |
+^Midi Reset        | $03       |Master Reset                        |
+^Midi Enable       | $16       |Word Select & Counter Divide         |
+^Midi IRQ Enable   | $96       |IRQ ON, Word Select & Counter Divide |
+
+
+^NAMESOFT                                                          ^^^
+^Mode              | 1 MHZ NMI |                                     |
+^Control Register  | $DE00     |Write only                           |
+^Status Register   | $DE02     |Read only                            |
+^Transmit Data (Tx)| $DE01     |Write only                           |
+^Receive Data (Rx) | $DE03     |Read only                            |
+^Midi Reset        | $03       |Master Reset                        |
+^Midi Enable       | $15       |Word Select & Counter Divide         |
+^Midi NMI Enable   | $95       |NMI ON, Word Select & Counter Divide |
+
+
+  * Datel/Siel/JMS/C-LAB runs at 2 mhz. A C64 needs a different Counter Divide to keep up.
+  * The Namesoft device requires a NMI interrupt for reading Midi data.
+
+====== Information about the registers ======
+
+This information is from the Motorola MC6850 ACIA.
+
+^ ACIA (Asynchronous Communications Interface Adapter) Registers                ^^^^^
+^ Bit ^Control Register         ^Status Register                    ^  Tx   ^  Rx   ^
+^  7  |Receive Interrupt Enable |Interrupt Request (IRQ)            | Bit 7 | Bit 7 |
+^  6  |Transmit Control 2       |Parity Error (PE)                  | Bit 6 | Bit 6 |
+^  5  |Transmit Control 1       |Receiver Overrun (OVRN)            | Bit 5 | Bit 5 |
+^  4  |Word Select 3            |Framing Error (FE)                 | Bit 4 | Bit 4 |
+^  3  |Word Select 2            |Clear to Send (CTS)                | Bit 3 | Bit 3 |
+^  2  |Word Select 1            |Data Carrier Detect (DCD)          | Bit 2 | Bit 2 |
+^  1  |Counter Divide Select 2  |Transmit Data Register Empty (TDRE)| Bit 1 | Bit 1 |
+^  0  |Counter Divide Select 1  |Receive Data Register Full (RDRF)  | Bit 0 | Bit 0 |
+
+===== The Control Register (Write only) =====
+
+<code>
+Bit 7 (Receive Interrupt Enable):
+    1  Enable interrupt.
+    0  Disable interrupt.
+
+       The following interrupts will be enabled when set high:
+       * Receive Data Register Full
+       * Receiver Overrun
+       * A low-to-high transition on the Data Carrier Detect (DCD) signal line
+            
+	
+Bit 6 & 5 (Transmit Control):
+    0   0  RTS = Low  Transmitting Interrupt Disabled.
+    0   1  RTS = Low  Transmitting Interrupt Enabled.
+    1   0  RTS = High Transmitting Interrupt Disabled.
+    1   1  RTS = Low  Transmits a Break level on the Transmit Data Output.
+                      Transmitting Interrupt Disabled.
+	                     
+           The transmit Control bits controls the RTS (Request To Send)
+           output line. Active state = Low RTS. 
+           By enabling bit 5 you can generate a interrupt for transmitting data 
+           to other peripherals.
+           (Another way of transmitting data is polling.)
+                  
+Bit 4,3,2 (Word Select):
+    0 0 0  7 Bits + Even Parity + 2 Stop Bits
+    0 0 1  7 Bits + Odd Parity  + 2 Stops Bits
+    0 1 0  7 Bits + Even Parity + 1 Stop Bit
+    0 1 1  7 Bits + Odd Parity  + 1 Stop Bit
+    1 0 0  8 Bits + No Parity   + 2 Stop Bits
+    1 0 1  8 Bits + No Parity   + 1 Stop Bit
+    1 1 0  8 Bits + Even Parity + 1 Stop Bit
+    1 1 1  8 Bits + Odd Parity  + 1 Stop Bit
+
+
+Bit 1 & 0 (Counter Divide Select):
+    0   0  Divide by 1.
+    0   1  Divide by 16.
+    1   0  Divide by 64.   
+    1   1  Master Reset.
+
+           After a power on these bits must be set high to reset the ACIA.
+           After resetting, the clock divide ratios may be selected.
+
+</code>
+
+
+
+===== The Status Register (Read Only) =====
+
+<code>
+
+Bit 7 (Interrupt Request)
+    0  Interrupt is off - nothing to do.
+    1  Interrupt is on.
+       This bit is turned when:
+       * Receive Data Register Full (RDRF) is turned on.
+       * Transmit Data Register Empty (TDRE) is turned on.
+       * Receiver Overrun (OVRN) is turned on.
+
+       This bit is cleared by reading the Rx register or
+       writing to the Tx register.
+
+Bit 6 (Parity Error)       
+    0  No error
+    1  Parity error, depends on Word Select.
+       If no parity is selected : Both transmit parity and receive parity
+       check results are ignored.
+
+Bit 5 (Receiver Overrun)
+    0  No error
+    1  Error
+       Overrun is an error flag that indicates that one or more characters in
+       the data stream were lost. The Overrun indication is reset after
+       reading the Rx register or by a Master Reset.
+
+Bit 4 (Framing Error)
+    0  No error
+    1  Error
+       Framing error indicates that the received character is improperly framed
+       by a start and a stop bit. Which means Synchronization error (see counter divide),
+       faulty transmission or a break condition  This error is only present until a
+       new character is present in the Rx register.
+       
+Bit 3 (Clear to Send)
+    0  Modem is ready to receive.
+    1  Modem is not ready.
+       This bit indicates the state of Clear to Send from a modem.
+       When this bit is on the TDRE bit is ignored.
+       Master reset does not affect this bit.
+
+Bit 2 (Data Carrier Detect)
+    0  no modem input.
+    1  DCD input from a modem - Causes an Interrupt.
+       This bit can be turned off by reading the Status register followed by the Rx register.
+       A master reset will also clear this bit.
+
+Bit 1 (Transmit Data Register Empty)
+    0  The Tx Register is not ready for writing.
+    1  The Tx Register is ready.
+       To write to the Tx Register you have to check if this bit is high.
+
+       Example - polling:
+       
+             pha
+       wait  lda Status Register
+             and #2
+             beq wait
+             pla
+             sta Tx
+             rts
+
+Bit 0 (Receive Data Register Full)
+    0  The Rx Register is not ready for reading.
+    1  The Rx Register is ready.
+       To read from the Rx register you have to check if this bit is high
+       This bit is cleared after a master reset or a read from the Rx register.
+
+       Example - polling:
+       
+       wait  lda Status Register
+             lsr
+             bcc wait
+             lda Rx
+             rts
+    
+</code>
+
+
+===== The Tx Register (Write Only) =====
+<code>
+In this register you store the byte you want to transmit.
+Note that you must check the TDRE bit is high before writing.
+</code>
+
+
+===== The Rx Register (Read Only) =====
+<code>
+In this register you read the byte your received.
+Note that you must check the RDRF bit is high before reading.
+</code>

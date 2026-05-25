@@ -1,0 +1,362 @@
+# PAGE: base:tape_transfer_shell
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:tape_transfer_shell
+
+====== Tape Transfer Shell ======
+<code>
+;---------------------------------------
+;Tape Transfer Shell /  Nostalgia
+;
+;Worked on:
+;---------------------------------------
+
+         *= $0801
+
+         .byte $0b,$08,$cf,$07,$9e
+         .byte $32,$30,$36,$31,$00
+         .byte $00,$00
+
+cd       = $02
+
+         ;basic start
+
+         lda $ba
+         sta cd       ;save current
+                      ;disk drive
+         lda #$0b     ;setup
+         sta $d011
+         lda #$c1     ;no nmi
+      ;  sta $0318
+         lda #$80
+      ;  sta $0291    ;no char shift
+         lda #$17
+         sta $d018    ;this set
+         lda #$00
+         sta $9d      ;st clear
+         sta $d020
+         sta $d021
+         sta $c0
+         lda #$05
+         sta $0286    ;current color
+         lda #$2f     ;i/o config
+         sta $00
+         lda #$37     ;motor off
+         sta $01
+         lda #<msg1   ;print main msg
+         ldx #>msg1
+         jsr print
+
+         lda #$1b
+         sta $d011
+         lda #$ef     ;wait for space
+         cmp $dc01
+         bne *-3
+         lda #$00
+         sta $0289    ;no keys
+
+         jsr lod      ;load header
+         jsr namer
+         jsr led
+         lda $00
+         pha
+         lda #$07
+         sta $00
+         jsr sav      ;save header
+         pla
+         sta $00
+         inc file     ;next file #
+         jsr lod      ;load boot
+         jsr led
+         lda $01
+         ora #$20
+         sta $01
+         jsr sav      ;save boot
+
+         ldx #$00
+xl       lda loader,x
+         sta $0630,x
+         lda loader+$d0,x
+         sta $0700,x
+         lda #$00
+         sta $da30,x
+         sta $db00,x
+         inx
+         bne xl
+         ldx #$27
+         lda #$20
+cl       sta $0608,x
+         dex
+         bpl cl
+         ldx #$0f
+nl       lda name,x
+         sta $0340,x
+         dex
+         bpl nl
+         inc file
+         lda file
+         ora #$30
+         sta $034f
+         jmp $0630    ;begin real loader
+lod
+         lda #$01     ;open tape file
+         tax
+         tay
+         jsr $ffba
+         lda #$00
+         jsr $ffbd
+         lda #$00
+         sta $c0
+         sta $93
+         jsr $f7d7    ;load header/file
+         jmp $f84f
+
+led      lda file     ;name header/file
+         ora #$30
+         sta name+$0f
+         sta $061f
+         lda #$00     ;load to $1800
+         sta $c3
+         lda #$18
+         sta $c4
+
+         lda $033f    ;calculate end
+         sbc $033d    ;address
+         tax
+         lda $0340
+         sbc $033e
+         tay
+         clc
+         txa
+         adc $c3
+         sta $ae
+         tya
+         adc $c4
+         sta $af
+         lda $c3
+         sta $c1
+         lda $c4
+         sta $c2
+         lda $033d    ;save load addy
+         sta ldal
+         lda $033e
+         sta ldah
+
+         ldx #$07
+p2       lda msg2,x   ;print found
+         and #$3f
+         sta $0608,x
+         dex
+         bpl p2
+         lda #$1b
+         sta $d011
+         lda #$18
+         ldx #$00     ;delay
+         ldy #$00
+g1       dex
+         bne g1
+         dey
+         bne g1
+         sec
+         sbc #$01
+         sta $02
+         lda #$df
+         cmp $dc01    ;skip if C= held
+         beq ex
+         lda $02
+         bpl g1
+ex       jmp $f84f    ;exit
+
+sav      ldx #$07     ;print saving
+p3       lda msg3,x
+         and #$3f
+         sta $0608,x
+         dex
+         bpl p3
+         lda #$1b
+         sta $d011
+
+         lda #$01     ;save header/file
+         ldx cd
+         ldy #$01
+         jsr $ffba
+         lda #$10
+         ldx #<name
+         ldy #>name
+         jsr $ffbd
+         jsr $ffc0
+         ldx #$01
+         jsr $ffc9
+         lda ldal
+         jsr $ffa8
+         lda ldah
+         jsr $ffa8
+         ldy #$00
+savea    lda ($c1),y
+         jsr $ffa8
+         inc $d020
+         dec $d020
+         inc $c1
+         bne s1
+         inc $c2
+s1       lda $c2
+         cmp $af
+         lda $c1
+         sbc $ae
+         bcc savea
+         jsr $ffcc
+         lda #$01
+         jmp $ffc3
+
+namer    ldy #$00     ;name file
+dname    lda $0341,y  ;from tape header
+         sta name,y
+         sta $0610,y
+         iny
+         cpy #$10
+         bne dname
+         rts
+
+print    sta $fb      ;print message
+         stx $fc
+         ldy #$00
+ploop    lda ($fb),y
+         beq dprint
+         jsr $ffd2
+         inc $fb
+         bne ploop
+         inc $fc
+         bne ploop
+dprint   rts
+
+         ;messages,names,variables
+
+ldal     .byte $00
+ldah     .byte $00
+file     .byte $01
+name     .text "                "
+msg1
+         .byte $93
+         .text "ÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀ"
+         .text "ÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀ"
+         .text "   Tape Transfer She"
+         .text "ll 1.0 / Nostalgia  "
+         .text "ÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀ"
+         .text "ÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀ"
+         .text "                    "
+         .text "                    "
+         .text "          Completely"
+         .text " Automatic          "
+         .text "                    "
+         .text "                    "
+         .text "   Put a fresh disk "
+         .text "in current drive.   "
+         .text "                    "
+         .text "                    "
+         .text "      Rewind tape, a"
+         .text "nd press PLAY.      "
+         .text "                    "
+         .text "                    "
+         .text "   Press SPACE to be"
+         .text "gin transfering.    "
+         .text "                    "
+         .text "                    "
+         .text "ÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀ"
+         .text "ÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀ"
+         .byte $00
+
+msg2     .text "found   "
+msg3     .text "saving  "
+
+loader   = *
+         *= $0630
+         .offs loader-*
+
+         ldx #$07     ;print loading
+ll       lda lt,x     ;text
+         and #$3f
+         sta $0608,x
+         dex
+         bpl ll
+         ldx #$0f     ;print name
+ln       lda $0340,x
+         sta $0610,x
+         dex
+         bpl ln
+
+
+
+;put loader here
+
+
+
+ok
+         lda #$00     ;save file
+         sta $d020    ;border  = black
+         ldx #$07
+dl       lda vt,x     ;print save text
+         sta $0608,x
+         dex
+         bpl dl
+                      ;open file for
+         lda #$01     ;write
+         ldx cd
+         ldy #$01
+         jsr $ffba    ;setlfs
+         lda #$10
+         ldx #$40     ;$0340 16 chars
+         ldy #$03
+         jsr $ffbd    ;setname
+         jsr $ffc0    ;open
+         ldx #$01
+         jsr $ffc9    ;chkout
+         lda $ac      ;start addy low
+         jsr $ffa8    ;send
+         lda $ad      ;start addy high
+         jsr $ffa8    ;send
+
+         ldy #$00     ;save the file
+saveb    sei
+         inc $01
+         lda ($ac),y
+         dec $01
+         jsr $ffa8
+         inc $d020
+         dec $d020
+
+         inc $ac      ;nifty eof checker
+         bne b1
+         inc $ad
+b1       lda $ac
+         cmp $fb
+         lda $ad
+         sbc $fc
+         bcc saveb
+
+         lda #$01
+         jsr $ffc3    ;close the file
+
+;        rts          ;return to loader
+;                     ;or other.
+
+
+;        sei          ;hard restart
+;        lda #$2f     ;routine
+;        sta $00
+;        lda #$37
+;        sta $01
+;        jsr $ff81
+;        jsr $ff84
+;        jsr $ff8a
+;        jsr $ffe7
+;        sei
+;        lda #$08     ;ar restart
+;        sta $de00
+;        jmp ($fffc)
+
+;---------------------------------------
+;Transfer Messages
+
+et       .text "load error, try "
+         .text "again"
+lt       .text "loading "
+vt       .text "saving  "
+</code>

@@ -1,0 +1,44 @@
+# PAGE: base:supercpu_tcd
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:supercpu_tcd
+
+====== TCD ======
+
+<code>
+    /*-------------------------------------------------------------------------
+    OP CODE: TCD (Transfer 16-Bit aCcumulator to Direct page register)
+    ==================================================================
+    
+    Addressing Modes:
+        Implied                            ($5b - 1 byte, 2 cycles)
+
+    Flags Affected:
+        n - Set if most significant bit of transferred value is set; else
+            cleared.
+        z - Set if value transferred is zero; else cleared.
+
+    Description:
+        Transfer the value in the sixteen-bit accumulator C to the direct page
+        register D, regardless of the setting of the accumulator/memory mode
+        flag.
+
+        An alternate mnemonic is TAD, (transfer the value in the A accumulator
+        to the direct page register).
+
+        In TCD, the “C” is used to indicate that sixteen bits are transferred
+        regardless of the m flag. If the A accumulator is set to just eight
+        bits (whether because the m flag is set, or because the processor is in
+        6502 emulation mode), then its value becomes the low byte of the direct
+        page register and the value in the hidden B accumulator becomes the
+        high byte of the direct page register.
+
+        The accumulator’s sixteen-bit value is unchanged by the operation.
+
+    Notes:
+
+    -------------------------------------------------------------------------*/
+
+    .pseudocommand tcd {
+        .byte $5b
+    }
+
+</code>

@@ -1,0 +1,49 @@
+# PAGE: 6502_6510_maths:x_abc_random_number_generator_8_16_bit
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=6502_6510_maths:x_abc_random_number_generator_8_16_bit
+
+====== X ABC Algorithm Random Number Generator ======
+
+I found this algorithm while I was looking for a high quality PRNG that can also handle zeros in the seed bytes. Initial test were promising. I modified the calculation to save a clc instruction over the original code.
+
+I talked to a cryptographic expert about the algorithm and he stated that given the small resources, it is a well-designed algorithm.
+It comes with four internal states: X, A, B, C
+For an 8 bit number, the value of C (which is also returned in Accu) should be used.
+For 16 bit, the value of B should be used as high byte.
+
+The implementation was optimized using self-modifying code, which yields good speed and low resources, but this implementation won't work in ROM therefore.
+
+In a test, I plotted the output of 51200 random values, which don't seem to reveal any visible patterns:
+
+{{ :base:rand_x_abc.png?nolink&400 |}}
+
+<code>
+;; X ABC Algorithm Random Number Generator for 8-Bit Devices
+;;
+;; Algorithm from EternityForest, slight modification by Wil
+;; https://www.electro-tech-online.com/threads/ultra-fast-pseudorandom-number-generator-for-8-bit.124249/
+;; Implementation and test: Wil
+;; This version stores the seed as arguments and uses self-modifying code
+;; Routine requires 38 cycles (without the rts) / 28 bytes
+;; Return values are in A and, if a 16 bit value is needed also in _rand8_highbyte
+
+.export _rand8:=rand8, _rand8_highbyte:=b1
+
+rand8:	
+	inc x1
+	clc
+x1=*+1
+	lda #$00	;x1
+c1=*+1
+	eor #$c2	;c1
+a1=*+1
+	eor #$11	;a1
+	sta a1
+b1=*+1
+	adc #$37	;b1
+	sta b1
+	lsr
+	eor a1
+	adc c1
+	sta c1
+	rts
+</code>

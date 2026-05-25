@@ -1,0 +1,72 @@
+# PAGE: base:improved_clockslide
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:improved_clockslide
+
+====== Improved Clock Slide ======
+
+by **lft**
+
+Sometimes we want to delay a variable number of cycles, e.g. during VSP or when setting up a stable raster.
+
+A typical way of handling a variable delay is to use a //clock slide//. In the following example, we start somewhere in a given range of cycles, we want to end up exactly at cycle 50, and we've computed the corresponding number of cycles to skip in A.
+
+           ; delay 19-A cycles
+           sta     branch+1    ; 31..41 (A in range 0..10)
+  branch   bpl     *           ; 35..45
+           lda     #$a9        ; 38
+           lda     #$a9        ; 40
+           lda     #$a9        ; 42
+           lda     #$a9        ; 44
+           lda     $eaa5       ; 46
+           ; at cycle 50
+
+Every additional byte we skip corresponds to one less cycle of delay. Notice that the operands are reinterpreted as opcodes depending on where we land on the slide. For instance, the final ''lda $eaa5'' is encoded as ''ad a5 ea'' and takes 4 cycles. Skipping the first byte, we get ''a5 ea'' (''lda $ea'', 3 cycles). Skipping also the second byte, we get ''ea'' (''nop'', 2 cycles).
+
+The length of the clock slide depends on the maximum jitter we have to support, and we pay a corresponding penalty in the form of useless waiting cycles. In the example, the maximum supported jitter is 10 cycles (41-31), and the minimum overhead cost is 9 cycles (50-41).
+
+Now here comes the improvement:
+
+Notice that in the latest case (starting at cycle 41), we still execute a single ''nop'' instruction in the clock slide. This is because there is no single-cycle instruction on the 6502. Jumping one byte further would reduce the number of cycles by two. That is, jumping directly to the ''at cycle 50'' comment would actually get us there one cycle too early.
+
+But we can use the page-crossing penalty of the branch instruction to add an extra cycle in this particular case! Consider:
+
+           ; delay 18-A cycles
+           sta     branch+1    ; 31..41 (A in range 0..10)
+  branch   bpl     *           ; 35..45
+           .byt    $a9         ; 38
+           lda     #$a9        ; 39
+           lda     #$a9        ; 41
+           lda     #$a9        ; 43
+           lda     $eaa5       ; 45
+           ; page-crossing here!
+           ; at cycle 49
+
+The clock slide is now one byte shorter, and the minimum overhead cost has been reduced to 8 cycles.
+
+The downside is that we now have an alignment requirement. Sometimes it may not be possible to adjust the starting address of the delay code. But note that we can insert dummy bytes just after the branch instruction, as long as we update the computation of A accordingly.
+
+
+=== Slight variation ===
+
+by //Copyfault//
+
+Optionally, if the Z-flag reflects the value of the accumulator, then the following variation is also possible: 
+
+           ; delay 18-A cycles
+                               ; 31..41 (A in range 0..10)
+           sta     branch+1    
+                               ; 35..45
+  branch   BNE     *           
+                               ; 37     (if A=0: no add. branch-cylce, no pb-cycle)
+                               ; 39..47 (if A=1..9: add. branch-cycle)
+                               ; 49     (if A=10: +branch-cycle +pb-cycle)
+           ; --- clock slide starts here ---
+           nop                 ; 39
+           lda     #$a9        ; 41
+           lda     #$a9        ; 43
+           lda     #$a9        ; 45
+           lda     $eaa5       ; 49
+           ; ---    end of clock slide   ---
+           ; page-crossing here!
+           ; at cycle 49
+
+If A=0, the branch is not taken; thus the total sum of cycles wasted by the clockslide until the page break will be 11. In case of a non-vanishing A, the NOP-instruction is skipped (-2 cycles) but the additional "branch taken"-cycle comes in. Mind that if you want to slide down to 2 cycle-delay the page break is mandatory! A one-cycle delay is not possible but this is the same with the "BPL"-instruction which always comes with that additional cycle.

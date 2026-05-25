@@ -1,0 +1,55 @@
+# PAGE: base:repeating_char-lines
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:repeating_char-lines
+
+====== Repeating char-lines ======
+By HCL/Booze Design
+
+Here is a small program that doubles one char-line. If you run it from the basic screen you should see the "64k ram system..." text-line being doubled. The trick can of course be used several times, and by changing char-bank or video-bank at each repetition, large areas of graphics can be moved by just storing one char-line.
+
+<code>
+        *= $0900
+	sei
+loop
+        lda #$51 ; Wait for a line
+        cmp $d012
+        bne *-3
+
+        ldx #10 ; Wait one more line..
+        dex
+        bne *-1
+        nop
+
+	cmp $d012 ; ..and make a bit more stable raster
+	bne *+5
+	bit $ea
+	nop
+
+	ldx #5 ; Wait for the perfect moment..
+	dex
+	bne *-1
+	nop
+	nop
+	nop
+
+        inc $d021 ; Display on screen
+        dec $d021
+
+        lda #$1a ; Do repeat char-line
+        sta $d011
+
+	lda #$54 ; Wait a bit more..
+        cmp $d012
+        bne *-3
+
+        lda #$1b ; ..before setting $d011 back to original value.
+        sta $d011
+        nop
+
+        ldx #0 ; Make raster unstable again :)
+        inc *-1
+        inx
+	bne *-1
+
+        jmp loop
+
+</code>

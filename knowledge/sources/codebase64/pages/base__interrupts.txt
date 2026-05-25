@@ -1,0 +1,43 @@
+# PAGE: base:interrupts
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:interrupts
+
+====== Interrupts and timing ======
+ 
+Interrupts can be trigged by the CIA chips and the VIC chip, and they are mostly used to trig specific pieces of code at regular intervals. In demo and game coding, timing is often crucial, and programmers may need to use cycle exact timing to achieve things like stable rasterbars. However, timing is not only about setting up interrupts. It can also be achieved through delay loops and simply by keeping track of exactly how many cycles it takes for a certain code snippet to execute.
+
+===== IRQ's and timing in general =====
+
+  * [[base:introduction_to_raster_irqs|Introduction to raster irqs]] - by Oswald / Resource
+  * [[base:timerinterrupts|Introduction to timer interrupts]] - A listing
+  * [[Handling IRQs with some simple macros]] - How to handle all IRQ stuff easy - by rambones/Ancients
+  * [[NMI Lock]] "disable" NMI - by Ninja/The Dreams
+  * [[base:nmi_lock_without_kernal|"Disable" NMI wihout use of kernal]] - by Sokrates
+  * [[base:restore and cia 2|Surviving Restore key presses while using CIA2 timer NMIs]] - by White Flame
+  * [[base:quick_exit_from_interrupt|Quick exit from interrupt]] - Neat trick to save one cycle when quitting an interrupt - text by Frantic, trick invented by someone else.
+  * [[base:cycle exact measuring of routine execution times]] - when coloring the border won't do - by tfg, inspired by M. Abrash
+===== Stable timing =====
+
+  * [[interrupts:making_stable_raster_routines|Making stable raster routines]] - By Marko Mäkelä (for C64 and Vic-20)
+  * [[magazines:chacking3#the_demo_cornermissing_cycles|Missing Cycles]] - Syncing with a sprite by Pasi 'Albert' Ojala (C=Hacking 3) 
+  * [[stable timing - jackasser|"Stable timing approaches"]] - Article series by Jackasser/Instinct
+  * [[Stable Raster Routine]] - Non cryptic explination by TWW / Creators
+  * [[improved clockslide|Improved Clock Slide]] by lft
+  * [[stable_raster_with_lightpen|Stable Raster with Lightpen]] - Kruthers
+  * [[shortest_stable_raster|Shortest Stable Raster (PAL/NTSC)]] by Erhan
+
+==== Routines ====
+  * [[Double IRQ|Double IRQ stable interrupt]] - Sourcecode by Fungus
+  * [[Delay]] - subroutine to delay a variable amount of cycles via branch and nops - by Yago.
+  * [[using_a_timer_as_an_inverted_raster_x-pos_register_method|Using a Timer as an Inverted Raster X-Pos Register]] - by Hermit Soft
+  * [[Detecting 6526 vs 6526A CIA chips]] - since they have a timer phase difference of 1 cycle - by White Flame
+  * {{:sourcecode:airqfffeb.zip:a_fffe_irq.zip|}} - (An $fffe timed irq by Terric/Meta. Rev 2) Need fix or should be deleted
+  * [[Stable IRQ with DMA]] - by ChristopherJam
+  * [[Frame skipping]] - by Mace
+  * [[Double irq explained]] - Double interrupts by TheHighlander 2015
+  * [[NMIs and distributed jitter-correction routines|The Ninja-Method: NMIs and distributed jitter-correction routines]] - by St0fF/Neoplasia^theObsessedManiacs
+===== Advanced program flow =====
+
+About complex execution flow such as multiple interrupt handlers at the same time, threaded code, and similar. This usually involves interrupts in one way or another.
+
+  * [[Launching long tasks from IRQ handler]] - by Bitbreaker/Oxyron^Nuance
+  * [[Threads on the 6502]] - an example on how threads can be used efficiently on the 6502 processor.

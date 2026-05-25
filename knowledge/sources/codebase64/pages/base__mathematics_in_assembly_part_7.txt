@@ -1,0 +1,53 @@
+# PAGE: base:mathematics_in_assembly_part_7
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:mathematics_in_assembly_part_7
+
+====== Prologue ======
+
+Now that I managed to send Cactus my contribution to his magazine's current edition this time, I'm happy to present you the seventh chapter of my tutorial about mathematics in assembly. It was first published in German and printed form in "GO64!" magazine. Previous chapters of this tutorial in English language can be found in "Attitude #4", "Domination #17", "Attitude #5", and "Vandalism News #40", successively. Have a nice read!
+
+====== Mathematics in Assembly - 7 ======
+
+Finally, we are discussing approaches to divide numbers. But let's start slowly on that as well, with dividing by constant numbers. 
+
+So we want to divide by a constant number. Those who read the previous chapters thoroughly will quickly get the idea of just generating tables for that matter. Simple tables which can be read using the divisor as index. This, of course, is possible but what to do if a constant amount of values has to add up to a specific integer value? I'll just mention an example to illustrate the problem.  
+
+Let's say, we want to divide an arbitrary number by a constant value, for example 5, and then receive exactly 5 resulting values that add up to the original number. All that of course as fast as possible. You may not know where one would have to solve such a problem. I needed it just one time until now, namely in the zoom scroller of the Plush demo "+H2K", where an arbitrary height of the scroller in screen lines had to be divided by 5, as the characters were 5 lines high. The zoomed height of those lines in screen lines had to be calculated as quickly as possible, as there was almost no time left outside of the raster routine. Those 5 line heights had to add up to the specified total height. But back to the problem: how to achieve that the fastest way?
+
+====== Memory Efficient ======
+
+The simplest approach would be to read the quotient from tables. Those would be, for example, a table containing the truncated result numbers and another one containing the decimals of those result numbers. This result value rounded, we already have the first value. The quotient is added to the unrounded value (i.e. doubled) and we have the second value. We then add this quotient until we have all our rounded values needed. This approach is accurate but, despite the tables used, quite slow, as there are four 16 bit additions and four roundings performed for this example. How to do it faster?
+
+====== Fast ======
+
+For this example, one could just generate 5 separate tables for the values, one for each of them. But there shall be no memory wasted unnecessarily, so another possibility must be looked at. That one goes like this... 
+
+====== Fast and Memory Efficient ======
+
+I'll just skip the mathematical explanation for this and tell it without any further redue - one single table is generated, which looks just like this for the mentioned example: 
+
+<code>
+0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, [...]
+</code>
+
+As one can see, each of the rising table values is present 5 times in a row. Now this table, which obviously is simple enough to quickly generate it instead of pre-calculating it, has to be read out correctly. In this example it's done like this:
+
+<code>
+lda table+$00,x
+sta value1
+lda table+$02,x
+sta value2
+lda table+$04,x
+sta value3
+lda table+$03,x
+sta value4
+lda table+$01,x
+sta value5
+</code>
+
+The x register contains the value to be divided by 5. Simple as that. Please note how to define the different table offsets: the middle (value 3) has got the biggest offset (constant-1), then this offset is decreased from the middle to the bounds, so to say. So with this routine it's possible to divide an arbitrary integer number by another integer number and get integer numbers that exactly add up to the original dividend. For other values than these example values, the table and the routine has to be altered accordingly, of course.  
+
+I learned this approach when I looked at HCL's zoom scroller in "Soul" (which I then improved). Apart from parts like those, one may never need this approach again but still, the unexpectedly simple solution to the problem has baffled me. Next time we'll discuss the bit-wise division which is relatively memory efficient and accurate to the expense of some speed.
+
+Regards,
+
+KRILL/PLUSH

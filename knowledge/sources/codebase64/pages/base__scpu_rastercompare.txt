@@ -1,0 +1,21 @@
+# PAGE: base:scpu_rastercompare
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:scpu_rastercompare
+
+====== RasterCompare ======
+
+Sets $d011:$d012 to 9 bit value passed to the pseudocommand. Assumes 16 bit Acc.
+
+| SYNTAX:            | RasterCompare RasterCompareValue |||
+| EXAMPLE:           | RasterCompare 52                 |||
+| PARAMETERS:        |  Type  |  Minimum  | Maximum       |
+| RasterCompareValue |  U9    |  0        |  312          |
+
+<code>
+    .pseudocommand RasterCompare val {
+        // Sets Both $d012 & $d011 (for Y adresses > 256)
+        lda $d011
+        and #%0000000001111111
+        ora #[[val.getValue() & %0000000100000000] >> 1] | [[val.getValue() & %0000000011111111]<<8]
+        sta $d011
+    }
+</code>

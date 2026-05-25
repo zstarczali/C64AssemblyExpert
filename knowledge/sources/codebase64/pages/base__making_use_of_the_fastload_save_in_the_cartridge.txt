@@ -1,0 +1,47 @@
+# PAGE: base:making_use_of_the_fastload_save_in_the_cartridge
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:making_use_of_the_fastload_save_in_the_cartridge
+
+====== Making use of the fastload/save in the cartridge ======
+
+Most cartridges replaces the KERNAL load/save routines with faster stuff. Wouldn't it be neat to use that "stuff" from your own tools? This article is meant to explain what you need to think about when doing that. 
+
+Note that this article is not complete, so feel free to fill in the blanks.
+
+====== Vectors ======
+
+In the memory area around $03xx you find a bunch of so-called "vectors" which consist of pointers to KERNAL routines - at least if you start up a vanilla C64. 
+
+<code>
+	$0330-$0331/816-817     Vector: Kernal LOAD Routine
+	$0332-$0333/818-819     Vector: Kernal SAVE Routine
+</code>
+
+On a vanilla system, $0330/1 points to $F4A5 (LOAD to RAM) and $0332/3 points to $F5ED (SAVE RAM to storage media). If you have a cart inserted, the cartridge installs pointer to its own fastload/save code instead. That means, if you call the routines pointed to by these memory locations, fastload/save will be used if it is installed, and if it is not installed, then it will work anyway, although with slower routines. A very important "side effect" of this approach is that it will also work on systems that do not work with custom fastload/save routines, such as IDE drives and so on.
+
+A description on how to set up calls to load/save routines, which goes through these vectors, can be found in the [[base:dos_examples|DOS Examples]] section on this wiki.
+
+If you have a 1541U, note that a direct DMA load of a .prg/.t64 file will circumvent the cart startup routines, even if you have a cart selected, and no fastload/save will be installed on your system. This means; If you load a tool which makes use of fastload/save if installed, then the tool will not be able to do so if it is started in this way. What you have to do instead is to mount a .d64, and load it in the same way you would normally load a program from disk.
+
+====== Required system state ======
+
+The KERNAL routines might not work if change the system state in certain ways in your program, such as changing the way interrupts are set up. This section is meant to explain how to deal with this.
+
+You might think that you could initialize the relevant parts of the system by calling the following routines, before making your calls to the load/save routines:
+
+<code>
+	JSR $FF84	;Init I/O Devices, Ports & Timers
+	JSR $FF8A	;Restore Vectors
+</code>
+
+However, that is not the case, since these routines will actually overwrite any patched custom load/save routines that a cart might have installed for you. This means that you have to restore relevant parts of the system yourself.
+
+The main things to think about is to call the system IRQ once a frame (this is done with Timer A, CIA 1 per default, on system startup) and to, of course, have KERNAL ROM enabled:
+
+<code>
+	lda #$37
+	sta $01
+</code>
+
+Regarding zeropage, the location $ba contains the last used device number. Make sure to store this value somewhere, if you use it for other purposes in your program, and set it back before your calls to LOAD/SAVE (if it does not happen to be equal to a value different from 8-11, then default it to 8 instead). If the user loaded your tool from device 11, then preserving this value allows you to let the user continue access the device he (most likely not she, statistically ;) loaded the tool from, which is proper behavior.
+
+To be continued, hopefully, by me, or someone else! See [[http://noname.c64.org/csdb/forums/?roomid=11&topicid=64986#65044|this thread]] on CSDb for more information.

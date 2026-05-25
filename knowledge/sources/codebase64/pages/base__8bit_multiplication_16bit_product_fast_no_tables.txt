@@ -1,0 +1,68 @@
+# PAGE: base:8bit_multiplication_16bit_product_fast_no_tables
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:8bit_multiplication_16bit_product_fast_no_tables
+
+====== 8bit multiplication with 16bit product ======
+
+This code aims to be fast, without using tables.
+
+<code>
+; mul 8x8 16 bit result for when you can't afford big tables
+; by djmips 
+;
+; inputs are mul1 and X.  mul1 and mul2 should be zp locations
+; A should be zero entering but if you want it will factor in as 1/2 A added to the result.
+;
+; output is 16 bit in A : mul1   (A is high byte)
+;
+; length = 65 bytes 
+; total cycles worst case = 113
+; total cycles best case = 97
+; avg = 105
+; inner loop credits Damon Slye CALL APPLE, JUNE 1983, P45-48.
+
+MUL:
+     cpx #$00
+     beq zro
+     dex          ; decrement mul2 because we will be adding with carry set for speed (an extra one)
+     stx mul2	
+     ror mul1
+     bcc b1
+     adc mul2
+b1:  ror
+     ror mul1
+     bcc b2
+     adc mul2
+b2:  ror
+     ror mul1
+     bcc b3
+     adc mul2
+b3:  ror
+     ror mul1
+     bcc b4
+     adc mul2
+b4:  ror
+     ror mul1
+     bcc b5
+     adc mul2
+b5:  ror
+     ror mul1
+     bcc b6
+     adc mul2
+b6:  ror
+     ror mul1
+     bcc b7
+     adc mul2
+b7:  ror
+     ror mul1
+     bcc b8
+     adc mul2
+b8:  ror
+     ror mul1
+     inx          ; Optional - this preserves X across the call - could also do inc mul2 or leave out
+     rts
+     
+zro: stx mul1
+     txa
+     rts     
+</code>
+

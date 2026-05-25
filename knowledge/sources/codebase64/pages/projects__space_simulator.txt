@@ -1,0 +1,48 @@
+# PAGE: projects:space_simulator
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=projects:space_simulator
+
+====== Nameless Space Simulator Project ======
+
+By Jeffrey Ouellette (malcontent)
+
+jddgames|at|yahoo.com
+
+This is my attempt to bring something similar to the freeware simulator "Orbiter" to the c64. It is similarly inspired by the exceedingly detailed recreation of the Apollo missions available as an add-on for that program. The goal is to be able to launch from the Earth, fly to, and land on, the Moon. and return to Earth in a reentry capsule.
+
+Source and Binary: {{:projects:spacesim.zip|}}
+
+{{:projects:spacesim_sshot1.png|}}
+
+{{:projects:spacesim_sshot2.png|}}
+
+Files: 
+  * moon.a - main file, ZP declared
+  * float.a - physics code that call the BASIC FP routines
+  * FDAI.a - Controls the display indicator sprite
+  * joy.a  - getting clunky, also reads keyboard
+  * display.a - draws or redraws the current screen
+  * junkmode.a - the 4x4 graphics routines
+  * systems.a - the simulation of the ship systems
+  * buttons.a - for the control panel buttons
+  * math.a - sort of empty now, has a integer divide
+  * *diagram.png - diagrams showing how the ship's systems work
+  * Various tables
+
+
+The "game":
+
+The Earth is a fixed body at 0,0,0 that exerts its influence on the player's ship and the Moon. The Moon's gravity only affects the ship. Currently there is no way to control the ship, but the simulations starts with the ship orbiting the Moon, which is orbiting the Earth. The Flight Direction/Attitude Indicator (FDAI) shows the ship's equatorial orientation around the Moon, with the white half of the ball indicating "north" or x=0 y<0 (screen co-ords)
+
+The view right now is top down, but a first person view is planned. Use "T" to switch between which object the view is centered on. Use "Z" and "X" to change the zoom.
+
+Press "2" to enter the control panel view, and "1" to return to the orbit view.
+
+The joystick controls the cursor in the control panel view. The systems modeled can be viewed in the included PNG files. This is a very simplified space craft powered by hydrogen-oxygen fuel cells (FC). When a load is added to the system, the FC temp will increase. The FC will deliver less than the required power until it warms up, which is where the battery comes in, suppling the deficit on demand. The FC can be pre-warmed, or kept warm if the load is low, by opening the radiator valve. If a FC gets too cold, the reaction will cease. Once off, a FC cannot be restarted. The Glycol coolant system is not yet modeled, nor is staging. 
+
+Plans:
+
+Computer system - The 2d screen is actually the "computer" screen, where eventually there will be an interface (inspired by Apollo's own computer interface, the DSKY) for showing information relevant to space flight. Depending on the "program" used, the display will show things like relative speed and altitude, and Keplerian orbital elements. It can also estimate your orbit by drawing the conic from the orbital elements. My idea is that a two step process of estimating a change in orbits can be used. First select a time for a burn, and a velocity, estimate that orbit to the time specified, then calculate and plot the new orbit with the changed velocity.
+
+FDAI - This indicator will have three modes. The current shows the position over the selected body. The second mode will display the orientation with respect to the body, that is, it will be showing black if the ship is pointing away from the body, white if pointing towards. The third mode will show how the orientation of the space craft compares to the direction of flight. That is, whether it is aligned for pro-grade, or retro-grade acceleration.
+
+3D view - What the point of flying through space in only two dimensions? 

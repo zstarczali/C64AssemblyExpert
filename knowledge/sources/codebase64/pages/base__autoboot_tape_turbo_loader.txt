@@ -1,0 +1,118 @@
+# PAGE: base:autoboot_tape_turbo_loader
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:autoboot_tape_turbo_loader
+
+====== Autobooting Tape Turbo Loader ======
+===== What we know =====
+
+A disk autoboot can make use of many different vectors sitting in extended zero page to allow code to be loaded and then executed. A tape file saved by the kernal can also be forced to load at a specific address, by adding a secondary address command number to the save, no matter what BASIC command we use to load.
+For example:
+
+<code>
+poke 43,0:poke44,4:poke45,0:poke46,8:save "test",1,1
+*Reset*
+load
+</code>
+
+We also know the kernal will happily save and load files as long as they are in memory $0200 onwards. (C64 Reference manual) Actually the kernal can load chunks from the tape to areas of memory below $200 however to load a chunk requires calling the kernal directly and is beyond the scope of the BASIC load command.
+
+Looking at extended zero page we can see $02a7 - $02ff and $030c-$0313 seem to be free. Since the vectors at $0300-$030b appear to be static during a load we can safely save the contiguous block of $02a7-$0313 and safely load that with the kernal routine. After initial investigation of saving and loading the block of memory from $0200 - $0313 it is found that the load will fail, this is not surprising as memory before $02a7 contains variables we do not really want to change such as the PAL/NTSC flag, file numbers etc. It would be possible to create a loader to save altered data to enable kernal loading to this area however that means more work so we will leave this idea for later.
+
+Using this knowledge we can try to find a suitable vector to use that can be saved and then causes our code to execute.
+
+====== Examining the kernal tape loader ======
+
+There is an excellent commented disassembly [[http://www.unusedino.de/ec64/technical/misc/c64/romlisting.html|here]].
+
+We use the BASIC command LOAD which is also the equivalent of using shift-runstop. We can see this routine starts at $e168. After the load of the data has finished this function will reach "e1b2 jmp $a52a" which then does "a530 jmp $a480" which then follows on to do "a480 jmp ($302)".
+
+Normally $0302 causes the just loaded BASIC program to be parsed and some pointers to be setup ready for the RUN command.
+
+Looking at the chunk of memory we can safely save and load using the kernal the address $0302 is right in the middle of the spare chunks of memory. So this looks like a good vector to claim. We could claim a different vector such as the IRQ vector at $0314 however claiming this vector requires a bit more work to save and load using the kernal so this will be left in the ideas filing system for later.
+
+Since we are claiming the BASIC warm start vector we don't really need to preserve the other BASIC related vectors so our usable memory space for code becomes $02a7-$0301 and $0304-$0313.
+
+This gives us just enough space to write a simple tape turbo loader that autoboots with sync checking. The sync checking relates to using a known byte value to ensure the bits coming in from the tape are in sync before we accept data to load into memory.
+
+
+====== Autobooting turbo loader version 1 ======
+
+{{sourcecode:irqtapev1.zip|}}
+
+This code however is very simple and doesn't have nice things such as error checking and being able to load multiple parts. The autobooting turbo loader actually loads another turbo loader which fits into 255 bytes and adds some extra functionality. This is a bit too much hard work so lets hunt around for more memory to make our coding task a bit easier.
+
+====== The tape header ======
+
+The kernal tape buffer at $033c-$03fb is actually only used to load and store the tape header. When using the LOAD command this buffer will be filled by the time the filename is displayed on screen. We can check this by using a good emulator with a machine code monitor or a hacking cartridge that will display memory dumps. Typically the kernal will use the bytes from $033c-$0350 for storing the header type, filename and various lo/hi pairs. Examining the rest of the buffer $0351-$03fb it seems to be filled with nothing special so we will use this to our advantage and store our code in there instead. A bonus to using the tape buffer is that it doesn't add any more loading time since this chunk of memory is loaded before displaying the filename.
+
+
+====== How to save a custom tape header ======
+
+Again using the excellent ROM disassembly link from earlier we can examine the normal kernal save routine to look for a suitable place to insert our custom code.
+
+The kernal save is $ffd8 which jumps to our real code at $f5dd. We trace through to another function at $f76a which writes the tape header. This routine stores into ($b2),y the expected data such as filename and lo/hi pairs. Tracing down the routine $f7a9 looks like a good place to add some custom code to copy our code into the last part of the tape buffer. This must be just before the jsr $f86b which initiates the tape write. However how do we change the kernal? We don't. We are lucky in that the code at $f5dd is relatively small and modular and doesn't have the usual kernal space saving tricks of jumping around inside itself too much from other routines. This means we can cut and paste the code from the kernal disassembly, modify it to tweak it for tape use only, add some code to copy our modified tape header and then write to the tape. The code link below accomplishes this. We can use a machine code monitor to verify the tape header we saved contains our data when loaded by the kernal.
+
+The kernal routine is modified in this way even though using the kernal to save enough file data to write from $02a7 to the end of the tape buffer is possible. This is because that method wastes a small amount of time to load the extra bytes in the tape header, effectively twice once during the tape header load and once during the data load.
+
+This extra memory space allows us to include multiple section loading using lo/hi start/end pairs and also includes checksum load error detection. The IRQ and screen setup is also more robust. Using the extra memory makes this code more robust than the minimal turbo loader.
+
+
+====== Autobooting turbo loader version 2 ======
+{{sourcecode:irqtapev2.zip|}} - Old version
+{{sourcecode:irqtapev3.zip|}} - Newer version with these changes:
+  - Removed bitcnt from the loader and replaced it with using the input byte being set to 1 on sync and using the carry test to signal every eight bits instead. Saves a couple of bytes.
+  - Added an extended header check using the extra free bytes from above, this improves sync checking. Also changed the timing slightly to make the load more reliable.
+  - Added extra border colour change when checking the ext header byte.
+  - Added extra documentation about timings.
+  - Freed up some bytes in the minimal loader by shuffling around the headerStatus logic.
+  - stdlib : Added documentation about default state for VIC2 register.
+
+The archive also contains a demonstration TAP file that can be loaded by CCS64 or Vice and other emulators.
+
+This code just prompts to press play and record and then creates an autobooting turbo loaded tape with simple a demonstration.
+When playing the tape this will be seen:
+
+  - Kernal loaded autobooting loader.
+  - The turbo loader then loads the very small first part which displays a scrolling message.
+  - While the message is scrolling the tape turbo IRQ will be loading the next chunk of data which is some music saved from the [[Element 114 Music editor]] and relocated to $8000. Once the music is loaded the tape IRQ will signal this to the scroller routine which starts to play the music.
+  - Finally the IRQ loader will then load the next chunk of data which is the larger demonstration part [[Flexible 48 Sprite Multiplexer]].
+  - Once this is loaded the scroller will call the start address.
+
+
+  * TODO - Discuss adding code to cause the $0314 vector to be used instead of $0314 by writing tape data to cause $029f/$02a0 to be changed during load and then cause the kernal to restore that to $0314/$0315. Include pros and cons, for example, slightly harder to hack (IRQ makes it not so obvious where the code execution flow comes from) but also uses more code to stabalise the machine when being called from the kernal IRQ.
+  * TODO - Add section on using the kernal to load chunks starting in $0100 and $0200.
+
+
+
+
+====== Autobooting turbo loader version 3 ======
+This version uses CIA timerA to make sure the bits saved to the tape use the correct timings. Since the bits on the tape are a lot more stable the reliability and speed of the loader has also been improved.
+This code has been tested with VICE/CCS64 emulators and with a C64/C2N.
+
+====== Autobooting turbo loader version 4 ======
+Version 4 includes two loaders and source split into more reusable source files. TapeLoaderCIA.a, TapeLoaderCIAIRQ.a and TurboTapeWrite.a
+
+===== The turbo saver =====
+This version (TurboTapeWrite.a) has tweaks to make the turbo code much more stable and so the speed has been improved, now the turbo is approximately 8% faster than FreeLoad when comparing the tape counters. This is possible because the turbo saving code demonstrated here triggers the TimerA to automatically restart once the timer underflows. This means the code surrounding the bit/byte saving can vary in execution length (within reason, according to the shortest time) but the tape pulses are constant (to the lda/bit/beq loop resolution anyway). Compare this to the FreeLoad SENDBIT function where the bit timing varies as a function of whatever code is located between the CIATimer start stores. Compare the timer value used here (TapeTurboSpeed = $80) with FreeLoad ($70), even though this is the case the tape 0 bits are saved to a VICE TAP file wih a timing ~$20 for this turbo and ~$22 for FreeLoad. The 1 bits are saved with ~$40 and ~$46 respectively. So even though the timer value is larger for this turbo the actual data stored to tape is shorter, hence demonstrating how the automatic retrigger timer method is not affected by the intermediate code.
+
+Lastly, the timer value for TapeTurboSpeed (IRQTape1.a) can be changed depending on exactly how fast you want to save data. The turbo write code can support speeds as fast as $78 before a premature timer underflow is detected and the "error" screen effect (.oops; inc VIC2BorderColour; jmp .oops) is triggered. The underflow detection code is a useful way to show when tape bits are not going to be saved to tape reliably due to slow code during the byte save. While a value of $78 works on a real C64/C2N combiation I feel this speed may be pushing the envelope just a little, hence the safer value of $80 was chosen. If a tape duplication company cannot produce reliable copies of a tape with speed $78 or $80 then choosing a slower speed of $88 (equal to FreeLoad), $90 or even $a0 should help. Naturally with slower speeds like $b0 or $c0 then data will take a longer time to load and might be classed as a "slow-turbo" instead, but will still be quicker than the ROM loader of course.
+
+===== The turbo loaders =====
+The first loader (TapeLoaderCIA.a) is an autoboot loader which does not use an IRQ but instead uses the CIA to time the pulses. This method actually uses less code to read in tape bits because the program state for reading data flows from one part of the code to the next instead of the IRQ having to remember the program state.
+
+Saving the first IRQ vector with the loader code causes some interesting effects such as the kernal loader exiting earlier after the first block of code and not bothering about verifying it. This gives us control of the computer at an earlier stage than the normal kernal load sequence. The vector at $0302 is then called earlier. This is because of the code at $f8be which compares $02a0 with $0315 and exits the kernal load routine when the two become equal.
+
+The save routine at $f867 is then called to save this data. Just before the data is saved the stop vector is claimed. This vector is claimed because it is called regularly during the save. This makes it possible to fool the kernal into only saving one copy of the data by causing the pass counter at $be to become 0 when it changes from the first pass (2) to the second verification pass (1). Saving in this way means the turbo loader can start loading data quicker instead of having to skip over the kernal verification saved data. Remember from the explanation above the initial turbo loader exits the kernal load one pass earlier than normal.
+
+Saving these few bytes of code bytes allows the autoboot code to include an example of obfuscation and simple protection using a timed NMI to continue executing the correct code at ".TapeHeaderCode" after the CIA2 TimerA counts down. This timer makes it appear to someone debugging the code that the fake "decryption" code at ".ContinueLoader" is actually doing something useful. However the fake decryption code is actually destroying part of the loader code at $02a7 that has already finished executing, the NMI timer then kicks in before the "bne .endless" loop completes. This means someone freezing the code and trying to disassemble it will see some rubbish. Lastly the NMI from the timer is never acknowledged which can cause problems for certain freezer carts. Such a protection method won't fool many people for long but it is trivial code to add so why not add it? :)
+
+The second loader code (TapeLoaderCIAIRQ.a) contains reusable functions for turbo loading data which does use an IRQ and the CIA to time tape pulses. This code is used by MainSecondLoaderStart (IRQTape1.a) which is loaded by the first loader example and displays a pulsing sprite (with image data loaded from tape), a scrolling message, music and a count down timer of blocks left to load which then go to load the sprite multiplexor or LotD game demonstration.
+
+The third loader code (TapeLoaderCIASmall.a) is a very small loader that only uses space from $302 to $315 (plus the tape header). This demonstrates a style of loader that does not enable the screen but instead uses the just loaded byte to update a sawtooth waveform. Since the screen is not enabled and not text is displayed this loader includes checksum code.
+
+[[projects:resurrection|Updated sources available in the large archive here]]
+
+The file vice.tap includes a demonstration of the code.
+
+===== Martyload =====
+
+A new addition has been added to the resurrection file, which is a Cyberload bars lookalike, but with a difference. If you don't want to use this, then you can comment out the Martyload = 1 in the irqtape1.a source, and the turbo loader's boot will look like as it was before the Martyload update. This idea came from Richard as he liked the classic the cyberload loader. 

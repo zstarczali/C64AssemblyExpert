@@ -1,0 +1,28 @@
+# PAGE: base:comparison_of_6502_random_generators
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:comparison_of_6502_random_generators
+
+====== Comparison of 6502 pseudo random generators ======
+
+This is an overview of the main properties of eight algorithms here on codebase.
+
+Each algorithm was implemented as stated in the linked articles. Code size, execution time was measured. Execution times do not include the RTS command.
+Many PRNGs have a problem when the internal state becomes 0. Since this might be an important feature, it was stated which algorithms can also eventually output and handle a 0.
+
+The quality was assessed by a test if the low byte hits all 256 numbers for 2000 random numbers and by a graphical check of the plot of 51200 random values. 
+In every line n, the n&7-th bit of the result was plotted. For the results annotated with high quality, I could not identify any patterns in the plot.
+For good quality, some slight patterns or imbalances were visible. For low quality a direct repetition of values was visible.
+
+
+|              ^ result size  ^ execution cycles  ^ size (bytes)  ^seeding   ^ quality ^ plot |
+^ [[16bit xorshift random generator|798 Xorshift]] | 16bit        | 30                | 21            | all except 0   | high    | {{:base:rand_798xorshift.png?nolink&200|}} |
+^ [[6502_6510_maths:x_abc_random_number_generator_8_16_bit|X ABC]]         | 16bit        | 38                | 28            | risk of short cycle | high    | {{:base:rand_x_abc.png?nolink&200|}} |
+^ [[Small, fast 16-bit PRNG|Whiteflame16]] | 16bit        | 30*               | 35            | all values| medium (some horizontal dashes visible)    | {{:base:rand_wf16.png?nolink&200|}} |
+^ [[32bit Galois LFSR|Galois LFSR]]  | 32bit        | 60                | 50            | all except 0 | medium (too many 0s)    | {{:base:rand32_galois.png?nolink&200|}} |
+^ [[Two very fast 16bit pseudo random generators as LFSR|Two16 PRG LSFR]]        | 16bit        | 108               | 66            | all except 0 | high    | {{:base:rand16_2.png?nolink&200|}} |
+^ [[another 16bit pseudo random generator|another 16bit PRG]] | 16bit        | 30                | 21            | all except 0 | low     | {{:base:rand16_another.png?nolink&200|}} |
+^ [[16bit pseudo random generator|16bit PRG]]        | 16bit        | 69                | 49            | all except 0 | low     | {{:base:rand16_1.png?nolink&200|}} |
+^ [[Small, fast 8-bit PRNG|Whiteflame8]]  | 8bit         | 16*               | 14            | all values, 0-255 | low     | {{:base:rand_wf8.png?nolink&200|}} |
+^ [[AX+ Tinyrand8]]  | 8bit         | 18               | 15+            | all values, 0-255 | high     | {{:base:rand_ax+.png?nolink&200|}} |
+* implementation has branches, execution time varies\\
++ not including separate 13 byte function for setting an 8bit seed
+

@@ -1,0 +1,49 @@
+# PAGE: base:supercpu_pei
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:supercpu_pei
+
+====== PEI ======
+
+<code>
+    /*-------------------------------------------------------------------------
+    OP CODE: PEI (Push Effective Indirect address)
+    ==============================================
+    
+    Addressing Modes:
+        Stack (Direct Page Indirect)    ($d4 - 2 bytes, 6 cycles¹)
+        ¹ - Add 1 cycle if low byte of Direct Page register is other than zero
+            (DL< >0)
+
+    Flags Affected:
+        N/A
+
+    Description:
+        Push the sixteen-bit value located at the address formed by adding the
+        direct page offset specified by the operand to the data page register.
+        The mnemonic implies that the sixteen-bit data pushed is considered an
+        address, although it can be any sixteen-bit data. This operation always
+        pushes sixteen bits of data, irrespective of the settings of the m and
+        x mode select flags.
+
+        The first byte pushed is the byte at the direct page offset plus one
+        (the high byte of the double byte stored at the direct page offset).
+        The byte at the direct page offset itself (the low byte) is pushed
+        next. The stack pointer now points to the next available stack
+        location, directly below the last byte pushed.
+
+        The assembler syntax is that of direct page indirect; however, unlike
+        other instructions which use this assembler syntax, the effective
+        indirect address, rather than the data stored at that address, is what
+        is accessed and pushed onto the stack.
+
+    Notes:
+
+    -------------------------------------------------------------------------*/
+
+    .pseudocommand pei val {
+        .if (val.getType()==AT_INDIRECT) {
+            .byte $d4, val.getValue()
+        }
+    }
+
+
+</code>

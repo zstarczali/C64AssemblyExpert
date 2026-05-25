@@ -1,0 +1,43 @@
+# PAGE: base:signed_8bit_16bit_addition
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:signed_8bit_16bit_addition
+
+To add a signed 8-bit delta to a 16-bit value, we need to sign-extend the delta to a full 16 bits.  The low byte can be added as normal, but the upper byte needs to be $00 or $ff based on the sign of the low byte.
+
+<code 6502tasm>
+ ; Precalculate the sign-extended high byte in .X
+ ldx #$00
+ lda delta
+ bpl :+
+  dex        ; decrement high byte to $ff for a negative delta
+:
+
+ ; Normal 16-bit addition
+ clc
+ adc value   ; .A still holds delta
+ sta value
+ txa         ; .X is the high byte
+ adc value+1
+ sta value+1
+</code>
+
+The following version uses only the accumulator, adding 2 bytes and 1 cycle:
+<code 6502tasm>
+ ; Standard low byte addition
+ clc
+ lda delta
+ adc value
+ sta value
+
+ ; Sign extend the high byte
+ lda delta
+ and #$80    ; Extract the sign bit
+ beq :+      ; If zero, add #$00 (+ carry)
+  lda #$ff   ; Else, add $ff (+ carry)
+:adc value+1
+ sta value+1
+</code>
+
+
+
+----
+White Flame

@@ -1,0 +1,173 @@
+# PAGE: base:mc_al
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:mc_al
+
+====== Introduction ======
+
+//This is part 1 of a machine-code and assembly language tutorial series for the 6510 by Rudi B. Stranden.//
+
+''The Commodore 64 uses a microprocessor chip called the **6510**''.
+
+The 6510 is connected to a bus called the address-bus which has 16 wires. (The address-bus selects the memory chip).
+
+The memory chip(s) are connected to the address-bus for selection and can send and retrieve data through a 8-bit data bus. There are also some extra wires (control bus) that controls a data timer and direction such as read/write.
+
+**Address bus**: 16 bits (2^16 voltage combinations)
+
+**Data bus**: 8 bits (2^8 voltage combinations)
+
+
+===== Binary quantities =====
+
+So what is binary you may ask? Inside a computer there are circuits connected to different parts, components or inside chips. Most of these circuits may be in one of two states: zero or one. We can also call them states as True or false, Open or closed, Yes or no, etc. 1 and 0 are most commonly used because of their easy read- and writeability. So let's imagine a chip that has x-number of pins. If we work on 8 of these pins there are 8 wires going from and to these pins and their states have two possible voltages that represent either 1 or 0.
+
+In a digital system binary information is represented by voltage-currents that is present in the inputs of the circuits that are being used. The two binary values 0 and 1 is represented by two nominal voltage-levels.
+
+Diagram of standard TTL-circuit voltage levels:
+
+<code>
+  5V -------------.
+      |           |
+      | Binary: 1 |
+      |           |
+  2V -+-----------|
+      | not used  |
+0.8V -+-----------|
+      | Binary: 0 |
+  0V -------------'
+</code>
+
+On some 8-bit computers a binary number is often preceded by a percent sign.
+The Commodore 64 assembly language uses this representation of binary numbers.
+
+**Example: ''%11001101''**
+
+8 consecutive bits represents a byte. The byte can represent numbers from 0 to 255, hence 256 different possibilities.
+
+===== Chips =====
+
+**RAM** (Random Access Memory): A place to store information. Read/Write.
+
+**ROM** (Read Only Memory): Fixed sub-routines are stored in ROM that can do special tasks.
+
+**IA** (Interface Adaptor): Contain functions as: input/output (I/O); timing devices; IRQs, video/sound. PIA, VIA, CIA, VIC and SID.
+
+
+===== Microprocessor Registers =====
+
+Program Counter (PC): Tells where the next instruction will come from.
+
+**Accumulator** (A), **X-Register** (X), **Y-Register** (Y): We may load and store a byte (8-bits) to any of these registers. Data in memory are passed via these three registers since there is no way of moving information between memory locations.
+
+The Accumulator is a special register which can perform arithmetic operations which the x- and y-register cannot do. We'll get back to that later.
+
+
+====== Machine-code and Assembly ======
+
+<code>
+operation code:        Assembly code:
+AD  00  08             LDA $0800
+
+(AD is the op-code)
+(00 08 is the operand)
+</code>
+
+Operand is zero, one or two bytes long. In 2-byte operands (16-bits) the last byte comes first. Operands performs faster speed when they are only in zero-page (an 8-bit page) that ranges from $00 to $FF. Zero-page use much faster fetching and storing from and to these addresses. Low byte first is standard in the 6510.
+
+We'll mostly work with the hexadecimal number-system. The dollar-sign ($) is a prefix to state that it is a hexadecimal number. We'll mostly deal with them when we work in assembly language, but we can also write binary numbers as we said earlier. A decimal number dont have a prefix in front of it.
+
+===== Load and Store into Data-registers =====
+
+Example to swap bytes from two memory locations:
+
+<code>
+LDA $0800      - Load byte from memory location ($0800) into accumulator-register
+LDX $0801      - Load byte from memory location ($0801) into X-register
+STA $0801      - Store byte from accumulator into memory location $0801
+STX $0800      - Store byte from x-register into memory location $0800
+</code>
+The values in the two memory locations are now swapped.
+
+
+===== Opcodes and instructions for Load and Store =====
+
+<code>
+Opcode:      Instruction:
+  8C           STY
+  8D           STA
+  8E           STX
+  AC           LDY
+  AD           LDA
+  AE           LDX
+</code>
+When you make a program it must be placed somewhere in **RAM**. To do that we can poke the values from Basic or use a Machine-code monitor. The later is more convenient since Basic language is slower and takes up more memory-space. However since Basic lies in **ROM** it cannot be removed, but individual basic routines takes up more space when you use them. ''If you do poke values into memory from basic and want to run from an address you type **SYS** <//location//> to run from the specific address''. However basic does not work with hexadecimal numbers so you need to convert them to decimal before you poke or sys them. Machine-code monitors and assemblers do most of the time handle hexadecimal numbers. After performing the SYS-command the machine code is running as fast as it should go with the instructions and operands that are fetched and stored from the address and data-busses. If you mix basic-language with machine-language it can some of the time run more slower because basic-routines have alot more instructions and does much more things that you usually dont need. If you want to make fast routines on the C64 i suggest you learn how to program machine-code or assembly because Basic is just too slow. However if you think assembly-language is hard to learn and you havent programmed before Basic may be a good excercise to learn elementary program logic.
+
+
+===== Status register =====
+
+''The 6510 has an internal status register which contains all the flags the processor uses. There are seven processor status flags. These are: Carry flag, Zero flag, Interrupt flag, Decimal flag, Break flag, Overflow flag and the Negative flag.''
+<code>
+Bits:    7 6 5 4 3 2 1 0
+         | | | | | | | |
+Flag:    N V - B D I Z C
+</code>
+Bit 5 is never used (has no flag).
+
+We'll come back to these flags later. In this part we'll deal only with the zero- and carry-flag.
+
+
+====== Compare and branching ======
+
+===== Zero flag (z-flag) =====
+
+The Zero-flag (z-flag) is a flag that is mostly used in comparsion with numbers. If the operand is equal to the value which lies inside a register the z-flag is set to on, otherwise its set to off. Comparing can be done by setting the operand with an immediate byte-value or with a byte stored at a specific memory location. In our examples below we use immediate values. An immediate value is set by the use of the #-sign in front of the operand.
+
+**Compare example:**
+<code>
+CPX #$06    (If the x-register contains a value of $06, then the z-flag will be set to 1).
+CPY #$08    (If the y-register contains a value of something else than $08, then the z-flag will be set to 0).
+CMP #$02    (If the accumulator contains a value of $02 then the z-flag will be set to 1).
+</code>
+
+===== Branching =====
+
+We can choose to use a branch instruction to branch after a compare has been made, based on the value of one the status flags.
+
+First compare with any of the registers. We'll use the x-register as an example.
+<code>
+LDX #$06     (We set the x-register to $06. The z-flag is reset to 0 here.
+              If the operand was $00 the z-flag would be set to 1).
+
+CPX #$06     (Compare the content of the x-register with the operand, in our case $06.
+              The result from this compare sets the z-flag to 1).
+
+BEQ $.....   (Branch to a memory address if z-flag is 1.
+              In our case the z-flag is one and the branch takes place).
+</code>
+If the z-flag was set to 0, hence the value we compared was not equal to the value in the x-register the branch would not have taken place. Try it out for yourself by changing the values.
+
+As you can see from above the LDX affect the z-flag. The same goes for LDY and LDA. However Store instructions like STA, STX and STY does not affect any flag. Branch instructions test flags but dont change them.
+
+===== The Branch instructions =====
+<code>
+BNE      - Will branch if z-flag is zero.
+BEQ      - Will branch if z-flag is one.
+BCS      - Will branch if the value in the register is greater than or equal to the other value.
+BCC      - Will branch if the value in the register is less than the other value.
+</code>
+The two latter branch-instructions does branch if the Carry flag is set or not set. (See below).
+
+ 
+
+===== The carry flag (c-flag) =====
+
+After a comparsion (CPX, CPY or CMP) the carry flag (c-flag) is set to one if the register is greater than or equal to the compared value, otherwise it is not set.
+<code>
+BCS      (branch carry set)    - will branch if the carry is set.
+BCC      (branch carry clear)  - will branch if the carry is not set.
+SEC      (set carry)
+CLC      (clear carry) 
+</code>
+//
+This was the end of part 1 in these tutorial series. Hoped you liked it!
+Feedback, corrections, misspelling are appreciated, if you let me know.
+Part 2 will hopefully follow soon.//

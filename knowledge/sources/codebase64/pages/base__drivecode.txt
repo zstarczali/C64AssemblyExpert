@@ -1,0 +1,210 @@
+# PAGE: base:drivecode
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:drivecode
+
+====== Drivecode ======
+
+As the 1541 also has a 6502 and 2KB RAM it can be used for parallel computation. However RAM is scarce and there is a serious bottleneck when synchronizing the c64 with the 1541: the serial bus.
+So the transfer of the dataset must be taken into account when offloading work to the floppy. Also the drive works @ 1MHz and no badlines interrupt the work of the processor, so there is a slight clock skew between c64 and 1541.
+When uploading code, you can only use the area from $0300 to $07ff as drop-zone for your code. However if you upload only a small transfer-routine first that hijacks the floppy (SEI + never return to ROM), you can basically upload code to any location on the floppy (But be aware of the stack).
+
+The example code given here, uploads a small code snippet to the 1541 that generates a data set from $00..$ff stored in the zeropage of the floppy and then continuously transferring that data to c64. For faster upload of code to the 1541 just do your own transfer-routines for the other direction. The example from wegi will give some valuebale hints as well: [[Drivecalc vectors]]
+
+<code>
+!convtab pet
+!cpu 6510
+
+data1 = $00
+data2 = $72
+
+drivecode_start = $0300
+drivecode_exec = $0310
+
+         * = $3000
+upload_code
+         lda #$00
+         sta $90
+         lda #$08
+         sta $ba
+         ldx #$05   ;upload 5 * $20 bytes to 1541
+.l0
+         inc $d020
+         jsr listen
+
+         ldy #$00
+-
+         lda mw_comm,y
+         jsr $ffa8
+         iny
+         cpy #$06
+         bne -
+
+         ldy #$00
+-
+dc_addr  lda drivecode,y
+         jsr $ffa8
+         iny
+         cpy #$20
+         bne -
+         jsr $ffae
+         tya
+         clc
+         adc dc_addr+1
+         sta dc_addr+1
+         bcc +
+         inc dc_addr+2
++
+         tya
+         clc
+         adc mw_dest
+         sta mw_dest
+         bcc +
+         inc mw_dest+1
++
+         dex
+         bne .l0
+
+start_code
+         jsr listen
+
+         ldy #$00
+-
+         lda me_comm,y
+         jsr $ffa8
+         iny
+         cpy #$05
+         bne -
+         jsr $ffae
+         lda #$03
+         sta $dd00
+
+         lda #$50
+         cmp $d012
+         bne *-3
+         lda #$4f
+         cmp $d012
+         bne *-3
+
+-
+         jsr receive
+         jmp -
+
+!macro rcv_1byte_sync {
+.poll
+         lda $d012
+         sbc #$31
+         bcc +
+         and #$07
+         cmp #$01
+         bcc .poll
++
+}
+!macro rcv_1byte {
+         lda #%00001011
+         sta $dd00
+         nop
+         eor #%00001000
+         sta $dd00
+         lda #$ff
+         eor $dd00
+         lsr
+         lsr
+         eor $dd00
+         lsr
+         lsr
+         eor $dd00
+         lsr
+         asr #$fe       ;lets carry be cleared after lsr!
+         eor $dd00
+}
+
+receive
+         ldx #$00
+         sei
+         clc
+-
+         +rcv_1byte_sync
+         +rcv_1byte
+         sta $0400,x
+         +rcv_1byte_sync
+         +rcv_1byte
+         sta $0480,x
+         inx
+         bpl -
+         cli
+         rts
+
+listen
+         lda $ba
+         jsr $ffb1
+         lda #$6f
+         jmp $ff93
+
+mw_comm
+         !text "m-w"
+mw_dest  !byte <drivecode_start
+         !byte >drivecode_start
+         !byte $20
+
+me_comm
+         !text "m-e"
+         !byte <drivecode_exec
+         !byte >drivecode_exec
+
+drivecode
+!pseudopc drivecode_start {
+.data1 = $00
+.data2 = $80
+starter
+bin2ser
+         !byte %1111, %0111, %1101, %0101, %1011, %0011, %1001, %0001
+         !byte %1110, %0110, %1100, %0100, %1010, %0010, %1000, %0000
+
+         lda #$7a
+         sta $1802
+         ldy #$00
+         sty $1800
+         sei
+         ldx #$00
+-
+         txa
+         sta .data1,x
+         eor #$80
+         sta .data2,x
+         inx
+         bpl -
+
+!macro snd_1byte {
+         ldx #$0f
+         sbx #$00
+         lsr
+         lsr
+         lsr
+         lsr
+         sta .y1+1
+         lda bin2ser,x
+.poll
+         bit $1800
+         bpl .poll
+         sta $1800
+         asl
+         and #$0a
+         sta $1800
+.y1      lda bin2ser
+         sta $1800
+         asl
+         and #$0a
+         sta $1800
+}
+
+-
+         ldy #$00
+send2c64
+         lda .data1,y
+         +snd_1byte
+         lda .data2,y
+         +snd_1byte
+         iny
+         bpl send2c64
+         bmi -
+}
+</code>

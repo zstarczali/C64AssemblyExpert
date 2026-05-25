@@ -1,0 +1,89 @@
+# PAGE: base:both_joysticks_handling_plus_proper_keyboard_scan
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:both_joysticks_handling_plus_proper_keyboard_scan
+
+====== Both joysticks handling plus proper keyboard scan ======
+
+<code>
+
+;64tass format, taken from game SWIV.
+;with default $dc02 - $dc03 values ($ff and $00)
+;usage : inside irq, jsr j2read (plus jsr j1read if both joysticks will be read).
+;and inside irq again (after enough rastertime passes), jsr keyb to read keyboard, standard
+;example below.
+;all 3 operations are independent and nothing interferes.
+
+;keyb	lda #$f7		;standard keyboard read example
+;	sta $dc00
+;	lda $dc01
+;	and #$20		;scan for key "h"
+;	bne +
+;	...			;here "h" is pressed
+;+	...			;scan for another key
+
+j2v	.byte $00		;backup value
+j2f	.byte $00		;fire, $00 no - $10 yes
+j2u	.byte $00		;up, $00 no - $01 yes
+j2d	.byte $00		;down, $00 no - $01 yes
+j2l	.byte $00		;left, $00 no - $01 yes
+j2r	.byte $00		;right, $00 no - $01 yes
+
+j2read	lda #$ff
+	sta $dc00		;for proper keyboard scan, with joystick scan
+	lda $dc00
+	eor #$ff
+	sta j2v			;inverted value and backupped
+	and #$0f
+	beq +
+	lda #$00		;clear directions
+	sta j2u
+	sta j2d
+	sta j2l
+	sta j2r
+	lda j2v			;calculate direction
+	lsr
+	rol j2u
+	lsr
+	rol j2d
+	lsr
+	rol j2l
+	lsr
+	rol j2r
++	lda j2v
+	and #$10
+	sta j2f			;$10 for fire pressed
+	rts
+
+j1v	.byte $00		;backup value
+j1f	.byte $00		;fire, $00 no - $10 yes
+j1u	.byte $00		;up, $00 no - $01 yes
+j1d	.byte $00		;down, $00 no - $01 yes
+j1l	.byte $00		;left, $00 no - $01 yes
+j1r	.byte $00		;right, $00 no - $01 yes
+
+j1read	lda #$ff
+	sta $dc01		;for proper keyboard scan, with joystick scan
+	lda $dc01
+	eor #$ff
+	sta j1v			;inverted value and backupped
+	and #$0f
+	beq +
+	lda #$00		;clear directions
+	sta j1u
+	sta j1d
+	sta j1l
+	sta j1r
+	lda j1v			;calculate direction
+	lsr
+	rol j1u
+	lsr
+	rol j1d
+	lsr
+	rol j1l
+	lsr
+	rol j1r
++	lda j1v
+	and #$10
+	sta j1f			;$10 for fire pressed
+	rts
+
+</code>

@@ -1,0 +1,8 @@
+# PAGE: base:displaying_graphics_using_3fff
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:displaying_graphics_using_3fff
+
+====== Displaying graphics using $3fff ======
+
+$3fff-graphics is shown when gfx display is switched on (char or bitmap mode), but of some other reason the normal rendering of gfx is disabled. Check out [[base:removing_the_top_bottom_border|removing top and bottom borders]] or [[base:removing_the_sideborders|removing the sideborders]]. The opened areas (upper and lower border or the area between the opened sideborders) are displaying $3fff-gfx. Try setting some value to $3fff at the start of the code and see what happens. 
+
+When want to avoid showing $3fff gfx but still see it after setting $3fff to #$00 it might be so that you need to use character mode instead of bitmap mode (use #$1b in $d011 at $3fff gfx area).

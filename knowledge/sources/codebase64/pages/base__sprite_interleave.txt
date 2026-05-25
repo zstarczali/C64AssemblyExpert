@@ -1,0 +1,109 @@
+# PAGE: base:sprite_interleave
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:sprite_interleave
+
+====== Sprite Interleave ======
+
+By Raistlin/Genesis Project
+
+=== Intro ===
+
+When using large arrays of sprites, eg. an 8x10 array, it can be tricky to do this without having gaps or glitches. Annoyingly, C64 sprites are 21 pixels tall - so it's not possible to have this array without at least one row of sprites being around a bad line - where there simply aren't enough cycles to update all the sprite values.
+
+----
+{{:base:thedive-and-mementomori.png}}
+----
+
+
+This becomes especially problematic when you're dealing with varying D011 - eg. in the intro sequence of "The Dive" where we have a bitmap upscroller behind a sprite array.
+
+There are a few techniques available to help with these sprite arrays - and each has their pros/cons that I'll go into later.
+
+
+===== 16-pixel Sprite Interleave =====
+
+Here we simply change $D018 at the right point, just before a badline, in order to update all sprites at the same time.
+
+
+===== 20-pixel Sprite Interleave =====
+(Original idea and help from Christopher Jam)
+
+Here we update all of the sprite values around each 20th line of the screen - just after the 19th line out of every 20 - and we "fix" the glitches that occur via a data trick.
+
+To understand this technique, you need to understand what changing the sprite value means if you're part way through a sprite. If you change from sprite 64 to 72, for example, on the 6th line of a sprite, the sprite will continue to be drawn from the 6th line - but it will now be the 6th line of sprite 72 rather than 64.
+
+The 20px technique, then, fixes the "glitch" you would normally see from changing the sprite value "too soon" by making sure that the equivalent line of each sprite, at the point that the sprite value is updated, is identical.
+
+For a typical screen, therefore, you should have:-
+Y=[  0, 20] .. lines 0-19 of row 0 and line 20 of either row 0 or row 1
+Y=[ 20, 40] .. lines 20 and 0-18 of row 1 and line 19 of either row 1 or row 2
+Y=[ 40, 60] .. lines 19-20 and 0-17 of row 2 and line 18 of either row 2 or row 3
+...
+Y=[180,200] .. lines 12-20 and 0-11 of row 9
+
+As you can see, we have several places where the sprite data needs to be duplicated:
+  * line 20 of row 0 into line 20 of row 1
+  * line 19 of row 1 into line 19 of row 2
+  * ...
+  * line 12 of row 8 into line 12 of row 9
+
+We also need to "roll" the sprite data for each row as well.
+
+----
+{{:base:spriteinterleave.png}}
+----
+
+=== Updating Sprite Values ===
+
+Often, especially when dealing with a vertically scrolling screen, or the addition of opening the side borders or other effects, you still need to update all 8 sprite values in as few cycles as possible.
+
+For this, it's worth knowing about a neat little trick.
+
+The most basic and obvious way to update the sprite values would of course be something like:
+
+<code>
+      ldx #$40
+      stx ScreenAddr + $3f8 + 0
+      inx
+      stx ScreenAddr + $3f8 + 1
+      inx
+      stx ScreenAddr + $3f8 + 2
+      inx
+      stx ScreenAddr + $3f8 + 3
+      inx
+      stx ScreenAddr + $3f8 + 4
+      inx
+      stx ScreenAddr + $3f8 + 5
+      inx
+      stx ScreenAddr + $3f8 + 6
+      inx
+      stx ScreenAddr + $3f8 + 7
+</code>
+
+What matters to us here is the cycle count between our first write to the sprite values and our last. So that's 7x2 + 7x4 = 42 cycles. To reduce this, we can use the illegal opcode, SAX:-
+
+<code>
+      LDX #64 + 4
+      LDA #$fb
+      SAX ScreenAddr + $3f8 + 0; <-- SAX will write "X & A" .. ie. 64 here
+      STX ScreenAddr + $3f8 + 4
+      INX
+      SAX ScreenAddr + $3f8 + 1
+      STX ScreenAddr + $3f8 + 5
+      INX
+      SAX ScreenAddr + $3f8 + 2
+      STX ScreenAddr + $3f8 + 6
+      INX
+      SAX ScreenAddr + $3f8 + 3
+      STX ScreenAddr + $3f8 + 7
+</code>
+
+Here we have 7x4 + 3x2 = 34 cycles. So we've shaved off 8 - which of course can be very important with this sort of code.
+
+=== Pros/Cons ===
+
+Compared to the alternative 16-pixel interleave technique (updating $D018):-
+  * PRO: we save screen buffer memory;
+  * PRO: in many cases we can simplify screen drawing code;
+  * PRO: we only "waste" 1 pixel line of sprite data instead of 5;
+  * PRO: to cover the screen height we only need 10 rows (80 sprites) instead of 13 (104);
+  * CON: we need to duplicate some data - which can have a performance impact if the sprites are being drawn to in realtime.

@@ -1,0 +1,125 @@
+# PAGE: base:basic_math_operations
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:basic_math_operations
+
+====== Addition ======
+
+===== basic method =====
+
+The addition of two numbers is very simple, because our CPU provides a command for it: ADC. This command adds the content of the accu to the value addressed by the ADC-command. Furthermore it adds the Carryflag (one or zero) to the result and stores it in the accu. To put it short:
+
+  ADC value:	accu = accu + value + carryflag
+
+After that the carryflag will be set if there was an overflow in the addition, or cleared otherwise.
+
+
+===== the carryflag =====
+
+Let's have a closer look at the carryflag: You may wonder why it is added too, as this may give a wrong result. True, and to avoid this you have to clear the flag every time you want to add something. The only purpose of the flag is to indicate an overflow of the result. When you add two 8-bit numbers it may happen that the result is greater than 255, so it won't fit in the accu. The solution to this problem is: the CPU stores the lower 8 bits of the result in the accu and the 9th bit in the carryflag. So an overflow may easily be detected by your program. Note, that by adding two 8-bit numbers the result can be $1fe at max, so it can not exceed 9 bits.
+
+
+===== adding numbers larger than 8 bit =====
+
+Adding 16-bit (or even larger numbers) numbers is a common task, and also this may be done with the carryflag. The procedure is always the same: First you clear the carryflag, then you add the lowbytes of the summands (which gets you the 9th bit of the result in the flag), and at last you add the highbytes of the summands (which includes adding a former overflow, indicated by the carryflag).
+
+For an example, let's add the numbers $0cc5 and $4872:
+  * clear the carryflag with CLC
+  * add the lowbytes:
+  <code>
+  	 $c5	(lowbyte of summand 1)
+  +	 $72	(lowbyte of summand 2)
+  +	   0	(carryflag)
+  -----------
+  =	$137	(lowbyte of the result is $37, carryflag is set)
+  </code>
+  * store the lowbyte of the result and add the highbytes:
+  <code>
+  	 $0c	(highbyte of summand 1)
+  +	 $48	(highbyte of summand 2)
+  +	   1	(carryflag)
+  -----------
+  =	$055	(highbyte of the result, carryflag is cleared)
+  </code>
+  * store the highbyte of the result. this gives you the correct sum of $5537
+
+To put it in assembler:
+<code>
+		clc			; carryflag = 0
+		lda summand1		; accu = lowbyte of summand1
+		adc summand2		; accu = accu + lowbyte if summand2 + carryflag
+		sta result		; store lowbyte of result, 
+					; carryflag is now set if an overflow occured and cleared otherwise
+		lda summand1+1		; accu = highbyte of summand1
+		adc summand2+1		; accu = accu + highbyte of summand2 + carryflag
+		sta result+1		; store highbyte of result
+					; again the carryflag is now set if an overflow occured and cleared otherwise
+		rts
+
+summand1	!word $0cc5
+summand2	!word $4872
+result		!word $0000		; is $5537 afterwards	
+</code>
+
+To handle larger numbers you may append more steps to this routine, but they are all the same. E. g. for 24-bit numbers your can write:
+<code>
+		clc
+		lda summand1
+		adc summand2
+		sta result
+		lda summand1+1
+		adc summand2+1
+		sta result+1
+		lda summand1+2
+		adc summand2+2
+		sta result+2
+</code>
+and so on.
+
+
+
+====== Subtraction ======
+
+
+===== basic method =====
+
+The subtraction of two numbers is nearly the same as the addition. The main difference is that a //cleared// carryflag indicates an underrun. So before you start you have to //set// the flag to get a correct result. The function of the SBC-command is:
+
+  SBC value:	accu = accu - value - 1 + carryflag
+
+After that the carryflag will be //cleared// if there was an underrun, and //set// otherwise.
+
+You may wonder why there is a -1 in the above formula, and why the carryflag is handled in the opposite way than it's done in the addition. The reason is simple: To save some hardware in the CPU the add-circuits are used to perform the subtraction. What the SBC really does is:
+
+  SBC value:	accu = accu + (value EOR $ff) + carryflag
+
+As you see the only difference to the addition is that the subtrahend becomes inverted first. This trick works fine, but the result you get is one to short. So the carryflag has to be set to get the correct result, and a cleared flag can be used to handle an underrun.
+
+
+===== subtracting numbers larger than 8 bit =====
+
+That works exactly like the addition, whith the only difference, that the carryflag has to be set at the start. 
+<code>
+		sec			; carryflag = 1
+		lda minuend		; accu = lowbyte of minuend
+		sbc subtrahend		; accu = accu - lowbyte if subtrahend - 1 + carryflag
+		sta result		; store lowbyte of result
+					; carryflag is now cleared if an underrun occured and set otherwise
+		lda minuend+1		; accu = highbyte of minuend
+		sbc subtrahend+1	; accu = accu + highbyte of subtrahend - 1 + carryflag
+		sta result+1		; store highbyte of result
+					; again the carryflag is cleared if an underrun occured and set otherwise
+		rts
+
+minuend		!word $3872
+subtrahend	!word $0cc5
+result		!word $0000		; is $2bad afterwards	
+</code>
+
+Of course also this routine can be extended to handle numbers of any length.
+
+
+
+====== Multiplication and dividing by powers of two ======
+
+Sometimes you want to multiplicate a number by a power of two (2, 4, 8, 16, and so on). This may be done very quick by bit-shifting, using the rotate-commands. Why is this? Let's have a look at the decimalsystem: There it is very easy to multiply a number by 10. The only thing we have to do is to "move" digits one place to the left and then fill the "empty place" at the very right with a zero (for example 17 x 10 = 170). A "left-shift" is equivalent to a multiplication with the base of the number system (in case of the decimalsystem by 10). This trick works in every other numbersystem as well. You can check it out; think of a binary number - let's say %00110101 (which is decimal 53) - and shift it to the left. As result you get %01101010 (106 in decimal). To generalise this cognition we can say that a multiplication by 2 in the binarysystem is equal to a left shift, a multiplication by 4 is equal to two leftshifts, a multiplication by 8 is equal to three leftfshifts, and so on. To divide a number by a power of two just use right-shifts.
+
+Of course also this method may be extended to numbers of any length, using the carryflag together with the ROL/ROR commands.

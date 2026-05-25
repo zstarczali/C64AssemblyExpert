@@ -1,0 +1,98 @@
+# PAGE: links:start
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=links:start
+
+====== External Links to the www ======
+
+===== Information sites =====
+  * [[http://www.youtube.com/watch?v=ZsRRCnque2E|25c3: The Ultimate Commodore 64 Talk (YouTube)]] - By Michael Steil
+  * [[http://www.the-dreams.de/aay.html|All about your C64/1541/1581]] - By Ninja/Dreams
+  * [[https://csdb.dk/release/?id=258111&show=summary|No More Secrets V1.0]] - By groepaz
+  * [[http://www.oxyron.de/html/opcodes.html|65xx opcodes]] - By Graham/Oxyron
+  * [[http://www.zimmers.net/cbmpics/cbm/c64/vic-ii.txt|VIC Article]] - The mighty... By Christian Bauer.
+  * [[http://www.sidmusic.org/sid/main.html|The SID homepage]] - By Mr. SID
+  * [[http://www.6502.org/|6502.org]] - About the 6502 CPU (almost identical to the 6510 in the C64).
+  * [[http://www.ffd2.com/fridge/|The Fridge]] - Source code, tools and technical information for Commodore and 6502 programmers.
+  * [[http://project64.c64.org/|Project 64]] - The most comprehensive source for Commodore Computer manuals on the internet. Includes "Programmers reference guide" and "Mapping the C64".
+  * [[http://www.studiostyle.sk/dmagic/gallery/gfxmodes.htm|C64 graphic modes]] - Description of C64 graphic modes
+  * [[http://www.pepto.de/projects/colorvic/|VIC-II Color Analysis]] - All you ever wanted to know about the colors of the commodore 64 by pepto
+  * [[http://www.C64-Wiki.com|International C64-Wiki-Project]] - All about the C64
+  * [[http://www.C64-Wiki.de|German Version of C64-Wiki-Project]] - All about the C64 (German Version)
+  * [[https://rr.pokefinder.org|Replay Resources]] - Everything about c64/c128 tool cartridges you could be interested in.
+  * [[http://www.ffd2.com/fridge/chacking/|C= Hacking magazine]] - Available online. Contains huge amounts of useful articles.
+  * [[http://www.ffd2.com/fridge/discovery/|disC=overy magazine]] - Similar to the C=Hacking magazine, but fewer issues were released of this one.
+  * [[http://www.atarimagazines.com|Atari Magazines]] - Some info on 6502 programming hidden there
+  * [[http://www.atariage.com/forums/index.php?s=fbd0de0c0d3f69a816aa15b7575c9889&showtopic=71120&st=25|6502 killer hacks]] at AtariAge forums
+  * [[http://www.floodgap.com/retrobits/ckb/|Commodore Knowledge Base]] - maintained by Cameron Kaiser
+  * [[http://www.baltissen.org/newhtm/ccomputers.htm|Ruud's Commodore Site]] - specifications related to Commodore hardware, with very useful in-depth docs on Commodore drives, including GCR encoding.  - Maintained by Ruud Baltissen
+  * [[http://visual6502.org/JSSim/index.html|The visual 6502]] - A quite cool dynamic visualization of the 6502 as it executes various opcodes.
+  * [[https://github.com/vsariola/c64-cheat-sheets/releases/latest/download/6510_assembly_instructions.pdf|6510 Assembly Instructions Cheat Sheet]] - PDF for printing. Includes cycles, opcodes and illegals.
+
+
+===== Tutorials =====
+  * [[https://csdb.dk/release/?id=8717|Biggest C64 Machine Language etc tutorial]] (10,8MB)
+  * [[http://dustlayer.com/tutorials/]|Dustlayer]] - 6502 tutorial by actraiser
+  * [[https://cadaver.github.io/|Covert bitops rants]] - By Cadaver. Contains all kinds of useful coding tutorials
+  * [[http://64bites.com/|64bites]] - Video tutorials by Michal Taszycki
+  * [[http://tnd64.unikat.sk/assemble_it.html|A$$EMBLE IT]] - C64Assembly code tutorial on creating fun things like games, picture displayers with scrolling message and music. Run by Richard Bayliss
+  * [[http://user.tninet.se/~uxm165t/demo_programming/|An Introduction to Programming C-64 Demos]] - By Puterman/FLT.
+  * [[http://www.ctalkobt.net/prog/articles/index.php|Learning ML for the 6502 Series]] - by Craig Taylor
+  * [[http://www.pagetable.com/?p=568|Pagetable blog]] - A bunch of C64/6581 tutorials, tricks, and articles
+  * [[https://www.georg-rottensteiner.de/c64/projectj/step1/step1.html|Project J]] - A 100 step tutorial to a full game - by Georg Rottensteiner
+
+===== Forums =====
+  * [[http://noname.c64.org/csdb/forums/?roomid=11|CSDb coding forum]] - Any kind of c64 coding related issues. Maintained by Perff/NoName.
+  * [[http://retrohackers.com/|retrohackers.com]] - About Retro Replay related development. The forum also has a lot of useful files and sourcecodes uploaded in one of the subs. Maintained by RaveGuru/Instinct (outdated).
+
+
+
+===== Sourcecodes  =====
+  * [[https://csdb.dk/forums/?roomid=11&topicid=162980|Open Source C64 Demos]] - Thread at CSDb
+  * [[http://csdb.dk/release/?id=118194|1bir (1 Block Interactive Raycaster) - by Wisdom/Crescent (CSDb)]]
+  * [[http://csdb.dk/release/?id=32392|Artefacts]] - by Krill/Plush (CSDb)
+  * [[http://csdb.dk/release/?id=45564|69 Positions]] - by Raf/Vulture Design (CSDb)
+  * [[http://csdb.dk/release/?id=38156|Motivation 2]] - by Oxidy/Fairlight (CSDb)
+  * [[http://csdb.dk/release/?id=48099|RADWAR Speech Synth Sourcecode]] - by MWS/Radwar (CSDb)
+  * [[http://csdb.dk/release/?id=63129|SP0256 Speech Emulation]] - by Streetuff/TRSI (CSDb)
+  * [[http://csdb.dk/release/?id=47185|S:T Lars 2007 Sourcecode]] - by JackAsser/Instinct (CSDb)
+  * [[http://taboo.eu.org/download/loaders.zip|C64+1541/71 turboloaders]] - by KM/Taboo
+  * [[http://csdb.dk/release/?id=10117|Mahoney BitLive4 demo source]] - By Mahoney (CSDB) 
+  * [[http://dark-well.pwp.blueyonder.co.uk/ |Source Code & Tools]] - Some Source Code & Pc Tools
+
+===== Assemblers =====
+
+
+==== Running on the C64 ====
+
+  * [[base:TurboAssembler 5.2 (Bacchus Version)|Turbo Assembler]] — Reference document to Bacchus version of Turbo Assembler 5.2
+  * [[http://turbo.style64.org/|Turbo Assembler Homepage]] - maintained by Style. Also featuring Turbo Macro Pro.
+  * [[http://retrohackers.com/forum/viewtopic.php?t=249&sid=af542238c7bfb4b61c95c3534a3bd779|Turbo Action ROM V1]] - Action Replay ROM file for the Retro Replay which includes a version of Turbo Assembler that runs from the internal RAM of the RR. Hack by SounDemon/Dekadence.
+
+
+
+==== Cross assemblers ====
+Don't link directly to binaries in cases where a proper homepage for the assembler is available.
+
+  * [[http://www.cc65.org/|CA65 and CC65]] - Assembler/c compiler/Linker
+  * [[http://www.theweb.dk/KickAssembler/Main.php|Kick Assembler]] - by Slammer/Camelot. Assembler with extensive Java-style scripting. Runs anywhere with Java.
+  * [[https://sourceforge.net/projects/acme-crossass/|ACME]] - Cross assembler with a lot of nice features, without being bloated. Includes macro support.
+  * [[https://github.com/docbacardi/dreamass|Dreamass]] - by Doc Bacardi/The Dreams
+  * [[http://www.villehelin.com/wla.html|WLA DX]] - by Wille Helin. Supports many processors, including 6502/6510 and 65816.
+  * [[https://sourceforge.net/projects/tass64/|64TASS]] Old TASS by KM/Taboo updated by Soci/Singular
+  * [[http://style64.org/release/tmpx-v1.0-style|TMPx]] - Cross assembler that is source compatible with Turbo Macro Pro
+  * [[http://k2devel.sf.net|k2asm]] Open-source cross assembler with linker, scopes and python-macros
+  * [[http://www.floodgap.com/retrotech/xa/|XA (xa65)]] xa assembler / disassembler by Cameron Kaiser and others.
+  * [[http://dasm-dillon.sourceforge.net/|DASM]] Official home of the DASM cross-assembler.
+  * [[http://www.georg-rottensteiner.de/de/c64.html#c64studio| C64 Studio]], open source IDE specialized for C64 game programming.
+
+
+===== Ways to transfer your code to C64 =====
+These are tools that can be used to transfer code that has been assembled on a PC/Mac and execute it on the C64 without forcing the user to store the contents on a C64 disk first.
+
+  * [[http://www.oxyron.de/html/freplay.html|Final replay and Codenet]] - by Graham/Oxyron. Requires a Retro Replay cartridge with RR-net.
+  * [[http://hitmen.c02.at/html/tools_rr.html|RR.exe]] - by Groepaz/Hitmen. Requires a Retro Replay cartridge with SilverSurfer.
+
+===== Tools =====
+Most tools are available on CSDb or discussed there. Alternatively - check lemon64.
+
+  * [[https://csdb.dk|CSDb]] - A lot of tools (both for C64 and cross dev).
+  * [[https://lemon64.com|Lemon64]]

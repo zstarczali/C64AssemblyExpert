@@ -1,0 +1,1582 @@
+# PAGE: base:filling_the_vectors
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:filling_the_vectors
+
+====== Filling the vectors ======
+
+By Bitbreaker/Oxyron/Nuance
+
+The attached vector.tar.gz is rather outdated. I rewrote most of the parts of the filler and ended up with 25% faster results. A new tar.gz will come soon, until then i have already updated the source for the fill.asm presented within this article. Have fun reading through the source and detecting new ways to solve the same problem.
+===== Precautions =====
+
+For filling polygons you will use some sort of scanline conversion algorithm, if you want to keep it simple, stick to triangles or quads (planar!) that have no angle bigger than 180°. Also you might think of tearing the process into two parts for better understanding and less hassle with the few registers the 6502 offers. Else you have to save and restore registers rather often, what is expensive, also code complexity rises up to a level that is a pain in the arse (see the code here: {{:base:vector.tar.gz|}} - compile with acme -f cbm -o vector.prg vector.asm) 
+
+===== Preparation =====
+
+As for a quad/triangle, first of all take the 4/3 vertices and find the vertice with the lowest y position, then the vertice with the highest y position. Then calculate all x positions for each y that is between y_min and y_max for the lines that span between those two dots. If you define the quads that way, that all lines go clockwise, you can determine whether a line is on the left (index of vertice is < start point) or right side (index of vertice is > start point). This helps a lot when you later on fill the lines, as the direction of filling will then be always the same and additional checks (or swapping of x1/x2) can be omitted in the inner loop.
+
+<code>
+   v1 y_min
+   /\
+v4/  \v2
+  \  /
+   \/
+   v3 y_max
+</code>
+
+So on the right side there is a line from v1 to v2 and v2 to v3, on the left side from v1 to v4 and v4 to v3.
+
+===== Filling =====
+
+For filling we cut the line that spans from x1 to x2 into 3 pieces to have the first few pixels until a 8x8 block starts (x1 and 7) and the last few pixels after the last full 8x8 block (x2 and 7). Those two pieces are special cases that need extra treatment. In the very special case where start- and end-chunk of the line are within the same block we need to combine them, or else we write them to the bitmap with just a part of the full pattern. Also the start and endpart of the line must be combined (ORA) with the screen content, as we possibly share the edge with other already drawn faces, that would else be trashed.
+The remaining full blocks (in our example 3) can now be easily filled by just storing $ff (or your desired pattern) to the respective memory locations. Speedcode \o/
+
+<code>
+ ____________________________________________
+|    XXXX|XXXXXXXX|XXXXXXXX|XXXXXXXX|XXX     |
+    |                                   |
+   x1                                   x2
+</code>
+
+===== Examples =====
+
+Here are some snippets of example code. There are some routines to precalculate the x1 and x2 positions as fast as possible. The filler then fills the area enclosed by the values with an 8x2 pattern.
+
+<code 6502acme>
+!cpu 6510
+
+fill_code  = $1c     ;location of inner loop
+xstart     = $78     ;slope table for xstart is stored here
+
+tgt_dst    = $c000
+tgt_size   = $400
+
+maskr      = $f480
+maskl      = $fc00 ;+$80
+cd_d       = $f500
+cd_i       = $f600
+!ifdef MULTI_PATTERN {
+patt_0     = $f880
+patt_1     = $f980
+patt_2     = $fa80
+patt_3     = $fb80
+}
+to_index_col_b1 = $fd00
+to_index_col_b2 = $fe00
+
+;--------------------------
+;SETUP
+;
+;--------------------------
+
+!ifdef MULTI_PATTERN {
+e_patt
+         !byte $11,$aa,$ee,$ff
+o_patt
+         !byte $44,$55,$bb,$ff
+}
+
+;--------------------------
+;THE VERY INNER LOOP OF OUR FILLER
+;(will be placed into zeropage for max. performance)
+;--------------------------
+
+fill_start
+!pseudopc fill_code {
+fill
+;fills a line either in bank 1 or 2 with a pattern
+;x = x2
+;y = y2
+!ifdef BY_2 {
+         lsr+1 f_err+1
+}
+outline1 nop                    ;either dex or nop will cause a full area or one with outline on right edges
+
+f_bnk1   lda to_index_col_b1,x
+         sta+1 f_jmp+1
+f_back                          ;directly jump to here if something is wrong with speedcode setup
+         dey
+f_yend   cpy #$00               ;forces carry to be set
+         bcc f_end
+;--------CALCULATE X2-----------------------------------------
+f_err    lda #$00               ;restore error
+f_dx1    sbc #$00               ;do that bresenhamthingy for xend, code will be setup for either flat or steep slope
+f_code   bcs +
+bcs_start
+         dex
+f_dx2    adc #$00
+         sta+1 f_err+1
+f_bnk2   lda to_index_col_b1,x  ;load index from $00..$20 depending on x -> x / 4 & $1e | bank_offset ($00|$20)
+         sta+1 f_jmp+1          ;save 1 cycle due to zeropage
+         jmp ++
+bcs_end
++
+         sta+1 f_err+1          ;save error
+++
+;-------------------------------------------------------------
+         lda xstart,y           ;load startx for loading maskl and A for upcoming dirty trick:
+         sta+1 f_msk+1          ;setup mask without tainting X
+         arr #$f8               ;-> carry is still set, and so is bit 7. This way we generate values from $c0 .. $fc, a range to which we adopt the memory layout of the row tables
+         sta+1 f_jmp+2          ;update byte of jump responsible to select all code-segments that start with xstart ;save 1 cycle due to zeropage
+f_msk    lda maskl              ;the next two instructions could be moved to speedcode, but would just make it bloated, however meshes that throw errors get a penalty from that as an undef case wastes more cycles that way.
+!ifdef MULTI_PATTERN {
+f_patt   and patt_0,y           ;fetch pattern
+}
+f_jmp    jmp ($1000)            ;do it! \o/
+;-------------------------------------------------------------
+f_end
+         rts
+}
+fill_end
+
+;generate labels for combined chunks to reuse parts of the code
+!macro labels .addr, .num {
+!if (.addr = bank1) {
+!if (.num = 0) {
+s1_1_b1
+}
+!if (.num = 1) {
+s2_2_b1
+}
+!if (.num = 2) {
+s3_3_b1
+}
+!if (.num = 3) {
+s4_4_b1
+}
+!if (.num = 4) {
+s5_5_b1
+}
+!if (.num = 5) {
+s6_6_b1
+}
+!if (.num = 6) {
+s7_7_b1
+}
+!if (.num = 7) {
+s8_8_b1
+}
+!if (.num = 8) {
+s9_9_b1
+}
+!if (.num = 9) {
+sa_a_b1
+}
+!if (.num = 10) {
+sb_b_b1
+}
+!if (.num = 11) {
+sc_c_b1
+}
+!if (.num = 12) {
+sd_d_b1
+}
+!if (.num = 13) {
+se_e_b1
+}
+!if (.num = 14) {
+sf_f_b1
+}
+}
+!if (.addr = bank2) {
+!if (.num = 0) {
+s1_1_b2
+}
+!if (.num = 1) {
+s2_2_b2
+}
+!if (.num = 2) {
+s3_3_b2
+}
+!if (.num = 3) {
+s4_4_b2
+}
+!if (.num = 4) {
+s5_5_b2
+}
+!if (.num = 5) {
+s6_6_b2
+}
+!if (.num = 6) {
+s7_7_b2
+}
+!if (.num = 7) {
+s8_8_b2
+}
+!if (.num = 8) {
+s9_9_b2
+}
+!if (.num = 9) {
+sa_a_b2
+}
+!if (.num = 10) {
+sb_b_b2
+}
+!if (.num = 11) {
+sc_c_b2
+}
+!if (.num = 12) {
+sd_d_b2
+}
+!if (.num = 13) {
+se_e_b2
+}
+!if (.num = 14) {
+sf_f_b2
+}
+}
+}
+
+!macro comb .addr {
+         and maskr,x
+         ora .addr,y
+         sta .addr,y
+         jmp f_back
+}
+
+!macro norm .addr, .num {
+         ;left chunck
+         ora .addr,y
+         sta .addr,y
+
+!ifdef MULTI_PATTERN {
+         lda (patt),y ;refetch pattern, expensive, but at least less than sta patt, lda patt
+} else {
+         lda #$ff
+}
+!set .addr_ = .addr
+!for .x, .num {
+         !set .addr_ = .addr_ + $80
+         sta .addr_,y
+}
+         !set .addr_ = .addr_ + $80
+
+         ;right chunk
+         +labels .addr, .num
+         and maskr,x
+         ora .addr_,y
+         sta .addr_,y
+         jmp f_back
+}
+
+
+!ifdef MULTI_PATTERN {
+patt_ptr_hi
+         !byte >patt_0, >patt_1, >patt_2, >patt_3
+}
+
+;--------------------------
+;DRAWFACE
+;fill face with 3/4 vertices with pattern
+;--------------------------
+
+drawface
+         ;find lowest and highest y-position of rectangle. ATTENTION: This makes your head explode, actually it is the optimized case of a bubblesort of 4 values.
+         lda verticebuf_y+1       ;v1.y - v0.y
+         cmp verticebuf_y+0
+         bcs Ba
+;--------------------------
+;v0 > v1
+;--------------------------
+Ab
+         cpx verticebuf_y+2       ;v3.y - v2.y
+         bcs ADbc
+;--------------------------
+;v0 v2 > v1 v3
+;--------------------------
+ACbd
+         lda verticebuf_y+0       ;v0.y - v2.y
+         cmp verticebuf_y+2
+         bcs +
+         cpx verticebuf_y+1       ;v3.y - v1.y
+         bcc min3_max2
+min1_max2
+         jsr render_xstart_12
+         clc
+         jsr draw_face_seg_03+2   ;other segment below y_min
+         jsr draw_face_seg_10+2   ;other segment below y_min
+         jmp draw_face_seg_32     ;segment with y_min
++
+         cpx verticebuf_y+1       ;v3.y - v1.y
+         bcc min3_max0
+min1_max0
+         jsr render_xstart_12
+         jsr render_xstart_23
+         jsr render_xstart_30
+         clc
+         jmp draw_face_seg_10
+min1_max3
+         jsr render_xstart_12
+         jsr render_xstart_23
+         clc
+         jsr draw_face_seg_10+2
+         jmp draw_face_seg_03
+
+;--------------------------
+;v0 v3 > v1 v2
+;--------------------------
+ADbc
+         cpx verticebuf_y+0       ;v3.y - v0.y
+         bcc +
+         cmp verticebuf_y+2       ;v1.y - v2.y
+         bcc min1_max3
+min2_max3
+         jsr render_xstart_23
+         clc
+         jsr draw_face_seg_10+2
+         jsr draw_face_seg_21+2
+         jmp draw_face_seg_03
++
+         cmp verticebuf_y+2       ;v1.y - v2.y
+         bcc min1_max0
+min2_max0
+         jsr render_xstart_23
+         jsr render_xstart_30
+         clc
+         jsr draw_face_seg_21+2
+         jmp draw_face_seg_10
+min2_max1
+         jsr render_xstart_23
+         jsr render_xstart_30
+         jsr render_xstart_01
+         clc
+         jmp draw_face_seg_21
+;--------------------------
+;v1 > v0
+;--------------------------
+Ba
+         cpx verticebuf_y+2       ;v3.y - v2.y
+         bcs BDac
+;--------------------------
+;v1 v2 > v0 v3
+;--------------------------
+BCad
+         cmp verticebuf_y+2       ;v1.y - v2.y
+         bcs +
+         cpx verticebuf_y+0       ;v3.y - v0.y
+         bcs min0_max2
+min3_max2
+         jsr render_xstart_30
+         jsr render_xstart_01
+         jsr render_xstart_12
+         clc
+         jmp draw_face_seg_32
++
+         cpx verticebuf_y+0       ;v3-y - v0.y
+         bcs min0_max1
+min3_max1
+         jsr render_xstart_30
+         jsr render_xstart_01
+         clc
+         jsr draw_face_seg_32+2
+         jmp draw_face_seg_21
+min3_max0
+         jsr render_xstart_30
+         clc
+         jsr draw_face_seg_21+2
+         jsr draw_face_seg_32+2
+         jmp draw_face_seg_10
+
+;--------------------------
+;v1 v3 > v0 v2
+;--------------------------
+BDac
+         cpx verticebuf_y+1       ;v3.y - v1.y
+         bcc +
+         cmp verticebuf_y+2       ;v1.y - v2.y
+         bcs min2_max3
+min0_max3
+         jsr render_xstart_01
+         jsr render_xstart_12
+         jsr render_xstart_23
+         clc
+         jmp draw_face_seg_03
++
+         cmp verticebuf_y+2       ;v1.y - v2.y
+         bcs min2_max1
+min0_max1
+         jsr render_xstart_01
+         clc
+         jsr draw_face_seg_32+2
+         jsr draw_face_seg_03+2
+         jmp draw_face_seg_21
+min0_max2
+         jsr render_xstart_01
+         jsr render_xstart_12
+         clc
+         jsr draw_face_seg_03+2
+         jmp draw_face_seg_32
+
+;--------------------------
+;FILLER FUNCTIONS
+;
+;--------------------------
+
+;macro for setting up coordinates (x1)/x2/y1/y2
+!macro draw_face_seg .x, .y {
+         lda verticebuf_y + .y
+         ;carry is always clear
+         ;clc
+         ;calc dy
+         sbc verticebuf_y + .x
+         ;negative / zero?
+         bmi .zero
++
+         tay
+         iny
+
+         lda verticebuf_y + .x
+         ;setup y endval in filler
+         sta f_yend+1
+
+         ;calc dx
+         lax verticebuf_x + .y
+         ;sec
+         sbc verticebuf_x + .x
+         ;dx is negative?
+         bcs +
+
+         ;yes, do an abs(dx)
+         eor #$ff
+         adc #$01
+
+         sta f_dx1+1    ;needed to be able to compare A with Y
+         cpy f_dx1+1
+         bcs .x2_steep_
+.x2_flat_
+         ;setup err, dy, dx
+         sta f_dx2+1
+         sty+1 f_err+1
+         sty f_dx1+1
+
+         ;setup code for flat lines
+         lda #$e8 ;inx
+         sta f_code
+         lda #$b0
+         sta f_code+1
+         lda #$fb
+         sta f_code+2
+         ldy verticebuf_y + .y
+         jmp fill_code
+
+.x2_steep_
+         ;setup err, dy, dx
+         sty f_dx2+1
+         sta+1 f_err+1
+         ;sta f_dx1+1
+
+         lda #$b0
+         sta f_code
+         lda #bcs_end-bcs_start
+         sta f_code+1
+         lda #$e8 ;inx
+         sta f_code+2
+         ldy verticebuf_y + .y
+         jmp fill_code
+.zero
+         clc
+         rts
++
+         sta f_dx1+1
+         cpy f_dx1+1
+         bcs .x2_steep
+
+.x2_flat
+         ;setup err, dy, dx
+         sta f_dx2+1
+         sty+1 f_err+1
+         sty f_dx1+1
+
+         ;setup code for flat lines
+         lda #$ca ;dex
+         sta f_code
+         lda #$b0 ;bcs *-3
+         sta f_code+1
+         lda #$fb
+         sta f_code+2
+         ldy verticebuf_y + .y
+         jmp fill_code
+
+.x2_steep
+         ;setup err, dy, dx
+         sty f_dx2+1
+         sta+1 f_err+1
+         ;sta f_dx1+1
+
+         lda #$b0 ;bcs
+         sta f_code
+         lda #bcs_end-bcs_start
+         sta f_code+1
+         lda #$ca ;dex
+         sta f_code+2
+         ldy verticebuf_y + .y
+         jmp fill_code
+
+}
+
+;--------------------------
+;RENDER A FACE SEGMENT (Values for x1 are already calculated)
+;
+;--------------------------
+
+draw_face_seg_10
+outline6 lda #verticebuf_y+0
+         +draw_face_seg 1, 0
+draw_face_seg_21
+outline5 lda #verticebuf_y+1
+         +draw_face_seg 2, 1
+draw_face_seg_32
+outline4 lda #verticebuf_y+2
+         +draw_face_seg 3, 2
+draw_face_seg_03
+outline3 lda #verticebuf_y+3
+         +draw_face_seg 0, 3
+
+;--------------------------
+;RENDER LINE ON TARGET 1
+;
+;--------------------------
+
+;macro for setting up coordinates (x1)/x2/y1/y2
+!macro render_xstart .x, .y {
+         ;calc dy
+         lda verticebuf_y + .y
+         sec
+         ;subtract one too much to make test on <= 0
+         sbc verticebuf_y + .x
+         ;negative/zero?
+         bmi .zero
+         beq .zero
++
+         tay
+
+         ;calc dx and prepare xstart-value in X
+         lax verticebuf_x + .y
+         sbx #$80
+         sec                   ;meh, could be saved, but sbx taints carry
+         sbc verticebuf_x + .x
+         ;dx is negative?
+         bcs .dx_positive
+
+         ;yes, do an abs(dx)
+         eor #$ff
+         adc #$01
+
+         sta dx
+         ;choose direction dx>dy or dx<dy? y = dy
+         cpy dx
+         bcc .rxs_flat_i
+
+.xstart_i
+         ;now setup jump into code nicely and fast without all that jsr and rts-setting shits
+         sty dy
+         sty .jmp_i+1          ;set lowbyte of jump
+         asl .jmp_i+1          ;and shift left -> 128 different pointers selectable by that. ASL is expensive, but therefore doesn't clobber A
+
+         ldy verticebuf_y + .x ;y1 -> + dy (determinded by code entry position) -> we start to store @ y2
+
+         ;lda dx               ;already loaded
+!ifdef BY_2 {
+         lsr
+}
+         sec
+.jmp_i   jmp (cd_i)
+.zero
+         rts
+
+.dx_positive
+         sta dx
+         ;choose direction dx>dy or dx<dy? y = dy
+         cpy dx
+         bcc .rxs_flat_d
+
+.xstart_d
+         sty dy
+         sty .jmp_d+1
+         asl .jmp_d+1
+
+         ldy verticebuf_y + .x
+
+         ;lda dx               ;already loaded
+!ifdef BY_2 {
+         lsr
+}
+         sec
+.jmp_d   jmp (cd_d)
+
+;--------------------------
+;the flat slopes are done by conventional code
+;dx > dy x++ y--
+;--------------------------
+
+.rxs_flat_i
+         ;setup inx/dex, dy, dx
+         sty .rxsdy1+1
+         sta .rxsdx1+1
+
+         ;add y1 to stx xstart,y so we can count down by dy
+         lda verticebuf_y + .x
+         adc #xstart ;carry is clear
+         sta .rxsstx1+1
+
+         ;dy is counter
+         ;start with dy as err
+         tya
+!ifdef BY_2 {
+         lsr
+}
+         sec
+-
+         inx
+.rxsdy1  sbc #$00
+         bcs -
+.rxsdx1  adc #$00
+         dey
+         ;yay, zeropage, now we can store x directly!
+.rxsstx1 stx xstart,y
+         bne -
+         rts
+
+.rxs_flat_d
+         sty .rxsdy2+1
+         sta .rxsdx2+1
+
+         lda verticebuf_y + .x
+         adc #xstart
+         sta .rxsstx2+1
+
+         tya
+!ifdef BY_2 {
+         lsr
+}
+         sec
+-
+         dex
+.rxsdy2  sbc #$00
+         bcs -
+.rxsdx2  adc #$00
+         dey
+.rxsstx2 stx xstart,y
+         bne -
+         rts
+
+
+}
+
+render_xstart_01
+         +render_xstart 0, 1
+render_xstart_12
+         +render_xstart 1, 2
+render_xstart_23
+         +render_xstart 2, 3
+render_xstart_30
+         +render_xstart 3, 0
+
+calc_xstart1_d
+!for .x,128 {
+         sbc dx
+         bcs +
+         adc dy
+         dex
++
+         stx xstart+128-.x,y
+}
+         rts
+
+calc_xstart1_i
+!for .x,128 {
+         sbc dx             ;3
+         bcs +              ;3
+         adc dy             ;3
+         inx                ;2
++
+         stx xstart+128-.x,y;3
+}
+         rts
+
+start_clear
+;-----------------------------
+;/!\ ATTENTION: All stuff from here on will be overwritten upon codegen of clear
+;----------------------------
+
+;just there to be copied to their final destinations @$c000-$fc00
+targets
+         !word s0_0_b1, s0_1_b1, s0_2_b1, s0_3_b1, s0_4_b1, s0_5_b1, s0_6_b1, s0_7_b1, s0_8_b1, s0_9_b1, s0_a_b1, s0_b_b1, s0_c_b1, s0_d_b1, s0_e_b1, s0_f_b1
+         !word s0_0_b2, s0_1_b2, s0_2_b2, s0_3_b2, s0_4_b2, s0_5_b2, s0_6_b2, s0_7_b2, s0_8_b2, s0_9_b2, s0_a_b2, s0_b_b2, s0_c_b2, s0_d_b2, s0_e_b2, s0_f_b2
+         !word f_back , s1_1_b1, s1_2_b1, s1_3_b1, s1_4_b1, s1_5_b1, s1_6_b1, s1_7_b1, s1_8_b1, s1_9_b1, s1_a_b1, s1_b_b1, s1_c_b1, s1_d_b1, s1_e_b1, s1_f_b1
+         !word f_back , s1_1_b2, s1_2_b2, s1_3_b2, s1_4_b2, s1_5_b2, s1_6_b2, s1_7_b2, s1_8_b2, s1_9_b2, s1_a_b2, s1_b_b2, s1_c_b2, s1_d_b2, s1_e_b2, s1_f_b2
+         !word f_back , f_back , s2_2_b1, s2_3_b1, s2_4_b1, s2_5_b1, s2_6_b1, s2_7_b1, s2_8_b1, s2_9_b1, s2_a_b1, s2_b_b1, s2_c_b1, s2_d_b1, s2_e_b1, s2_f_b1
+         !word f_back , f_back , s2_2_b2, s2_3_b2, s2_4_b2, s2_5_b2, s2_6_b2, s2_7_b2, s2_8_b2, s2_9_b2, s2_a_b2, s2_b_b2, s2_c_b2, s2_d_b2, s2_e_b2, s2_f_b2
+         !word f_back , f_back , f_back , s3_3_b1, s3_4_b1, s3_5_b1, s3_6_b1, s3_7_b1, s3_8_b1, s3_9_b1, s3_a_b1, s3_b_b1, s3_c_b1, s3_d_b1, s3_e_b1, s3_f_b1
+         !word f_back , f_back , f_back , s3_3_b2, s3_4_b2, s3_5_b2, s3_6_b2, s3_7_b2, s3_8_b2, s3_9_b2, s3_a_b2, s3_b_b2, s3_c_b2, s3_d_b2, s3_e_b2, s3_f_b2
+         !word f_back , f_back , f_back , f_back , s4_4_b1, s4_5_b1, s4_6_b1, s4_7_b1, s4_8_b1, s4_9_b1, s4_a_b1, s4_b_b1, s4_c_b1, s4_d_b1, s4_e_b1, s4_f_b1
+         !word f_back , f_back , f_back , f_back , s4_4_b2, s4_5_b2, s4_6_b2, s4_7_b2, s4_8_b2, s4_9_b2, s4_a_b2, s4_b_b2, s4_c_b2, s4_d_b2, s4_e_b2, s4_f_b2
+         !word f_back , f_back , f_back , f_back , f_back , s5_5_b1, s5_6_b1, s5_7_b1, s5_8_b1, s5_9_b1, s5_a_b1, s5_b_b1, s5_c_b1, s5_d_b1, s5_e_b1, s5_f_b1
+         !word f_back , f_back , f_back , f_back , f_back , s5_5_b2, s5_6_b2, s5_7_b2, s5_8_b2, s5_9_b2, s5_a_b2, s5_b_b2, s5_c_b2, s5_d_b2, s5_e_b2, s5_f_b2
+         !word f_back , f_back , f_back , f_back , f_back , f_back , s6_6_b1, s6_7_b1, s6_8_b1, s6_9_b1, s6_a_b1, s6_b_b1, s6_c_b1, s6_d_b1, s6_e_b1, s6_f_b1
+         !word f_back , f_back , f_back , f_back , f_back , f_back , s6_6_b2, s6_7_b2, s6_8_b2, s6_9_b2, s6_a_b2, s6_b_b2, s6_c_b2, s6_d_b2, s6_e_b2, s6_f_b2
+         !word f_back , f_back , f_back , f_back , f_back , f_back , f_back , s7_7_b1, s7_8_b1, s7_9_b1, s7_a_b1, s7_b_b1, s7_c_b1, s7_d_b1, s7_e_b1, s7_f_b1
+         !word f_back , f_back , f_back , f_back , f_back , f_back , f_back , s7_7_b2, s7_8_b2, s7_9_b2, s7_a_b2, s7_b_b2, s7_c_b2, s7_d_b2, s7_e_b2, s7_f_b2
+         !word f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , s8_8_b1, s8_9_b1, s8_a_b1, s8_b_b1, s8_c_b1, s8_d_b1, s8_e_b1, s8_f_b1
+         !word f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , s8_8_b2, s8_9_b2, s8_a_b2, s8_b_b2, s8_c_b2, s8_d_b2, s8_e_b2, s8_f_b2
+         !word f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , s9_9_b1, s9_a_b1, s9_b_b1, s9_c_b1, s9_d_b1, s9_e_b1, s9_f_b1
+         !word f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , s9_9_b2, s9_a_b2, s9_b_b2, s9_c_b2, s9_d_b2, s9_e_b2, s9_f_b2
+         !word f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , sa_a_b1, sa_b_b1, sa_c_b1, sa_d_b1, sa_e_b1, sa_f_b1
+         !word f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , sa_a_b2, sa_b_b2, sa_c_b2, sa_d_b2, sa_e_b2, sa_f_b2
+         !word f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , sb_b_b1, sb_c_b1, sb_d_b1, sb_e_b1, sb_f_b1
+         !word f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , sb_b_b2, sb_c_b2, sb_d_b2, sb_e_b2, sb_f_b2
+         !word f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , sc_c_b1, sc_d_b1, sc_e_b1, sc_f_b1
+         !word f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , sc_c_b2, sc_d_b2, sc_e_b2, sc_f_b2
+         !word f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , sd_d_b1, sd_e_b1, sd_f_b1
+         !word f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , sd_d_b2, sd_e_b2, sd_f_b2
+         !word f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , se_e_b1, se_f_b1
+         !word f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , se_e_b2, se_f_b2
+         !word f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , sf_f_b1
+         !word f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , f_back , sf_f_b2
+
+;copy a lot of stuff to there needed location and setup the filler code
+setup_fill
+         ldx #$00
+-
+         lda part_6+$000,x
+         sta $d440,x
+         lda part_6+$100,x
+         sta $d540,x
+         lda part_6+$200,x
+         sta $d640,x
+         lda part_6+$300,x
+         sta $d740,x
+         lda part_7+$000,x
+         sta $d840,x
+         lda part_7+$100,x
+         sta $d940,x
+         lda part_7+$200,x
+         sta $da40,x
+         lda part_7+$300,x
+         sta $db40,x
+         lda part_8+$000,x
+         sta $dc40,x
+         lda part_8+$100,x
+         sta $dd40,x
+         lda part_8+$200,x
+         sta $de40,x
+         lda part_8+$300,x
+         sta $df40,x
+         lda part_9+$000,x
+         sta $e040,x
+         lda part_9+$100,x
+         sta $e140,x
+         lda part_9+$200,x
+         sta $e240,x
+         lda part_9+$300,x
+         sta $e340,x
+         lda part_10+$000,x
+         sta $e440,x
+         lda part_10+$100,x
+         sta $e540,x
+         lda part_10+$200,x
+         sta $e640,x
+         lda part_10+$300,x
+         sta $e740,x
+         dex
+         bne -
+
+-
+         lda part_1+$000,x
+         sta $c040,x
+         lda part_1+$100,x
+         sta $c140,x
+         lda part_1+$200,x
+         sta $c240,x
+         lda part_1+$300,x
+         sta $c340,x
+         lda part_2+$000,x
+         sta $c440,x
+         lda part_2+$100,x
+         sta $c540,x
+         lda part_2+$200,x
+         sta $c640,x
+         lda part_2+$300,x
+         sta $c740,x
+         lda part_3+$000,x
+         sta $c840,x
+         lda part_3+$100,x
+         sta $c940,x
+         lda part_3+$200,x
+         sta $ca40,x
+         lda part_3+$300,x
+         sta $cb40,x
+         lda part_4+$000,x
+         sta $cc40,x
+         lda part_4+$100,x
+         sta $cd40,x
+         lda part_4+$200,x
+         sta $ce40,x
+         lda part_4+$300,x
+         sta $cf40,x
+         lda part_5+$000,x
+         sta $d040,x
+         lda part_5+$100,x
+         sta $d140,x
+         lda part_5+$200,x
+         sta $d240,x
+         lda part_5+$300,x
+         sta $d340,x
+         dex
+         bne -
+
+         ldx #fill_end-fill_start
+-
+         lda fill_start,x
+         sta fill_code,x
+         dex
+         bpl -
+
+         ;generate mask tables
+         ldx #$00
+         txa
+-
+         ;generate masks
+         sta maskr,x        ;use offset of 1, as xend has that offset as well
+         eor #$ff
+         sta maskl+$80,x    ;add offset of +$80 as it is added to xstart later on as well
+         eor #$ff
+         sec
+         ror
+         cmp #$ff
+         bne +
+         lda #$00
++
+         inx
+         bpl -
+
+!ifdef MULTI_PATTERN {
+         ;generate full patterns
+         ldx #$00
+-
+         lda e_patt+0
+         sta patt_0+0,x
+         lda o_patt+0
+         sta patt_0+1,x
+         lda e_patt+1
+         sta patt_1+0,x
+         lda o_patt+1
+         sta patt_1+1,x
+         lda e_patt+2
+         sta patt_2+0,x
+         lda o_patt+2
+         sta patt_2+1,x
+         lda e_patt+3
+         sta patt_3+0,x
+         lda o_patt+3
+         sta patt_3+1,x
+         inx
+         inx
+         bpl -
+}
+
+         lda #$10
+         sta tmp1
+         lda #$00
+         tax
+--
+         ldy #$07
+-
+         sta to_index_col_b1,x
+         ora #$20
+         sta to_index_col_b2,x
+         and #$1f
+         inx
+         dey
+         bpl -
+         clc
+         adc #$02
+         dec tmp1
+         bne --
+
+         ;copy target pointers for speed_code segments to fit memory layout ($20 pointers each $400 bytes from $c000 on)
+         ldx #$3f
+-
+         lda targets+$000,x
+         sta tgt_dst+$0*tgt_size,x
+
+         lda targets+$040,x
+         sta tgt_dst+$1*tgt_size,x
+
+         lda targets+$080,x
+         sta tgt_dst+$2*tgt_size,x
+
+         lda targets+$0c0,x
+         sta tgt_dst+$3*tgt_size,x
+
+         lda targets+$100,x
+         sta tgt_dst+$4*tgt_size,x
+
+         lda targets+$140,x
+         sta tgt_dst+$5*tgt_size,x
+
+         lda targets+$180,x
+         sta tgt_dst+$6*tgt_size,x
+
+         lda targets+$1c0,x
+         sta tgt_dst+$7*tgt_size,x
+
+         lda targets+$200,x
+         sta tgt_dst+$8*tgt_size,x
+
+         lda targets+$240,x
+         sta tgt_dst+$9*tgt_size,x
+
+         lda targets+$280,x
+         sta tgt_dst+$a*tgt_size,x
+
+         lda targets+$2c0,x
+         sta tgt_dst+$b*tgt_size,x
+
+         lda targets+$300,x
+         sta tgt_dst+$c*tgt_size,x
+
+         lda targets+$340,x
+         sta tgt_dst+$d*tgt_size,x
+
+         lda targets+$380,x
+         sta tgt_dst+$e*tgt_size,x
+
+         lda targets+$3c0,x
+         sta tgt_dst+$f*tgt_size,x
+         dex
+         bpl -
+
+!ifdef MULTI_PATTERN {
+         lda #$80
+         sta patt
+}
+
+         ldx #$00
+-
+         lda cd_d_o,x
+         sta cd_d,x
+         lda cd_i_o,x
+         sta cd_i,x
+         dex
+         bne -
+
+         rts
+
+;pointers into slope-generation code
+cd_d_o
+!for .x,128 {
+         !word (128-.x+1) * 9 + calc_xstart1_d
+}
+cd_i_o
+!for .x,128 {
+         !word (128-.x+1) * 9 + calc_xstart1_i
+}
+
+;speedcode chunks that are jumped to from inner loop
+part_1
+!pseudopc $c040 {
+s0_0_b1
+         +comb bank1+$000
+s0_1_b1
+         +norm bank1+$000, 0
+s0_2_b1
+         +norm bank1+$000, 1
+s0_3_b1
+         +norm bank1+$000, 2
+s0_4_b1
+         +norm bank1+$000, 3
+s0_5_b1
+         +norm bank1+$000, 4
+s0_6_b1
+         +norm bank1+$000, 5
+s0_7_b1
+         +norm bank1+$000, 6
+s0_8_b1
+         +norm bank1+$000, 7
+s0_9_b1
+         +norm bank1+$000, 8
+s0_a_b1
+         +norm bank1+$000, 9
+s0_b_b1
+         +norm bank1+$000, 10
+s0_c_b1
+         +norm bank1+$000, 11
+s0_d_b1
+         +norm bank1+$000, 12
+s0_e_b1
+         +norm bank1+$000, 13
+s0_f_b1
+         +norm bank1+$000, 14
+
+s1_2_b1
+         +norm bank1+$080, 0
+s1_3_b1
+         +norm bank1+$080, 1
+s1_4_b1
+         +norm bank1+$080, 2
+s1_5_b1
+         +norm bank1+$080, 3
+s1_6_b1
+         +norm bank1+$080, 4
+s1_7_b1
+         +norm bank1+$080, 5
+s1_8_b1
+         +norm bank1+$080, 6
+s1_9_b1
+         +norm bank1+$080, 7
+s1_a_b1
+         +norm bank1+$080, 8
+}
+
+part_2
+!pseudopc $c440 {
+s1_b_b1
+         +norm bank1+$080, 9
+s1_c_b1
+         +norm bank1+$080, 10
+s1_d_b1
+         +norm bank1+$080, 11
+s1_e_b1
+         +norm bank1+$080, 12
+s1_f_b1
+         +norm bank1+$080, 13
+
+
+s2_3_b1
+         +norm bank1+$100, 0
+s2_4_b1
+         +norm bank1+$100, 1
+s2_5_b1
+         +norm bank1+$100, 2
+s2_6_b1
+         +norm bank1+$100, 3
+s2_7_b1
+         +norm bank1+$100, 4
+s2_8_b1
+         +norm bank1+$100, 5
+s2_9_b1
+         +norm bank1+$100, 6
+s2_a_b1
+         +norm bank1+$100, 7
+s2_b_b1
+         +norm bank1+$100, 8
+s2_c_b1
+         +norm bank1+$100, 9
+s2_d_b1
+         +norm bank1+$100, 10
+s2_e_b1
+         +norm bank1+$100, 11
+s2_f_b1
+         +norm bank1+$100, 12
+
+
+s3_4_b1
+         +norm bank1+$180, 0
+s3_5_b1
+         +norm bank1+$180, 1
+s3_6_b1
+         +norm bank1+$180, 2
+s3_7_b1
+         +norm bank1+$180, 3
+s3_8_b1
+         +norm bank1+$180, 4
+s3_9_b1
+         +norm bank1+$180, 5
+}
+
+part_3
+!pseudopc $c840 {
+s3_a_b1
+         +norm bank1+$180, 6
+s3_b_b1
+         +norm bank1+$180, 7
+s3_c_b1
+         +norm bank1+$180, 8
+s3_d_b1
+         +norm bank1+$180, 9
+s3_e_b1
+         +norm bank1+$180, 10
+s3_f_b1
+         +norm bank1+$180, 11
+
+
+s4_5_b1
+         +norm bank1+$200, 0
+s4_6_b1
+         +norm bank1+$200, 1
+s4_7_b1
+         +norm bank1+$200, 2
+s4_8_b1
+         +norm bank1+$200, 3
+s4_9_b1
+         +norm bank1+$200, 4
+s4_a_b1
+         +norm bank1+$200, 5
+s4_b_b1
+         +norm bank1+$200, 6
+s4_c_b1
+         +norm bank1+$200, 7
+s4_d_b1
+         +norm bank1+$200, 8
+s4_e_b1
+         +norm bank1+$200, 9
+s4_f_b1
+         +norm bank1+$200, 10
+
+
+s5_6_b1
+         +norm bank1+$280, 0
+s5_7_b1
+         +norm bank1+$280, 1
+s5_8_b1
+         +norm bank1+$280, 2
+s5_9_b1
+         +norm bank1+$280, 3
+s5_a_b1
+         +norm bank1+$280, 4
+s5_b_b1
+         +norm bank1+$280, 5
+s5_c_b1
+         +norm bank1+$280, 6
+s5_d_b1
+         +norm bank1+$280, 7
+s5_e_b1
+         +norm bank1+$280, 8
+}
+
+part_4
+!pseudopc $cc40 {
+s5_f_b1
+         +norm bank1+$280, 9
+
+
+s6_7_b1
+         +norm bank1+$300, 0
+s6_8_b1
+         +norm bank1+$300, 1
+s6_9_b1
+         +norm bank1+$300, 2
+s6_a_b1
+         +norm bank1+$300, 3
+s6_b_b1
+         +norm bank1+$300, 4
+s6_c_b1
+         +norm bank1+$300, 5
+s6_d_b1
+         +norm bank1+$300, 6
+s6_e_b1
+         +norm bank1+$300, 7
+s6_f_b1
+         +norm bank1+$300, 8
+
+
+s7_8_b1
+         +norm bank1+$380, 0
+s7_9_b1
+         +norm bank1+$380, 1
+s7_a_b1
+         +norm bank1+$380, 2
+s7_b_b1
+         +norm bank1+$380, 3
+s7_c_b1
+         +norm bank1+$380, 4
+s7_d_b1
+         +norm bank1+$380, 5
+s7_e_b1
+         +norm bank1+$380, 6
+s7_f_b1
+         +norm bank1+$380, 7
+
+
+s8_9_b1
+         +norm bank1+$400, 0
+s8_a_b1
+         +norm bank1+$400, 1
+s8_b_b1
+         +norm bank1+$400, 2
+s8_c_b1
+         +norm bank1+$400, 3
+s8_d_b1
+         +norm bank1+$400, 4
+s8_e_b1
+         +norm bank1+$400, 5
+s8_f_b1
+         +norm bank1+$400, 6
+
+s9_a_b1
+         +norm bank1+$480, 0
+s9_b_b1
+         +norm bank1+$480, 1
+s9_c_b1
+         +norm bank1+$480, 2
+s9_d_b1
+         +norm bank1+$480, 3
+s9_e_b1
+         +norm bank1+$480, 4
+s9_f_b1
+         +norm bank1+$480, 5
+}
+
+part_5
+!pseudopc $d040 {
+sa_b_b1
+         +norm bank1+$500, 0
+sa_c_b1
+         +norm bank1+$500, 1
+sa_d_b1
+         +norm bank1+$500, 2
+sa_e_b1
+         +norm bank1+$500, 3
+sa_f_b1
+         +norm bank1+$500, 4
+
+
+sb_c_b1
+         +norm bank1+$580, 0
+sb_d_b1
+         +norm bank1+$580, 1
+sb_e_b1
+         +norm bank1+$580, 2
+sb_f_b1
+         +norm bank1+$580, 3
+
+
+sc_d_b1
+         +norm bank1+$600, 0
+sc_e_b1
+         +norm bank1+$600, 1
+sc_f_b1
+         +norm bank1+$600, 2
+
+
+sd_e_b1
+         +norm bank1+$680, 0
+sd_f_b1
+         +norm bank1+$680, 1
+
+
+se_f_b1
+         +norm bank1+$700, 0
+}
+
+part_6
+!pseudopc $d440 {
+s0_0_b2
+         +comb bank2+$000
+s0_1_b2
+         +norm bank2+$000, 0
+s0_2_b2
+         +norm bank2+$000, 1
+s0_3_b2
+         +norm bank2+$000, 2
+s0_4_b2
+         +norm bank2+$000, 3
+s0_5_b2
+         +norm bank2+$000, 4
+s0_6_b2
+         +norm bank2+$000, 5
+s0_7_b2
+         +norm bank2+$000, 6
+s0_8_b2
+         +norm bank2+$000, 7
+s0_9_b2
+         +norm bank2+$000, 8
+s0_a_b2
+         +norm bank2+$000, 9
+s0_b_b2
+         +norm bank2+$000, 10
+s0_c_b2
+         +norm bank2+$000, 11
+s0_d_b2
+         +norm bank2+$000, 12
+s0_e_b2
+         +norm bank2+$000, 13
+s0_f_b2
+         +norm bank2+$000, 14
+
+
+
+s1_2_b2
+         +norm bank2+$080, 0
+s1_3_b2
+         +norm bank2+$080, 1
+s1_4_b2
+         +norm bank2+$080, 2
+s1_5_b2
+         +norm bank2+$080, 3
+s1_6_b2
+         +norm bank2+$080, 4
+s1_7_b2
+         +norm bank2+$080, 5
+s1_8_b2
+         +norm bank2+$080, 6
+s1_9_b2
+         +norm bank2+$080, 7
+s1_a_b2
+         +norm bank2+$080, 8
+}
+
+part_7
+!pseudopc $d840 {
+s1_b_b2
+         +norm bank2+$080, 9
+s1_c_b2
+         +norm bank2+$080, 10
+s1_d_b2
+         +norm bank2+$080, 11
+s1_e_b2
+         +norm bank2+$080, 12
+s1_f_b2
+         +norm bank2+$080, 13
+
+
+
+s2_3_b2
+         +norm bank2+$100, 0
+s2_4_b2
+         +norm bank2+$100, 1
+s2_5_b2
+         +norm bank2+$100, 2
+s2_6_b2
+         +norm bank2+$100, 3
+s2_7_b2
+         +norm bank2+$100, 4
+s2_8_b2
+         +norm bank2+$100, 5
+s2_9_b2
+         +norm bank2+$100, 6
+s2_a_b2
+         +norm bank2+$100, 7
+s2_b_b2
+         +norm bank2+$100, 8
+s2_c_b2
+         +norm bank2+$100, 9
+s2_d_b2
+         +norm bank2+$100, 10
+s2_e_b2
+         +norm bank2+$100, 11
+s2_f_b2
+         +norm bank2+$100, 12
+
+
+
+s3_4_b2
+         +norm bank2+$180, 0
+s3_5_b2
+         +norm bank2+$180, 1
+s3_6_b2
+         +norm bank2+$180, 2
+s3_7_b2
+         +norm bank2+$180, 3
+s3_8_b2
+         +norm bank2+$180, 4
+s3_9_b2
+         +norm bank2+$180, 5
+}
+
+part_8
+!pseudopc $dc40 {
+s3_a_b2
+         +norm bank2+$180, 6
+s3_b_b2
+         +norm bank2+$180, 7
+s3_c_b2
+         +norm bank2+$180, 8
+s3_d_b2
+         +norm bank2+$180, 9
+s3_e_b2
+         +norm bank2+$180, 10
+s3_f_b2
+         +norm bank2+$180, 11
+
+
+
+s4_5_b2
+         +norm bank2+$200, 0
+s4_6_b2
+         +norm bank2+$200, 1
+s4_7_b2
+         +norm bank2+$200, 2
+s4_8_b2
+         +norm bank2+$200, 3
+s4_9_b2
+         +norm bank2+$200, 4
+s4_a_b2
+         +norm bank2+$200, 5
+s4_b_b2
+         +norm bank2+$200, 6
+s4_c_b2
+         +norm bank2+$200, 7
+s4_d_b2
+         +norm bank2+$200, 8
+s4_e_b2
+         +norm bank2+$200, 9
+s4_f_b2
+         +norm bank2+$200, 10
+
+
+
+s5_6_b2
+         +norm bank2+$280, 0
+s5_7_b2
+         +norm bank2+$280, 1
+s5_8_b2
+         +norm bank2+$280, 2
+s5_9_b2
+         +norm bank2+$280, 3
+s5_a_b2
+         +norm bank2+$280, 4
+s5_b_b2
+         +norm bank2+$280, 5
+s5_c_b2
+         +norm bank2+$280, 6
+s5_d_b2
+         +norm bank2+$280, 7
+s5_e_b2
+         +norm bank2+$280, 8
+}
+
+part_9
+!pseudopc $e040 {
+s5_f_b2
+         +norm bank2+$280, 9
+
+
+
+s6_7_b2
+         +norm bank2+$300, 0
+s6_8_b2
+         +norm bank2+$300, 1
+s6_9_b2
+         +norm bank2+$300, 2
+s6_a_b2
+         +norm bank2+$300, 3
+s6_b_b2
+         +norm bank2+$300, 4
+s6_c_b2
+         +norm bank2+$300, 5
+s6_d_b2
+         +norm bank2+$300, 6
+s6_e_b2
+         +norm bank2+$300, 7
+s6_f_b2
+         +norm bank2+$300, 8
+
+
+
+s7_8_b2
+         +norm bank2+$380, 0
+s7_9_b2
+         +norm bank2+$380, 1
+s7_a_b2
+         +norm bank2+$380, 2
+s7_b_b2
+         +norm bank2+$380, 3
+s7_c_b2
+         +norm bank2+$380, 4
+s7_d_b2
+         +norm bank2+$380, 5
+s7_e_b2
+         +norm bank2+$380, 6
+s7_f_b2
+         +norm bank2+$380, 7
+
+
+
+s8_9_b2
+         +norm bank2+$400, 0
+s8_a_b2
+         +norm bank2+$400, 1
+s8_b_b2
+         +norm bank2+$400, 2
+s8_c_b2
+         +norm bank2+$400, 3
+s8_d_b2
+         +norm bank2+$400, 4
+s8_e_b2
+         +norm bank2+$400, 5
+s8_f_b2
+         +norm bank2+$400, 6
+
+
+
+s9_a_b2
+         +norm bank2+$480, 0
+s9_b_b2
+         +norm bank2+$480, 1
+s9_c_b2
+         +norm bank2+$480, 2
+s9_d_b2
+         +norm bank2+$480, 3
+s9_e_b2
+         +norm bank2+$480, 4
+s9_f_b2
+         +norm bank2+$480, 5
+}
+
+part_10
+!pseudopc $e440 {
+sa_b_b2
+         +norm bank2+$500, 0
+sa_c_b2
+         +norm bank2+$500, 1
+sa_d_b2
+         +norm bank2+$500, 2
+sa_e_b2
+         +norm bank2+$500, 3
+sa_f_b2
+         +norm bank2+$500, 4
+
+
+
+sb_c_b2
+         +norm bank2+$580, 0
+sb_d_b2
+         +norm bank2+$580, 1
+sb_e_b2
+         +norm bank2+$580, 2
+sb_f_b2
+         +norm bank2+$580, 3
+
+
+
+sc_d_b2
+         +norm bank2+$600, 0
+sc_e_b2
+         +norm bank2+$600, 1
+sc_f_b2
+         +norm bank2+$600, 2
+
+
+
+sd_e_b2
+         +norm bank2+$680, 0
+sd_f_b2
+         +norm bank2+$680, 1
+
+
+
+se_f_b2
+         +norm bank2+$700, 0
+}
+</code>
+
+===== Alternatives =====
+
+The filler could also be done charbased. Means, for every empty 8x8 block that you draw into, you start a new char in the charset (or modify the existing if it is not empty), and then place the corresponding char on the screen. That is done for the outlining start/ending chunks. The inside is then filled with a single char that represents the filling pattern in 8x8 size. For that, only the screen needs to be touched. Besides a maybe faster filling, this would also save the overhead of clearing the charset, as it is just overwritten as far as it is used in the next turn. Only the 16x16 area on the screen itself needs to be cleared/set to an empty char. However, due to its complexity, i didn't give this a try so far.
+
+{{:base:filler.png?nolink&200 |}}
+
+===== Further Optimizations =====
+
+As can be seen, the outlines of each face are calculated per face, however the faces might share parts of their outline with other faces. Here we would calculate the outlines to target1/2 two times. When we want to avoid that, we have to throw over some parts of the described concept. 
+The faces need then to consist of 4 indexes to lines that build their outline, the line then consists of 2 indexes to the respective vertices (Remember, so far the faces just consist of 4 indexes to their respective vertices). That way we can render all the lines needed for the mesh first (and keep track of the already rendered lines with an extra table). Therefore we best use a block of $80 bytes (maximum length in y) in memory for each line and build a table of pointers, so that we can index to the right line-segment later on. It is also obvious that the nice zeropage-trick (stx target,y) won't work anymore when rendering the outlines. So we have a penalty of 6 cycles in the inner loop. That will waste 1/4 of our expected best case gain. The filling process then needs to be split up:
+  * load left line and right line from vertice with y_min on
+  * set up target1 and target2 in filler to point to the right line-segments by getting the pointers from our index-table.
+  * fill until either the end of y_left or y_right is reached
+  * repeat last 2 steps until y_max is reached
+So far i haven't implemented that case, as it is a lot of extra complexity to add. Also the gain can only be estimated, as for meshes that don't share any outlines among faces, this will even perform slower! But it should perform well for rather complex meshes.
+ 
+===== Fast Clearing =====
+
+The clearing of the working buffer can waste a lot of time. The first thought often is, to just call the same filler again with a zero pattern, so that only the drawn area is cleared again without any overhead. A silly idea that is :-) It is always faster to just brainlessly clear the whole buffer. Here optimizations are possible. Actually when just rotating some object it will only draw within the rotation radius of the object. So all we need to clear is this area within this radius. We can do this block-wise to save some memory and gain speed, but a speedcode-generator (no indexing, only a plain endless line of STAs) brings you the best results. In my example clearing the screen costs $57 rasterlines, pretty fair.
