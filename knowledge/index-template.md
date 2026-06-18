@@ -138,6 +138,13 @@ Gyoker: `knowledge/` (minden eleresi ut ehhez kepest relativ)
 - **Temak:** VIC-II reszletes technikai cikk, raster timing, sprite rendszer, video modok, szinkronizalas, Bad Lines, DMA
 - **Hasznald ha:** VIC-II mukodes online ellenorzese, raster/sprite/DMA kerdesek
 
+### 2.5 Exomizer — Tomorito Dokumentacio (Magnus Lind)
+- **Helyi notes:** `knowledge/sources/urls/exomizer.md`
+- **Temak:** Exomizer 1.1.5 parancsori hasznalat, zero page cimek ($A7/$AE-$AF/$FC-$FF), decruncher integralas, `exodecrunch.s` teljes ca65 forrasfajl, ExoBasic eszkoz, verziotortenet
+- **Online (v3):** https://bitbucket.org/magli143/exomizer/wiki/Home (JS-rendelt, kezzel kell megnyitni)
+- **GitHub (v1.1.5):** https://github.com/bitshifters/exomizer
+- **Hasznald ha:** Exomizer tomorites/dekruncholasi kerdesek, decruncher beagyas, ZP cimek, `$01` register beallitas dekruncsolas elott/utan
+
 ---
 
 ## 3. CODEBASE64 WIKI (660 fajl)
@@ -939,11 +946,13 @@ Gyoker: `knowledge/` (minden eleresi ut ehhez kepest relativ)
 4. `knowledge/sources/codebase64/pages/base__code_frame_for_16_kb_crt-images.txt`
 
 ### 4.18 Tomorites (Exomizer, LZW, RLE)
-1. `knowledge/sources/codebase64/pages/base__rle_pack_unpack.txt`
-2. `knowledge/sources/codebase64/pages/base__the_secret_of_fast_lzw_crunching.txt`
+1. `knowledge/sources/urls/exomizer.md` – **Exomizer 1.1.5 teljes dokumentacio + exodecrunch.s forras**
+2. `knowledge/sources/codebase64/pages/crossdev__exomizer_level_compress_decompression_for_beginners.txt` – kezdoknek szolo utmutato
 3. `knowledge/sources/codebase64/pages/base__exomizer_adding_decrunch_splash_screens_during_sfx_decrunch.txt`
-4. `knowledge/sources/codebase64/pages/crossdev__exomizer_level_compress_decompression_for_beginners.txt`
-5. `knowledge/sources/pdfs/c=hacking6.pdf` – LZW 6510-ben
+4. `knowledge/sources/codebase64/pages/base__exomizer_making_custom_oldschool_decrunch_effects.txt`
+5. `knowledge/sources/codebase64/pages/base__rle_pack_unpack.txt`
+6. `knowledge/sources/codebase64/pages/base__the_secret_of_fast_lzw_crunching.txt`
+7. `knowledge/sources/pdfs/c=hacking6.pdf` – LZW 6510-ben
 
 ### 4.19 Scrolling (1x1, 2x2, 4 iranyu)
 1. `knowledge/sources/codebase64/pages/base__1x1_scroll.txt`

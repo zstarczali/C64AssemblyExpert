@@ -27,3 +27,16 @@
   URL: https://www.cebix.net/VIC-Article.txt
   Temak: VIC-II, raster, spriteok, video-idozites, grafikai hardver
   Megjegyzes: reszletes technikai anyag a videochip mukodeserol
+
+## Tomorites
+
+- Exomizer 3 Wiki (Magnus Lind)
+  URL: https://bitbucket.org/magli143/exomizer/wiki/Home
+  Temak: Exomizer v3 teljes dokumentacioja, parancsori szintaxis, decruncher integralas
+  Megjegyzes: JavaScript-rendelt oldal, kozvetlenul nem fetchelheto — kezzel kell megnyitni
+  Helyi jegyzetek: knowledge/sources/urls/exomizer.md (v1.1.5 manual + decruncher forras)
+
+- Exomizer forras (bitshifters GitHub fork, v1.1.5)
+  URL: https://github.com/bitshifters/exomizer
+  Temak: exomizer 1.1.5 forrasfajlok, decruncher assembly (ca65), exobasic eszkoz
+  Megjegyzes: a helyi exomizer.md tartalmazza a kinyert dokumentaciot es a decruncher forraskodat
