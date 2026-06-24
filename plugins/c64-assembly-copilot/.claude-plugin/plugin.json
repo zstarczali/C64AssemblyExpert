@@ -1,0 +1,12 @@
+{
+  "name": "c64-assembly-copilot",
+  "description": "GitHub Copilot plugin for source-grounded Commodore 64 assembly help.",
+  "version": "0.2.0",
+  "author": {
+    "name": "rlung"
+  },
+  "license": "UNLICENSED",
+  "keywords": ["c64", "commodore-64", "6502", "6510", "assembly", "retro"],
+  "category": "developer-tools",
+  "skills": "skills/"
+}

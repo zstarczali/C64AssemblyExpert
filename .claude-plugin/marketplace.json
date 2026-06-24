@@ -1,0 +1,31 @@
+{
+  "name": "c64-assembly-expert",
+  "description": "Commodore 64 assembly expert plugins backed by local knowledge sources.",
+  "owner": {
+    "name": "rlung"
+  },
+  "plugins": [
+    {
+      "name": "c64-assembly-codex",
+      "source": "./plugins/c64-assembly-codex",
+      "description": "Source-grounded C64 assembly expert with skills for debugging, code generation, and reference lookups.",
+      "version": "0.2.0",
+      "author": {
+        "name": "rlung"
+      },
+      "category": "developer-tools",
+      "keywords": ["c64", "commodore-64", "6502", "6510", "assembly", "retro"]
+    },
+    {
+      "name": "c64-assembly-copilot",
+      "source": "./plugins/c64-assembly-copilot",
+      "description": "GitHub Copilot-compatible C64 assembly expert plugin.",
+      "version": "0.2.0",
+      "author": {
+        "name": "rlung"
+      },
+      "category": "developer-tools",
+      "keywords": ["c64", "commodore-64", "6502", "6510", "assembly", "retro"]
+    }
+  ]
+}
