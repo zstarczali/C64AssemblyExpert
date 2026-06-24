@@ -1,0 +1,19 @@
+# PAGE: projects:c64amp_-_music_player
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=projects:c64amp_-_music_player
+
+====== C64Amp - Music player ======
+
+New version is released with 11 musics!
+
+The musics were disassembled with my advanced dcc6502 program.
+Then they were relocated in the memory.
+Then crunched with ByteBoozer.
+So these 11 musics are only 100 blocks.
+
+Control it with joystick port 1.
+
+Developed in TMPx cross assembler
+
+{{:projects:c64amp.png|}}
+
+{{:projects:c64amp.zip|}}

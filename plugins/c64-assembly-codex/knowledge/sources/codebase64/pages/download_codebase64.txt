@@ -1,0 +1,9 @@
+# PAGE: download_codebase64
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=download_codebase64
+
+====== Download Codebase 64 ======
+
+If you want to be able to browse a HTML version of Codebase64 locally on your own computer, you can download it here as a zip archive. Start browing the archive using the file **start.html**. Enjoy!
+
+  * https://codebase64.net/codebase64_latest.zip (Created on 2026-05-05)
+

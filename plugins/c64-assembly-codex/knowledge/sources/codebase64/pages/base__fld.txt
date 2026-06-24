@@ -1,0 +1,70 @@
+# PAGE: base:fld
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:fld
+
+====== FLD - Flexible Line Distance ======
+
+FLD means the ability to move blocks of graphics vertically on the screen. More precisely FLD operates on char-lines (8 pixels high) as its smallest element. With FLD you can make gaps between char-lines, thus the graphics below the FLD will be pushed down on the screen.
+
+{{:base:fld.png?nolink|}}
+
+Here is a short piece of code that shows a very basic FLD-effect. FLD does not require exact timing and doesn't even have to be updated each rasterline (only every ~6:th rasterline is ok). FLD can even be done with periodic interrupts instead of looped code that just wastes all the precious rastertime. That exercise however, i leave to you..
+
+/HCL
+
+Binary: {{:base:fld.zip|}}
+
+<code>
+        sei
+loop1
+        bit $d011 ; Wait for new frame
+        bpl *-3
+        bit $d011
+        bmi *-3
+
+        lda #$1b ; Set y-scroll to normal position (because we do FLD later on..)
+        sta $d011
+
+        jsr CalcNumLines ; Call sinus substitute routine
+
+        lda #$40 ; Wait for position where we want FLD to start
+        cmp $d012
+        bne *-3
+
+        ldx NumFLDLines
+        beq loop1 ; Skip if we want 0 lines FLD
+loop2
+        lda $d012 ; Wait for beginning of next line
+        cmp $d012
+        beq *-3
+
+        clc ; Do one line of FLD
+        lda $d011
+        adc #1
+        and #7
+        ora #$18
+        sta $d011
+
+        dex ; Decrease counter
+        bne loop2 ; Branch if counter not 0
+
+        jmp loop1 ; Next frame
+
+CalcNumLines
+        lda #0
+        bpl *+4
+        eor #$ff
+        lsr
+        lsr
+        lsr
+        sta NumFLDLines
+        inc CalcNumLines+1
+        rts
+
+NumFLDLines
+        .byte 0
+
+</code>
+
+An example of [[https://github.com/martinpiper/C64Public/blob/master/Tusari2/FLDParalax/FLDParalax.a|FLD Parallax]] used in a game, this was reverse engineered from Tusari. Published in 1992 this was the first documented game to use FLD with parallax in vertical scrolling sections. The original game used mainline code without any IRQ/NMI action. The source was updated to use timed NMIs instead.
+[[https://github.com/martinpiper/C64Public/blob/master/Tusari2/FLDParalax/FLDParalax.prg|Link to prg]]
+[[https://www.youtube.com/watch?v=vpNisgA1yXQ|Link to video]]

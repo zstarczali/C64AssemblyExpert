@@ -1,0 +1,182 @@
+# PAGE: crossdev:tools_for_putting_files_into_a_.d64_image
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=crossdev:tools_for_putting_files_into_a_.d64_image
+
+====== Tools for putting files into a .d64 image ======
+
+By Frantic.
+
+When coding on a PC or Mac, you probably use some editor which is capable of executing other programs by pressing keys like CTRL+F1 and so on (after some configuration). Personally I use this to call [[base:cross_development_using_makefile|makefiles]], which in turn calls all the crunchers, assemblers and whatnot, but you could also call the programs directly from your editor.
+
+There are a few tools out there which allows you to put the files of your coding project onto a .d64 image, before transferring it to a C64 or executing it in an emulator.
+
+====== C1541 ======
+
+If you have VICE installed, then you already have this tool on your computer. It allows you to do various operations on .d64 images, such as creating them and writing files to them. You can do several operations in one single call to c1541, as seen in this example:
+
+<code>
+c1541 -format diskname,id d64 my_diskimage.d64 -attach my_diskimage.d64 -write my_program.prg myprog
+</code>
+
+This will create a new .d64 image and write the file "my_program.prg" onto the .d64 image with the name "myprog". The last parameter could be left out, and the file would be named "my_program.prg" on the disk image too. The available options for c1541 looks like this:
+
+<code>
+  @ [<command>]
+  ? [<command>]
+  attach <diskimage> [<unit>]
+  block <track> <sector> <disp> [<drive>]
+  copy <source1> [<source2> ... <sourceN>] <destination>
+  delete <file1> [<file2> ... <fileN>]
+  dir [<pattern>]
+  exit
+  extract [<unit>]
+  format <diskname,id> [<type> <imagename>] [<unit>]
+  geosread <source> [<destination>]
+  geoswrite <source>
+  help [<command>]
+  info [<unit>]
+  list [<pattern>]
+  name <diskname>[,<id>] <unit>
+  p00save <enable> [<unit>]
+  quit
+  read <source> [<destination>]
+  rename <oldname> <newname>
+  show [copying | warranty]
+  tape <t64name> [<file1> ... <fileN>]
+  unit <number>
+  unlynx <lynxname> [<unit>]
+  validate [<unit>]
+  write <source> [<destination>]
+  zcreate <d64name> <zipname> [<label,id>]
+</code>
+
+====== cc1541 ======
+
+c1541 works fine for most purposes, but some of the better coders around says it is buggy, and thus there is also [[https://csdb.dk/search/?seinsel=all&search=cc1541&Go.x=0&Go.y=0|cc1541]]. The tool is actively maintained, provides many options to control the file layout on the disk, and is currently the only tool to create disk images for Krill's incredibly fast [[https://csdb.dk/release/?id=214786|Transwarp loader]].
+
+====== mkd64 ======
+
+Another flexible alternative is [[http://zirias.github.io/c64_tool_mkd64/|mkd64]] which takes a modular approach to creating the disk files, so you don't have to follow the default 1541 format at all. In fact, creation of a directory and block allocation map ist taken care of by a loadable module named "cbmdos". It also includes all sorts of tricks and tweaks possible with the 1541 format as well as a module providing some pre-made "separator" directory entries using graphical characters. The help pages for mkd64 itself and the cbmdos module look like this:
+
+<code>
+mkd64 1.4b help
+
+mkd64 supports four types of options. Single options trigger some immediate
+action, see below. Global options affect the whole disk image generation,
+module options are passed just to the last loaded module and file options
+control single files written to the image.
+Global and module options must come before file options on the command line.
+
+Modules can provide their own global and file options, check their help
+messages (-h MODULE) for reference.
+
+SINGLE options (must be the only option to mkd64):
+  -h [MODULE]    Show this help message or, if given, the help message for
+                 the module {MODULE}, and exit.
+  -V [MODULE]    Show version info and exit. If {MODULE} is given, version
+                 info for that module is shown instead.
+  -C OPTFILE     Read options from file {OPTFILE} instead of the command
+                 line. The file has the same format as the normal command
+                 line and the following rules:
+                 - Strings containing whitespace are escaped using quotes
+                   or doublequotes (' or ")
+                 - The backslash (\) has no special meaning at all
+                 - Newlines are just normal whitspace and thus ignored
+  -M             Display all available modules and exit.
+
+GLOBAL options:
+  -m MODULE      Activate module {MODULE}. Modules are searched for in the
+                 directory of the mkd64 executable for a portable build of
+                 mkd64, or in the dedicated module directory (typically
+                 /usr/lib/mkd64) for an installable build. Any options
+                 following -m are treated as module options to this module,
+                 as long as there is no other -m option or a -g option to
+                 get back to global scope or a -f option to switch to file
+                 scope.
+  -o D64FILE     Write generated disk image to {D64FILE}. This option must
+                 be given to actually write something.
+  -M MAPFILE     Write file map of the generated disk image to MAPFILE. The
+                 map file format is one line per file on disk:
+                 [startTrack];[startSector];[filename]
+  -P [MAXPASSES] Allow up to {MAXPASSES} passes, automatically applying
+                 options suggested by modules. The default is only one pass
+                 if this option is not given or up to 5 passes if it is
+                 given without an argument.
+
+MODULE options:
+  -g             Go back to global scope after loading a module.
+                 Please see the module documentation or help text
+                 (-h MODULE) for options available with specific modules.
+
+FILE options:
+  -f [FILENAME]  Start a new file. {FILENAME} is the name on your PC. It
+                 can be omitted for special emtpy files.
+  -t TRACK       Set fixed start track for current file.
+  -s SECTOR      Set fixed start sector for current file.
+  -i INTERLEAVE  Set sector interleave for current file.
+  -w             Write current file to disk image.
+
+Note that filesystem elements (like the original cbmdos directory and BAM)
+are implemented by modules. They can provide a sensible default value for
+sector interleave. A default allocation strategy is built in and determines
+start track and sector automatically if not given, modules can install their
+own strategy.
+</code>
+<code>
+mkd64 1.4b help
+
+* Module `cbmdos':
+
+cbmdos implements the default directory and BAM scheme of a 1541 floppy.
+Interleave is initially set to 10 for every file (cbmdos standard). The
+following options are recognized:
+
+  -d DISKNAME   The name of the disk, defaults to an empty name.
+  -i DISKID     The ID of the disk, defaults to two random characters.
+                this can be up to 5 characters long, in this case it will
+                overwrite the default `DOS type' string (`2A').
+  -R DIRBLOCKS  reserve {DIRBLOCKS} blocks for the directory. The default
+                value is 18, which is exactly the whole track #18.
+  -I INTERLV    Set the directory interleave to {INTERLV}. The default value
+                for directory interleave is 3.
+  -D DOSVER     Set the dos version byte to {DOSVER}, given in hexadecimal.
+                The default value is (hex) 41. this can be used for soft
+                write protection, the original floppy will refuse any write
+                attempts if this value is changed.
+  -A            Allocate all blocks in the BAM.
+  -0            Set available blocks to 0 in BAM, but still write flags for
+                individual sectors.
+
+* File options:
+
+  -n [FILENAME] Activates cbmdos directory entry for the current file. If
+                {FILENAME} is given, it is used for the cbmdos directory.
+  -T FILETYPE   One of `p', `s', `u', `r' or `d' (for PRG, SEQ, USR, REL or
+                DEL), defaults to PRG.
+  -P            Make the file write-protected.
+  -S BLOCKSIZE  Force the size written to the directory to be {BLOCKSIZE}.
+</code>
+
+Example usage from an own project:
+<code>
+	mkd64 -odisks/demo.d64 \
+          -mcbmdos -d'C=64 WORKBENCH' -i'AMIGA' -R1 -Da0 -0 \
+          -mseparators \
+          -fdemo_bootloader                    -proundtop        -S1      -w \
+	  -fdemo_kickstart  -n'DEMO: AMIGADOS' -pfr -t19 -s0 -TU -S0 -i15 -w \
+	  -fdemo_amigados                      -pfrmid       -TU -S0 -i15 -w \
+	  -fdemo_music      -n'RELEASE 1.09A4' -pfr          -TU -S0 -i15 -w \
+	  -f                -n'  2013/12/15  ' -pfr          -TD          -w \
+	  -f                -n'  BY ZIRIAS   ' -pfr          -TD          -w \
+	  -f                                   -proundbot    -TD          -w
+</code>
+For Linux/Windows binaries or Debian packages, check the [[https://github.com/Zirias/c64_tool_mkd64/tree/release|release branch]], folders "win32bin", "lin32bin", "deb32bin", "deb64bin".
+//[Section added by Felix Palmen (Zirias)]//
+
+====== k2xtools ======
+
+In the [[http://k2devel.sourceforge.net/download.html|k2xtools]] collection there are also two tools called "mkd64" (to create d64 images) and "copy2d64" (to copy files onto the d64 images). I don't have them installed on my computer at the moment, so I cannot provide a list of the available options, but at least I remember that these tools worked just fine when I used them a few years ago.
+
+====== VICE ======
+
+All versions of VICE allow to put a .prg file automatically onto a temporary .d64 file before execution. This may be handy if you are testing a program which only consists of one single .prg file, and no other loading of files from within your .prg is required.
+You may also want to check out "inject to ram" options to speed up development here.

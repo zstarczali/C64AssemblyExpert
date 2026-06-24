@@ -1,0 +1,13 @@
+# PAGE: base:references
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:references
+
+====== References ======
+
+<code>
+  C64 Memory Maps       C64 Programmer's Reference Guide, pp. 262-267
+                        C64 Schematic Diagram
+  6510 Block Diagram    C64 Programmer's Reference Guide,  p. 404
+  Instruction Set       C64 Programmer's Reference Guide, pp. 254-255, 416-417
+                        C64/128 Real Programmer's Revenge Guide
+                        C=Lehti magazine 4/87
+</code>

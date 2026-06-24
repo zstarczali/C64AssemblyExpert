@@ -1,0 +1,61 @@
+# PAGE: base:supercpu_xce
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:supercpu_xce
+
+====== XCE ======
+
+<code>
+    /*-------------------------------------------------------------------------
+    OP CODE: XCE (Exchange Carry and Emulation bits)
+    ================================================
+    
+    Addressing Modes:
+        Implied                            ($fb - 1 byte, 2 cycles)
+
+    Flags Affected:
+        e - Takes carry’s previous value: set if carry was set; else cleared.
+        c - Takes emulation’s previous value: set if previous mode was
+            emulation; else cleared.
+        m - m is a Native Mode (NM) flag only; switching to NM sets it to 1.
+        x - x is a native mode flag only; it becomes the b flag in emulation.
+        b - b is an emulation mode flag only; it is set to 1 to become the x
+            flag in native.
+
+    Description:
+        This instruction is the only means provided by the 65802 and 65816 to
+        shift between 6502 emulation mode and the full, sixteen-bit native
+        mode.
+
+        The emulation mode is used to provide hardware and software
+        compatibility between the 6502 and 65802/65816.
+
+        If the processor is in emulation mode, then to switch to native mode,
+        first clear the carry bit, then execute an XCE. Since it is an exchange
+        operation, the carry flag will reflect the previous state of the
+        emulation bit. Switching to native mode causes bit five to stop
+        functioning as the break flag, and function instead as the x mode
+        select flag. A second mode select flag, m, uses bit six, which was
+        unused in emulation mode. Both mode select flags are initially set to
+        one (eight-bit modes). There are also other differences described in
+        the text.
+
+        If the processor is in native mode, then to switch to emulation mode,
+        you first set the carry bit, then execute an XCE. Switching to
+        emulation mode causes the mode select flags (m and x) to be lost from
+        the status register, with x replaced by the b break flag. This forces
+        the accumulator to eight bits, but the high accumulator byte is
+        preserved in the hidden B accumulator. It also forces the index
+        registers to eight bits, causing the loss of values in their high
+        bytes, and the stack to page one, causing the loss of the high byte of
+        the previous stack address. There are also other differences described
+        in the text.
+
+    Notes:
+
+
+    -------------------------------------------------------------------------*/
+
+    .pseudocommand xce {
+        .byte $fb
+    }
+
+</code>

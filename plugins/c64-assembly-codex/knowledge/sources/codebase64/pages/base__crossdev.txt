@@ -1,0 +1,126 @@
+# PAGE: base:crossdev
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:crossdev
+
+====== Cross Development ======
+
+Use that PC for something good!
+
+===== Setting up a cross development environment ====
+  * [[crossdev:tools_for_putting_files_into_a_.d64_image|Tools for putting files into a .d64 image]] - by Frantic
+  * [[Makefile to use with ca65 & VICE]] - by Jupp3
+  * [[Cross Development using Makefile]] - A Tutorial explaining automated building of your c64 projects. - by Burglar
+
+===== Debugging =====
+
+  * [[Using the VICE monitor]] - by radiantx
+  * [[Using a running VICE session for development]] - by Compyx
+  * [[https://github.com/slajerek/RetroDebugger|Retro debugger (formerly C64 Debugger)]]
+  * [[https://github.com/Sakrac/IceBro|IceBro]]
+===== Crunching =====
+   * [[ :crossdev:exomizer_level_compress_decompression_for_beginners|Exomizer Level Compression/Decompression for beginners ]] - by Richard / TND
+   * [[Exomizer making custom oldschool decrunch effects]] - by StatMat and Richard/TND
+   * [[Exomizer adding decrunch splash screens during sfx decrunch]] = by Richard / TND
+
+===== Graphics conversion =====
+  * [[Sprite Converter]] - a simple tool (Python script) to convert images to fields of sprites
+  * [[Sprite data and KickAssembler]] - How to use KickAss to directly include sprites in .gif format
+
+===== Assemblers and Cross-dev systems =====
+This section contains information relating to specific assemblers of cross-dev systems.
+
+Also check the [[base:crossdev#syntax_highlighting|syntax highlighting section]] below which contains syntax highlighting files for various assemblers for various text editors.
+
+Also have a look at the [[:source_conversion|source code conversion]] page if you want to know how to convert your sources from turbo assembler (petscii) to ascii, and how to (re)indent code that is messy. Also note that there is a list of commonly used assemblers on the [[:tools:|Most used tools]] page.
+
+==== ACME ====
+  * [[base:ACME-Macro-tut|Small Tutorial on how to use Macros in ACME]] - by St0fF/Neoplasia^theObsessedManiacs
+  * [[https://sourceforge.net/projects/acme-crossass/|ACME website]]
+
+  * {{sourcecode:acme093exe2.zip|ACME win32 binary}} and {{sourcecode:acme093src2.zip|ACME source}} includes some tweaks I made from the base ACME 0.93 tree to add some development helpers when using the Microsoft Visual Studio IDE:
+    * Compiler fixes for Microsoft Visual Studio 6.0
+    * Added --msvc to output warnings/erros in the MS IDE format. Pressing F4 in the IDE will jump to the next warning/error.
+    * Added --vicelabeldump and the PO !svl to save referenced global labels in VICE monitor format. When loaded in the monitor these labels are displayed in the disassembly.
+    * Added the PO !sal to cause !sl and !svl to save all referenced labels including local labels. This is useful if separate zones have labels you want to know while debugging.
+  * [[base:syntax_highligthing_acme_vim|Syntax highlighting for ACME in vim]]
+
+
+==== ca65 ====
+ca65 is an assembler which is part of the cc65 suite of tools.
+
+    * [[Create labels on the fly using macros]] - by RadiantX (taken from CSDb)
+    * [[Populating several related arrays from a single macro]] - by Jupp3
+    * [[Safeguard against putting data in wrong segment]] - by Jupp3
+    * [[http://www.cc65.org/|ca65 website]]
+
+==== DreamAss ====
+DreamAss is perhaps the most turbo-assembler-alike assembler, expanded with macros.
+
+    * [[https://github.com/docbacardi/dreamass|DreamAss on github]]
+
+==== Kick Assembler ====
+
+    * [[Kick Assembler macros]] - by Various
+    * [[base:kick_assembler_tips_tricks|Kick Assembler tips & tricks]]
+    * [[http://www.theweb.dk/KickAssembler/|KickAssembler website]]
+    * [[http://redlumf.blogspot.com/2011/12/kickass-plugin-for-kate.html|KickAss plugin for Kate editor]]
+    * [[http://back2theretro.blogspot.com.au/|C64 Kickass IDE]] - Full IDE includes many tools
+    * Kick Assembler development with [[http://www.sublimetext.com/3|Sublime Text 3]]:
+      *  Sublime Package (Package control): [[https://sublime.wbond.net/packages/Kick%20Assembler%20(C64)|Kick Assembler (C64)]]
+      * [[https://goatpower.org/projects-releases/sublime-package-kick-assembler-c64/|Page]] with details on installation, features and tips
+    * [[http://goatpower.org/2013/09/11/c64-development-with-kick-assembler-using-notepad-windows/|Kick Assembler development with Notepad++]]
+    * [[http://kickassmemoryview.insoft.se|Noice Kick Assembler memory viewer]]
+    * [[https://marketplace.visualstudio.com/items?itemName=paulhocker.kick-assembler-vscode-ext|Kick Assembler Extension for Visual Studio Code]]
+==== PDS (Programmers Development System) ====
+
+  * [[base:pds|PDS]] - Info and resources related to PDS
+
+==== CBM .prg Studio ====
+
+    * [[http://www.ajordison.co.uk/index.html|CBM .prg Studio]] - ML and BASIC dev environment targetting most 8 bit machines (64/128/VIC20/16/Plus4/PET). Integrated assembler/debugger & sprite/char/screen designer (Windows)
+
+==== C64 Studio ====
+
+    * [[http://www.georg-rottensteiner.de/index.html|C64 Studio]] - Assembler and BASIC development tailored to game development. Contains sprite/char/graphic/screen/map editors, media managers, supports remote debugging via VICE.
+    * Supports CPU types 6502, 6510, 65C02, R65C02, W65C02, 65CE02, 4502, M65 (Mega65)
+    * Supports several assembler syntaxes (ACME foremost, DASM, PDS)
+    * [[https://www.georg-rottensteiner.de/c64/C64Studio/manual/main.html|Online manual]]
+    * Open Source (MIT license) [[https://github.com/GeorgRottensteiner/C64Studio]]
+==== xa65 ====
+
+    * [[http://www.floodgap.com/retrotech/xa/|The xa65 cross assembler]] is a small and simple cross assembler for Unix/Linux systems. It is available under GPLv2.
+
+
+===== Syntax Highlighting =====
+This section is for 6502/6510 assembler syntax highlighting files.
+
+  * {{:sourcecode:de.fh_zwickau.asmplugin_1.0.1a.zip|General ASM with additional 6502 instructions and KickAssember, Eclipse, multi-platform}} - Conjuror
+
+  * {{:base:6510-asm-crimson.zip|64tass, Crimson Editor, windows}} - by Hein
+  
+  * {{:base:acme-mode.el.zip|ACME, EMACS, multi-platform}} - By Abaddon/Fairlight (more info [[http://noname.c64.org/csdb/release/?id=93353&show=summary#summary|here]])
+  * {{:base:ultraedit_acme_wordfile.zip|ACME, UltraEdit, windows}} - by Fredrik Ramsberg
+  * {{:base:acme_vim.tar.gz|ACME, VIM, multi-platform}} - by Bitbreaker/Nuance^Metalvotze
+  * {{:tools:acme.xml.tar.gz|ACME, Katepart (any KDE Text-Editor, like Kate, KDevelop, KWrite can use this}} - by St0fF/Neoplasia^theObsessedManiacs
+  * [[http://www.csdb.dk/release/?id=126930|ACME Assembler, Sublime Text 3, multi-platform]] - by Fix/Onslaught
+  * [[base:acme_notepadplusplus_syntax|base:acme_notepadplusplus_syntax]] — by Strykker
+
+  * {{:base:6502_assembler.tmbundle.zip|ca65, 6502 bundle for TextMate, mac}} - by MagerValp
+
+  * {{:base:dreamass.xml.zip|DreamAss 6502 highlighting file for "Kate" (from KDE), Linux}} - by DocBacardi and Count Zero
+  * {{:base:dreamass_sublime_2_3_highlightlings_2014-01-21.zip|DreamAss 6502 highlighting config for "Sublime Text 2 and 3", Linux only}} with Makefile project - by Count Zero
+
+  * {{:sourcecode:kickass_6502.zip|KickAssembler, UltraEdit, windows}} - by PMC
+  * [[http://noname.c64.org/csdb/release/?id=90437|Visual Studio 6502 Language Extension, windows]] - by Pantaloon/FLT
+  * [[http://k2.untergrund.net/k2asm/k2src.lang|Language definition for 6502 asm (k2asm), gedit]] - by yago/K2
+  * {{:tools:kickassembler.xml.zip|KickAssembler, Notepad++, Windows}} - by Skid Row
+  * [[http://www.vim.org/scripts/script.php?script_id=4121|KickAssembler, Vim, multi-platform]] - by gryf/Elysium
+  * [[https://goatpower.org/projects-releases/sublime-package-kick-assembler-c64/|Kick Assembler, Sublime Text 3, multi-platform]] - by Swoffa/Noice
+  * [[https://github.com/ProbablyNotArtyom/language-6502-kickass|Kick Assembler, Atom, multi-platform]] - by NotArtyom
+  * [[https://csdb.dk/release/index.php?id=209831|ca65, ld65, acme and Jamfiles, jEdit, multi-platform]] - by Claus
+
+
+===== Ways to transfer your code to C64 =====
+  * [[http://www.oxyron.de/html/freplay.html|Final replay and Codenet]] - by Graham/Oxyron. Requires a cartridge with RR-net.
+  * [[http://hitmen.c02.at/html/tools_rr.html|RR.exe]] - by Groepaz/Hitmen. Requires a Retro Replay cartdrige with SilverSurfer.
+  * [[http://commodoreserver.com]]  --  Allows accessing .d64 images (you can upload to the site) from a real C64 via virtual drive software.  Currently supports Comet64 internet modem, but RR-net/64nic versions are being developted.
+  * [[http://noname.c64.org/csdb/release/?id=100099|64net NG]] - by Bitbreaker/Nuance^Metalvotze

@@ -1,0 +1,166 @@
+# PAGE: base:ranged_random_numbers_with_even_distribution
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:ranged_random_numbers_with_even_distribution
+
+====== Ranged Random Numbers with Even Distribution ======
+
+(Well, "amortized" even distribution, but keep reading...)
+
+Normally with a random number generator you get an 8-bit value
+((I'm ignoring 16-bit or higher RNGs here)).
+This gives you a random number with a range of 256 possible values,
+from 0 to 255.  But what if you want a smaller range?
+
+For ranges that are a power of two (2, 4, 8, 16, 32, 64, 128) this
+is easy.  You can trim the value; just use some of the bits and throw
+out the rest by ANDing w/ zeros.
+
+But what about other ranges that don't fit neatly into this list?
+What if you want a range of 25 values, 0 through 24, for randomly picking
+a screen row for example?
+
+Well one stupid thing you could do is keep calling the RNG until you
+get a value within your range.  This gets (slightly) less stupid if you
+trim the value to the nearest higher power-of-two as described above.
+But still stupid; how many calls with it take each time you need a number?
+Who knows?
+
+What if instead, every time you get a value outside of your range you
+subtract a constant number to bring the value into your range.  This works
+but then some of the random values have double the probability of showing
+up than the others.  This is a lot of bias and will definitly bite you.
+
+Finally, what if instead you subtracted a DIFFERENT number each time
+to bring the outside numbers into your range?  Each call to the RNG
+is biased, but if the bias is moved around enough to evenly distribute
+it throughout your range, over time the random numbers will be evenly
+distributed.
+
+I'm calling this an "amortized" even distribution.
+
+===== Code Example =====
+
+Here's a code example with a range of 25 (generates a value from 0 to
+24); just 18 bytes plus the base RNG. (See the commented macro code below
+for a detailed explanation.)
+
+<code 6502acme>
+        jsr random
+        and #%00011111
+        cmp #25
+        bcc return
+        sbc #25
+    mod_offset = *+1
+        sbc #00
+        bcs +
+        adc #25
+    +   sta mod_offset
+    return:
+        rts
+</code>
+
+===== Demonstration =====
+
+Here's a demo of it in action to show how evenly distributed the numbers
+are.  It uses 3 separate copies of the code to generate numbers in 3
+different ranges, then plots pixels on a hi-res screen:
+
+{{ :base:rand-range-kruthers.zip |rand-range-kruthers.zip}}
+
+It uses a 64tass macro to build the RNGs and calls the macro like this:
+
+<code>
+rand25 #randrange 25, 2021
+rand40 #randrange 40, $d00d
+rand64 #randrange 64, $c64
+</code>
+
+The first argument is the range and the second is an optional 16-bit seed.
+
+===== Macro =====
+
+And finally here's the 64tass macro that can setup an RNG for any
+8-bit range:
+
+<code 6502acme>
+; Ranged Random Number Generator with (amortized) even distribution
+; by Kruthers
+;
+; get random number from XABC, remove bits to get next highest power-of-2,
+; then distribute random values throughout range
+; does not touch X or Y registers
+randrange .macro range, seed=$1100
+    .cerror (\range < 2 || \range > 256), "Range must be from 2 to 256"
+    .cerror (\seed < 0 || \seed > 65535), "Seed must be 16-bit value"
+
+        ; XABC random number generator
+        ; credit to Wil, who gives credit to EternityForest
+        ; https://codebase64.net/doku.php?id=base:x_abc_random_number_generator_8_16_bit
+        inc x1
+        clc
+    x1 = *+1
+        lda #<\seed     ; x1
+    c1 = *+1
+        eor #$c2        ; c1
+    a1 = *+1
+        eor #>\seed     ; a1 (orig $11)
+        sta a1
+    b1 = *+1            ; b1
+        adc #$37
+        sta b1
+        lsr
+        eor a1
+        adc c1
+        sta c1
+
+        ; determine nearest power-of-2 equal or greater than range
+        .for pow2 in 2, 4, 8, 16, 32, 64, 128, 256
+            .if pow2 >= \range
+                .break
+            .endif
+        .endfor
+
+        ; truncate random value to our power-of-2-range
+        .if pow2 < 256
+            and #(pow2-1)
+        .endif
+
+        ; if the given range already is a power of 2, we're done
+        .if pow2 == \range
+            rts
+
+        ; otherwise we need to do more...
+        .else
+            ; if the random value is already within the desired range, we're done
+            cmp #\range
+            bcc return
+
+            ; otherwise, we need to move the value to within in our range
+            sbc #\range     ; carry already set
+
+            ; then offset it (negatively) so as to distribute excess throughout the range
+        mod_offset = *+1
+            sbc #00         ; carry set b/c previous sbc will not go negative
+            bcs update_offset
+
+            ; add range if we went below zero
+            adc #\range     ; carry already clear
+
+        update_offset:
+            sta mod_offset
+        return:
+            rts
+
+        .endif
+.endm
+</code>
+
+===== Note About The Underlying RNG =====
+
+Don't use an LFSR as the underlying random number generator.  They have
+some very obvious patterns in the returned numbers that get even worse
+when you trim off bits.  For example I always saw a long run of zeros
+when testing out one of them.
+
+Instead use something like [[6502_6510_maths:x_abc_random_number_generator_8_16_bit|Wil's XABC routine]] like I used above, it's
+excellent.
+

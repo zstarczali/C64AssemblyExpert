@@ -1,0 +1,38 @@
+# PAGE: vic:gfx_editors_and_converters
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=vic:gfx_editors_and_converters
+
+====== GFX Editors and Converters ======
+
+This article is about the various editors and converters floating around that graphicians have found useful (both native C64 as well as PC) and the formats they use. The page is sorted by format.
+
+====== Sprites ======
+
+  * [[base:sprite_converter]] - simple tool (Python script) to convert images to fields of sprites
+  * [[base:sprite_data_and_kickassembler]] - How to use KickAss to directly include sprites in .gif format
+
+====== Bitmap ======
+
+  * [[http://noname.c64.org/csdb/release/?id=30873|Face Painter 1.0]] by Faces
+  * [[http://noname.c64.org/csdb/release/?id=21555|Vidcom 64]] crack by Booze Design
+
+====== FLI based formats ======
+
+===== C64 Editors=====
+Links to some editors follows. Be sure to check if newer versions of these tools exist before downloading:
+
+  * [[http://noname.c64.org/csdb/release/?id=55304|Pixel Perfect]] IFLI editor by Clarence/Chorus
+  * [[http://noname.c64.org/csdb/release/index.php?id=55808|Flick0r v1.0]] by Bitbreaker/Nuance
+  * [[http://noname.c64.org/csdb/release/?id=17977|FunPaint 2.4 Pro]] IFLI editor
+  * [[http://noname.c64.org/csdb/release/?id=17290|GunPaint 1.1]] IFLI editor
+  * [[http://noname.c64.org/csdb/release/?id=12668|SHFLI-editor 1.0]] by Crossbow/Crest
+  * [[http://noname.c64.org/csdb/release/?id=12669|SHIFLI-editor 1.0]] by Crossbow/Crest
+  * [[http://noname.c64.org/csdb/release/?id=6686|SHFLI-XL 1.0]] by Crossbow/Crest
+  * [[http://noname.c64.org/csdb/release/?id=12670|UFLI-editor 1.0]] by Crossbow/Crest
+  * [[http://noname.c64.org/csdb/release/?id=22847|UIFLI-editor 1.0]] by Crossbow/Crest
+  * [[http://noname.c64.org/csdb/release/?id=35737|MUFLI-editor 1.0]] by Crossbow/Crest
+  * [[http://noname.c64.org/csdb/release/?id=95473|NUFLI editor v1.12]] by Crossbow/Crest (check for later versions..)
+
+Converters...
+
+===== PC =====
+  * See the [[:tools:|Most used tools]] page for info about this

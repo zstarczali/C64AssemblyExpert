@@ -1,0 +1,311 @@
+# PAGE: base:8bit_atan2_using_the_cordic_algorithm
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:8bit_atan2_using_the_cordic_algorithm
+
+====== 8bit_atan2_using_the_cordic_algorithm ======
+By Oswald
+
+64tass source below, it will calculate the angles for the default char screen and display them on it. it is possible to get more than 8 precise bit by increasing the angleslo/hi tables and running the loop as many times as many entries in the tables. 16 is too much, at that stage all bits are 0 in the angleslo/hi tables.
+
+explanation of the algorithm: [[https://www.eit.lth.se/fileadmin/eit/courses/eitf35/2017/CORDIC_For_Dummies.pdf]]
+
+this routine was used in this prod: [[https://www.pouet.net/prod.php?which=91340]] (a more size optimised version ofcourse)
+
+
+<code>
+loopcount	= $0f
+
+x	= $10
+
+y	= $12
+
+xxl	= $14
+xxh	= $15
+
+yyl	= $16
+yyh	= $17
+
+xxshiftl	= $18
+xxshifth	= $19
+
+yyshiftl	= $1a
+yyshifth	= $1b
+
+anglelo	= $1c
+anglehi	= $1d
+
+sanglelo	= $1e
+sanglehi	= $1f
+
+
+	*= $1000
+	
+	sei
+	
+	lda #20
+	sta 53272
+	lda #200
+	sta xxl
+	lda #100
+	sta yyl
+	lda #0
+	sta xxh
+	sta yyh
+	jsr cordic
+	inc $d020
+	;jmp *-3
+	
+	lda #0
+	sta x
+	sta y
+-	
+	lda x
+	sec
+	sbc #20
+	sta xxh
+	lda #0
+	sbc #$01
+	sta xxl
+
+	
+	lda y
+	sec
+	sbc #12
+	sta yyh
+	lda #0
+	sbc #$80
+	sta yyl
+
+	
+	lda y
+	asl
+	tay
+	lda mul40+0,y
+	clc
+	adc x
+	sta dst+1
+	lda mul40+1,y
+	adc #0
+	sta dst+2
+	
+	jsr cordic
+dst	sta $0400
+	
+	inc x
+	lda x
+	cmp #40
+	bne -
+	
+	lda #0
+	sta x
+	
+	inc y
+	lda y
+	cmp #25
+	bne -
+	
+	
+	jmp *
+	
+neg
+	lda xxh
+	bpl +
+	lda xxshiftl
+	eor #$ff
+	clc
+	adc #$01
+	sta xxshiftl
+	lda xxshifth
+	eor #$ff
+	adc #$00
+	sta xxshifth
++
+
+	lda yyh
+	bpl +
+	lda yyshiftl
+	eor #$ff
+	clc
+	adc #$01
+	sta yyshiftl
+	lda yyshifth
+	eor #$ff
+	adc #$00
+	sta yyshifth
++	rts	
+
+cordic	lda #0
+	sta loopcount
+	sta sanglelo
+	sta sanglehi
+
+	lda xxh
+	bpl notneg
+	
+	lda xxl
+	eor #$ff
+	clc
+	adc #$01
+	sta xxl
+	lda xxh
+	eor #$ff
+	adc #$00
+	sta xxh
+
+	lda yyl
+	eor #$ff
+	clc
+	adc #$01
+	sta yyl
+	lda yyh
+	eor #$ff
+	adc #$00
+	sta yyh
+	
+	lda #$80
+	sta sanglehi
+notneg	
+cordicloop		
+	lda xxl
+	sta xxshiftl
+	lda xxh
+	sta xxshifth
+
+	lda yyl
+	sta yyshiftl
+	lda yyh
+	sta yyshifth
+
+
+
+	
+	ldx loopcount	
+	beq noshift
+	
+
+	jsr neg	;if xxshifth (xxh) neg make pos
+-	
+	lda xxshifth
+	cmp #$80
+	ror xxshifth
+	ror xxshiftl
+	
+	lda yyshifth
+	cmp #$80
+	ror yyshifth
+	ror yyshiftl
+	dex
+	bne -
+
+	jsr neg	;iff xxshifth was neg make neg again
+	
+
+noshift	
+
+	lda yyh
+	bmi yisneg
+
+yispos	
+
+	;Xnew = X + (Y >> LoopNum) 
+	lda xxl
+	clc
+	adc yyshiftl
+	sta xxl
+
+	lda xxh
+	adc yyshifth
+	sta xxh
+	
+	; Ynew = Y - (X >> LoopNum) 
+	lda yyl
+	sec
+	sbc xxshiftl
+	sta yyl
+
+	lda yyh
+	sbc xxshifth
+	sta yyh
+
+
+	ldx loopcount
+	lda sanglelo
+	clc
+	adc angleslo,x
+	sta sanglelo
+	
+	lda sanglehi
+	adc angleshi,x
+	sta sanglehi
+	
+	jmp cordicloopend
+yisneg
+
+
+	; Xnew = X - (Y >> LoopNum) 
+	lda xxl
+	sec
+	sbc yyshiftl
+	sta xxl
+
+	lda xxh
+	sbc yyshifth
+	sta xxh
+	
+	; Ynew = Y + (X >> LoopNum) 
+
+	lda yyl
+	clc
+	adc xxshiftl
+	sta yyl
+
+	lda yyh
+	adc xxshifth
+	sta yyh
+
+	ldx loopcount
+	lda sanglelo
+	sec
+	sbc angleslo,x
+	sta sanglelo
+	lda sanglehi
+	sbc angleshi,x
+	sta sanglehi
+	
+	
+cordicloopend
+	
+	
+	inc loopcount
+	lda loopcount
+	cmp #8
+	beq cordicskip
+        jmp cordicloop
+cordicskip	
+	lda sanglehi
+	rts
+	
+	;360 = 2 * pi
+	;360 = 255
+	;(2*pi)/65536 = step
+	
+angleslo	.for ue=0,ue<8,ue=ue+1
+	;.warn tan(atan(1.0/(2**ue)))
+	
+	.byte <round(atan(1.0/(2**ue))/((2*pi)/65536))
+	;.warn ue
+	.next	
+	
+angleshi	.for ue=0,ue<8,ue=ue+1
+	;.warn tan(atan(1.0/(2**ue)))
+	
+	.byte >round(atan(1.0/(2**ue))/((2*pi)/65536))
+	;.warn ue
+	.next	
+
+
+mul40	.for ue=0,ue<25,ue=ue+1
+	
+	.word $0400+ue*40
+	.next
+
+</code>

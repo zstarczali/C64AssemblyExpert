@@ -1,0 +1,4 @@
+# PAGE: base:changing_registers
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:changing_registers
+
+(page removed, too inaccurate and incomplete)

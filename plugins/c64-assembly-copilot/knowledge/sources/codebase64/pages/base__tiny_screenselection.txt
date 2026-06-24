@@ -1,0 +1,154 @@
+# PAGE: base:tiny_screenselection
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:tiny_screenselection
+
+Source of a small tool that allows to edit several screens at basic-prompt.\\
+Tried to keep it small.\\
+load it, NEW and SYS 828\\
+F1/F7 select between 26 screens which are all stored in georam. (you start at screen 'C')\\
+F5/F3 are copy/paste for screen.\\
+Code in tapebuffer.\\
+Enjoy if you can :) /enthusi\\
+
+
+<code> 
+!to "geoutil"
+
+bankblk  = $dfff ;00-31($1f) / 16kb
+bankpag  = $dffe ;00-63      /256b
+bankadr  = $de00 ;-$deff
+srclo    = $ae
+srchi    = $af
+dir 	 = $fc
+blknow   = $fd
+pagnow   = $fb
+
+;---------------------------------------
+         *= $033c
+init
+         sei
+         lda #<irq
+         sta $0314
+         lda #>irq
+         sta $0315
+	 sta blknow	;thus we start at blk 3 :o) 2 bytes saved
+         cli
+         rts
+;---------------------------------------
+irq
+         sei 		; could be saved as well
+         lda #$fe
+         sta $dc00
+         lda $dc01
+         cmp #$ef
+         beq f1
+	 cmp #$f7
+         beq f7
+	 cmp #$df
+	 beq f3    ;fend ;= f3 = read + ea31
+	 cmp #$bf
+	 beq f5
+        
+irqend
+         jmp $ea31
+;---------------------------------------
+f3	 ;read from buffer
+
+	 lda blknow
+	 pha
+	 ldx #$1e
+	 stx blknow
+	 jsr read
+	 ;jmp ret
+	 
+ret	;from f3/f5 (moved it here, was a call first (saved 3 bytes))
+	 pla
+	 sta blknow
+	 jmp $ea31
+
+f5	 ;write to buffer
+         lda blknow
+	 pha
+	 ldx #$1e
+	 stx blknow
+	 jsr write
+	 jmp ret
+f1
+         jsr write
+         dec blknow
+         bne fend; f1b	//evil change now does a full write to inc blknow :)
+         ;inc blknow
+f1b
+         ;jmp fend
+f7
+         jsr write
+         ldx blknow
+         cpx #$1a
+         beq fend
+         inc blknow
+
+fend     jsr read
+	 jmp $ea31
+;---------------------------------------
+read     
+	 lsr dir
+	 ;dec dir
+         jsr trans
+	 ;here was a jsr initcurs - just moved the function in
+	 ;and saved a jsr XX + rts = 4 bytes
+initcurs
+	 ldy $d3	; current cur-row
+	 lda ($d1),y	; position
+	 and #$7f	; un-invert
+	 sta ($d1),y	; store again
+	 sta $ce	; store as char beneath cursor
+	 lsr $cf; = set to 0	= char not inverted atm
+
+         rts		; jump here would safe one byte
+;---------------------------------------
+write	
+         lda #$01	;cant inc - might occur twice
+         sta dir
+	 jsr initcurs
+         ;jsr trans	;just moved it here - yay! 4 bytes saved
+         ;rts
+;---------------------------------------
+trans
+         lda blknow   ;set actual block
+         sta bankblk
+	 sta $0427
+
+transi	 lda #$00     ;set src, grouped together
+         sta srclo
+         sta bankpag  ;init page
+         sta pagnow
+    
+	 tay	;instead of ldy #$00
+	
+	 lda #$04
+         sta srchi
+	 
+tran0    ;ldy #$00
+
+tran1    ldx dir
+         beq g2s
+
+s2g      lda (srclo),y ;screen->georam
+         sta bankadr,y
+         jmp next
+
+g2s      lda bankadr,y ;georam->screen
+         sta (srclo),y
+
+next     iny
+         bne tran1
+         inc srchi
+         lda srchi
+         cmp #$08
+         beq tranend
+         inc pagnow
+         ldx pagnow
+         stx bankpag	;beware! cant read bankpag (no inc, etc)
+         jmp tran1
+
+tranend  rts
+</code> 

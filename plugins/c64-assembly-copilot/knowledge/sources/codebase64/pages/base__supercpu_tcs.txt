@@ -1,0 +1,45 @@
+# PAGE: base:supercpu_tcs
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:supercpu_tcs
+
+====== TCS ======
+
+<code>
+    /*-------------------------------------------------------------------------
+    OP CODE: TCS (Transfer aCcumulator to Stack pointer)
+    ====================================================
+    
+    Addressing Modes:
+        Implied                            ($1b - 1 byte, 2 cycles)
+
+    Flags Affected:
+        N/A
+
+    Description:
+        Transfer the value in the accumulator to the stack pointer S. The
+        accumulator’s value is unchanged by the operation.
+
+        An alternate mnemonic is TAS (transfer the value in the A accumulator
+        to the stack pointer).
+
+        In TCS, the “C” is used to indicate that, in native mode, sixteen bits
+        are transferred regardless of the m flag. If the A accumulator is set
+        to just eight bits (because the m flag is set), then its value is
+        transferred to the low byte of the stack pointer and the value in the
+        hidden B accumulator is transferred to the high byte of the stack
+        pointer. In emulation mode, only the eight-bit A accumulator is
+        transferred, since the high stack pointer byte is forced to one (the
+        stack is confined to page one).
+
+        TCS, along with TXS, are the only two instructions for changing the
+        value in the stack pointer. The two are also the only two transfer
+        instructions not to alter the flags.
+
+    Notes:
+
+    -------------------------------------------------------------------------*/
+
+    .pseudocommand tcs {
+        .byte $1b
+    }
+
+</code>

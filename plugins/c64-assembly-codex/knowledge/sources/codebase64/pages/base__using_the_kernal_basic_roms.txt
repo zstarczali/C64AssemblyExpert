@@ -1,0 +1,33 @@
+# PAGE: base:using_the_kernal_basic_roms
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:using_the_kernal_basic_roms
+
+====== KERNAL and BASIC ROMs ======
+ 
+About using the "system" of the C64. This system is located in the Kernal ROM and the Basic ROM. 
+
+===== Memory configuration =====
+
+The KERNAL and BASIC ROMs (and the IO area, used to access the VIC and the SID) can be switched in and out, depending on whether you want to access the ROM chips, or the RAM "behind" the ROM chips. To see how to do this switching, consult the memory configuration section.
+
+  * [[base:memconfig|Memory configuration]]
+
+===== Reference material =====
+
+  * [[base:kernalreference|Kernal Reference]] - created by unknown
+  * [[Asm include file for BASIC routines]] - briefly documents each call - by White Flame
+
+===== File IO with the KERNAL =====
+
+More information on diskdrive/tape etc programming is available in the [[cia:io_programming|IO programming section]] of this site.
+
+  * [[DOS examples]] - a few sourcecodes on how to use DOS/KERNAL calls, by Graham
+
+===== KERNAL/BASIC tweaking =====
+
+  * [[base:basicwedge|Sample wedge - Adding four new BASIC commands]] - Scott Julian
+  * [[base:modify_keyboard_decoding|Modify keyboard decoding]] - Wil
+===== KERNAL/BASIC initialisation =====
+
+  * [[base:kernalbasicinit|Initialisation of Kernal/Basic]] - Graham
+  * [[base:runbasicprg|Running a Basic-program from Assembler]] - Graham
+  * [[base:runasmfrombasic|Running an Assembler program from BASIC using SYS]]

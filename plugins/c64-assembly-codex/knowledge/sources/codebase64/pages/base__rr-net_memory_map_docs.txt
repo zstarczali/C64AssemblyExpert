@@ -1,0 +1,103 @@
+# PAGE: base:rr-net_memory_map_docs
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:rr-net_memory_map_docs
+
+====== RR-net memory map & docs ======
+<code>
+This document is freely distributable as long as it is not changed, and one
+of the sources www.jschoenfeld.com, www.jschoenfeld.de, www.siliconsonic.com
+or www.ami.ga is mentioned. 
+
+last update:
+august 31st, 2003: initial release
+
+General
+-------
+RR-Net is a 10MBit networking card that is designed for the commodore C64,
+for use on the Retro Replay freezer cartridge. It'll also work on the Amiga
+with a clock-port, but it is not recommended: The card does not support IRQs,
+and it hardly fits mechanically. If you need network for your Amiga, use the
+X-Surf 2 board.
+
+Memory map
+----------
+The memory map depends on the place where RR-Net is connected. Although
+RR-Net is designed for the C64, here are also the offset addresses for the
+Amiga. Check the corresponding hardware documentations for the carrier cards
+to obtain the base addresses of the clockport.
+
+RR-Net is based on the Cirrus logic CS8900a (Crystal LAN). The chip is used
+in 8-bit mode, so the 8 registers of an NE2000 are spread over 16 registers
+in an 8-bit system. The 8-bit mode of the chip does not support IRQs (see
+Cirrus logic application note AN181).
+
+Do not forget to switch on the accessory connector of the Retro Replay by
+setting bit 0 in $de01. See Inside_Replay.txt for more information.
+
+C64 register    Amiga register  read/write      meaning
+none            $00/$04         read-only       interrupt status queue
+$de02/$de03     $08/$0c         read/write      PackatPage pointer
+$de04/$de05     $10/$14         read/write      PacketPage Data (Port 0)
+$de06/$de07     $18/$1c         read/write      PacketPage Data (Port 1)
+$de08/$de09     $20/$24         read/write      Receive/Transmit Data (Port 0)
+$de0a/$de0b     $28/$2c         read/write      Receive/Transmit Data (Port 1)
+$de0c/$de0d     $30/$34         write-only      TxCMD (Transmit Command)
+$de0e/$de0f     $38/$3c         write-only      TxLength (Transmit Length)
+
+Although the Amiga makes the interrupt status queue registers available, it
+does not have any effect. Even if you try to activate the chip's IRQ features,
+it will not have any effect. The IRQ line of the chip is not wired on RR-Net
+at all!
+If you compare this register map to the register map in AN181, you might
+notice that the first and the second half of the register set is swapped.
+This has been done, because the accessory connector of the Retro Replay does
+not provide the full range of registers available on the Amiga clockport. The
+first two bytes are control registers of the freezer cartridge, and this
+swapping moves the unnecessary register-pair (IRQ status queue) into the
+"invisible" area of the cartridge.
+
+Endianess
+---------
+Although the chip is used in 8-bit mode, you have to know the endianess,
+because each register pair forms a one 16-bit register. Ethernet is
+big-endian by default. The chip was designed as an ISA thing, so all
+registers appear as little endian. In other words: The lowbyte comes first,
+then the highbyte.
+
+MAC address
+-----------
+RR-Net does not have an EEprom to store the MAC address, so it should be
+stored somewhere else: The flash rom of Retro Replay, the disk of the
+Contiki operating system by Adam Dunkels (http://dunkels.com/adam/contiki/),
+or Kickflash OS4 for the Amiga. The Mac address is only needed when
+transmitting packets, so it's OK if it's loaded from mass storage media when
+loading/starting the driver. The Mac address is NOT needed when RR-Net is
+just connected to other networking equipment. The LINK led might already be
+on, but the MAC address is only needed when something is transmitted into the
+network.
+         
+More literature
+---------------
+Cirrus Logic Application note AN181: "Using the Crystal CS8900A in 8-bit
+mode" by James Ayres: http://www.cirrus.com/en/pubs/appNote/an181.pdf
+
+Crystal LAN CS8900A Ethernet Controller Technical Reference manual AN83:
+http://www.cirrus.com/en/pubs/appNote/An83-3.pdf
+
+The product data sheet for the CS8900A also contains software information,
+starting at chapter 4 (page 38):
+http://www.cirrus.com/en/pubs/proDatasheet/cs8900a-4.pdf
+
+Application note 194: "How to program the Hash filter in the CS8900A":
+http://www.cirrus.com/en/pubs/appNote/an194-1.pdf
+
+The FAQ about the chip: http://www.cirrus.com/en/pubs/appNote/an205-2.pdf
+
+Fine print
+----------
+RR-Net is not designed, authorized or warranted to be suitable for use in
+life-support devices or systems or other critical operations. Inclusion of
+the product in such applications is understood to be fully at the
+customer's risk.
+
+** EOF
+</code>

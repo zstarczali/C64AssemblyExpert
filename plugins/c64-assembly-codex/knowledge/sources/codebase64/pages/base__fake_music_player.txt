@@ -1,0 +1,243 @@
+# PAGE: base:fake_music_player
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:fake_music_player
+
+====== Fake Music Player ======
+
+By karoshier.
+
+===== The problem =====
+While coding a game, or a demo effect that eats up lots of raster time, the coder ought to consider also the music. And such music is likely not to be ready yet or simply the code is in a too early stage to start talking about the music which is going to fulfill the explosion of senses of the finished production. But we still want:
+
+  * our init and play calls already in place, to forget about them
+  * the memory space to be already allocated, to verify that code, graphics and music fit in the allotted space
+  * raster time to be randomly eaten, to verify that we still have enough left and our VIC sync routine works
+
+In the past I have always solved this problem quick and dirty by including some random tune in my code which
+would later get replaced by the real one. But the size taken by a random tune cannot be configured. Also, the amount of raster time used cannot be configured. And finding a ready-made tune in our archive, that loads at the bizarre address we want it to, requires some time which we would rather not invest. If we plan to have multiple tunes in the production, then we want to be able to test what happens when we change the tune. Finally, when the tune arrives, it has to merge in seamlessly and we need to remember removing all our debug code, like for example the always useful inc/dec $D020.
+
+===== The solution =====
+The solution listed below solves all the above problems, as it can be configured to fit our needs and reduces to almost zero the time we need to invest in messing with the music.
+The code basically configures the SID for total silence, but still turns the volume to its maximum so that the typical "click" that happens when the music init routine touches $D418 will be there.
+Voice 3 will have its oscillator running, but the voice itself will be silenced using the bit 3OFF in $D418.
+The waveform of this oscillator gets read from $D41B (OSC3/RANDOM) to generate a random delay in the play routine.
+Also, there are some other features that better emulate the presence of a real music player.
+
+===== How to configure the code =====
+There are some constants at the beginning which we can abuse to configure the fake player.
+  * ''**MUSIC_START_ADDRESS**'' should speak by itself. The fake player code will be allocated beginning from that point in memory. The code will also check that it is not overlapping something else and generate an error in such case to prevent a seemingly successfully assembled result.
+  * ''**MUSIC_NOT_AVAILABLE**'' indicates wether a real music is present or not. Setting this to "1" will assemble in the fake player routine. Any other value will just import the music binary in place of the fake player. Therefore you can keep the entire module in place and just change this constant to remove all debug code and features and seamlessly transition to the final tune.
+  * ''**MUSIC_FAKE_SHOW_RASTER**'' defines wether we want the fake player to automatically inc/dec $D020 for us. This is a feature that only gets compiled in when ''MUSIC_NOT_AVAILABLE = 1''.
+  * ''**MUSIC_FAKE_SIZE**'' defines the amount of space allotted to the music. The assembler will be forced to allocate that much space, even if the debug code is of course much smaller. The remaining space will be filled with zeroes, to allow any decent packer to save this space and make our loading times faster when debugging.
+  * ''**MUSIC_FAKE_MIN_EXEC_TIME**'' defines the minimum raster time that the fake player routine should eat.
+  * ''**MUSIC_FAKE_MAX_EXEC_TIME**'' defines the maximum raster time that the fake player routine should eat. These two values will not be obsessively precise as this is just a debug tool. Just choose conservative values based on experience.
+  * ''**MUSIC_FAKE_ZERO_PAGE_PTR**'' defines a location in zero page where the pointer of the music player will reside on the final build. This is simulated by writing random values there, so that if we inadvertently use that space in our code we'll get the same odd results as with real music. Remember that a pointer always takes two bytes.
+
+The code also defines two labels that can be used in our code: ''**MUSIC_INIT**'' and ''**MUSIC_PLAY**'', which point to the standard entry points which are located at the beginning of every music player.
+Different tunes are selectable, from 0 to 3. They behave slightly differently, by using different waveform settings for channel 3. This thing can be tweaked very easily by changing the values in the tables at the end of the code, where we also find the hard-coded filename of the music to load.
+
+===== The code =====
+<code>
+;*******************************************************************************
+;
+;                             Music binary wrapper
+;                            with fake debug player
+;                             by Karoshier / DaCapo
+;
+;This module has been designed to work with ACME, but there is nothing in it
+;which can't be adapted to other assemblers.
+;
+;This module imports a music using the !binary directive (see end of file).
+;It provides init and play addresses as labels for external code to more
+;comprehensively call those routines from the imported binary.
+;If you set to 1 the MUSIC_NOT_AVAILABLE label, then the assembler will not
+;attempt to load the music. The space that should be used by the music will be
+;instead used by a routine which fakes the presence of a music in several
+;respects.
+;- The initialization routine will silence the SID
+;- The module will allocate MUSIC_FAKE_SIZE space for itself, thereby posing
+;  size problems exactly the same way a music player would do
+;- The play routine will take a random amount of time to execute, between a
+;  programmable minimum and maximum limit expressed in raster lines
+;- A pointer in zero page will be used as a real player routine would do
+;
+;*******************************************************************************
+
+;***** Module configuration ****************************************************
+MUSIC_START_ADDRESS = $1800             ;Defines the address where the music binary has to load
+MUSIC_NOT_AVAILABLE = 1                 ;If set to 1, the fake routine will be used instead of loading the music binary
+MUSIC_FAKE_SHOW_RASTER = 1              ;If set to 1, $D020 will be changed to show the raster time taken by the fake player
+MUSIC_FAKE_SIZE = $1800                 ;Size you wish to allocate to the music
+MUSIC_FAKE_MIN_EXEC_TIME = $07          ;Minimum number of raster lines used by the playback routine
+MUSIC_FAKE_MAX_EXEC_TIME = $12          ;Maximum number of raster lines used by the playback routine
+MUSIC_FAKE_ZERO_PAGE_PTR = $FE          ;Location of the zero page pointer that this routine will mess up
+
+;***** Constants ***************************************************************
+;You are not supposed to need changing these constants
+MUSIC_FAKE_OSC_EXEC_TIME = MUSIC_FAKE_MAX_EXEC_TIME - MUSIC_FAKE_MIN_EXEC_TIME
+
+;***** Starting point management ***********************************************
+!if (*>=MUSIC_START_ADDRESS) {
+ !error "Other code or data overlaps the area where the music should go!"
+}
+
+MUSIC_INIT = MUSIC_START_ADDRESS        ;Defines a label for the music init address
+MUSIC_PLAY = MUSIC_INIT + 3             ;Defines a label for the music play address
+
+*=MUSIC_START_ADDRESS
+
+!if (MUSIC_NOT_AVAILABLE=1) {
+;***** Fake music player *******************************************************
+  jmp MUSIC_FAKE_INIT                   ;Just like a real music player, there's a jump table here
+  jmp MUSIC_FAKE_PLAY
+;----- Initialization routine --------------------------------------------------
+;Initializes the fake player for operation. This routine only touches SID
+;registers like a real music player would do.
+;
+;Parameters:
+; A = Tune number
+;Returns:
+;  <none>
+;Uses:
+;  A, X, Y
+MUSIC_FAKE_INIT:
+  and #$03                              ;Ensure our "song number" does not point out of the table
+  tax                                   ;Use the song number as index
+  lda #$8F                              ;Set volume to maximum but silence voice 3
+  sta $D418
+  lda #$00                              ;Shut up the sid
+  sta $D415                             ;Kill resonance and filter settings
+  sta $D416
+  sta $D417
+  ;Silence voices 1 and 2
+  ldy #$0D                              ;Clean registers from $D400 to $D40D, ...
+MUSIC_FAKE_INIT_LOOP:
+  sta $D400,y                           ;...that is, shut up voices 1 and 2
+  dey                                   ;Next register
+  bpl MUSIC_FAKE_INIT_LOOP              ;Done? No: loop
+  lda #$08                              ;Reset oscillators 1 and 2
+  sta $D404
+  sta $D40B
+  lda #$00                              ;Remove oscillator reset condition
+  sta $D404
+  sta $D40B
+  ;Now setup voice 3
+  lda FREQ_TABLE_LO,x                   ;Copy low byte of frequency from our table
+  sta $D40E
+  lda FREQ_TABLE_HI,x                   ;Copy high byte of frequency from our table
+  sta $D40F
+  lda PULS_TABLE_LO,x                   ;Copy low byte of pulse width from our table
+  sta $D410
+  lda PULS_TABLE_HI,x                   ;Copy high byte of pulse width from our table
+  sta $D411
+  lda #$00                              ;Clear ADSR as we don't need it
+  sta $D413
+  sta $D414
+  lda CTRL_TABLE,x                      ;Set control register according to our table
+  sta $D412
+  rts                                   ;Return to the caller
+
+;----- Playback routine --------------------------------------------------------
+;Acts like a real music player, taking a random time to execute, using all three
+;CPU registers and messing up two zero page locations. This routine reads the
+;value of OSC3 from $D41B to get some random numbers. Channel 3 has been
+;configured exactly for this purpose, but is kept silent because $D418 was
+;configured during init to silence voice 3. You can therefore freely use the
+;remainig two channels if ever needed.
+;
+;Parameters:
+;  <none>
+;Returns:
+;  <none>
+;Uses:
+;  A, X, Y
+MUSIC_FAKE_PLAY:
+!if (MUSIC_FAKE_SHOW_RASTER = 1) {
+  dec $D020
+}
+  lda $D41B                             ;Get random values to mess up the zero page pointer
+  sta MUSIC_FAKE_ZERO_PAGE_PTR+0
+  lda $D41B
+  sta MUSIC_FAKE_ZERO_PAGE_PTR+1
+  lda $D41B                             ;Get a random value defining how much time we should take to execute
+!if (MUSIC_FAKE_OSC_EXEC_TIME < $80) {
+  lsr                                   ;Divide by 2, because the desired value is less than 128
+}
+!if (MUSIC_FAKE_OSC_EXEC_TIME < $40) {
+  lsr                                   ;Divide by 2, because the desired value is less than 64
+}
+!if (MUSIC_FAKE_OSC_EXEC_TIME < $20) {
+  lsr                                   ;Divide by 2, because the desired value is less than 32
+}
+!if (MUSIC_FAKE_OSC_EXEC_TIME < $10) {
+  lsr                                   ;Divide by 2, because the desired value is less than 16
+}
+!if (MUSIC_FAKE_OSC_EXEC_TIME < $08) {
+  lsr                                   ;Divide by 2, because the desired value is less than 8
+}
+!if (MUSIC_FAKE_OSC_EXEC_TIME < $04) {
+  lsr                                   ;Divide by 2, because the desired value is less than 4
+}
+!if (MUSIC_FAKE_OSC_EXEC_TIME < $02) {
+  lsr                                   ;Divide by 2, because the desired value is less than 2
+}
+!if (MUSIC_FAKE_OSC_EXEC_TIME < $01) {
+  lsr                                   ;Divide by 2, because the desired value is less than 1
+}
+MUSIC_FAKE_ENSURE_FIT:
+  cmp #MUSIC_FAKE_OSC_EXEC_TIME         ;Check if the value obtained is as desired
+  beq MUSIC_FAKE_VALUE_OK               ;Equal to the maximum? Ok, found
+  bcc MUSIC_FAKE_VALUE_OK               ;Less than the maximum? Ok, found
+  sec                                   ;Subtract the maximum to probably find what we were looking for
+  sbc #MUSIC_FAKE_OSC_EXEC_TIME
+  jmp MUSIC_FAKE_ENSURE_FIT             ;Verify again
+MUSIC_FAKE_VALUE_OK:
+  clc                                   ;Add a base value of time that needs to elapse anyway
+  adc #MUSIC_FAKE_MIN_EXEC_TIME
+  tay                                   ;Use this value to count a certain number of raster lines
+  dey                                   ;One raster line has been already used by the above computation
+MUSIC_FAKE_COUNT_WAIT:
+  ldx #$0B                              ;2   Delay execution for for approximately 63 cycles (that is one raster line)
+MUSIC_FAKE_COUNT_LINE:
+  dex                                   ;2
+  bne MUSIC_FAKE_COUNT_LINE             ;2**
+  nop                                   ;2
+  dey                                   ;2   Next raster line
+  bne MUSIC_FAKE_COUNT_WAIT             ;2** Finished? No: loop
+!if (MUSIC_FAKE_SHOW_RASTER = 1) {
+  inc $D020
+}
+  rts                                   ;Return to the caller
+
+;----- Data tables -------------------------------------------------------------
+;These tables are there to allow the caller to choose more than one "tune".
+;Different tunes will behave differently regarding to how randomly they use their
+;raster time. Such "tunes" can be configured below.
+
+;Value that will go into the frequency register of voice 3
+FREQ_TABLE_LO:
+!byte $FF, $FF, $FF, $FF
+FREQ_TABLE_HI:
+!byte $0F, $0F, $0F, $0F
+
+;Value that will go into the pulse width register of voice 3
+;This only makes sense if the pulse wave is used
+PULS_TABLE_LO:
+!byte $00, $00, $00, $00
+PULS_TABLE_HI:
+!byte $00, $08, $00, $00
+
+;Value that will go into the control register
+CTRL_TABLE:
+!byte $81, $41, $21, $11
+
+;Let's use up the remaining space so that the assembler will still report crossing
+;segments if needed.
+!fill MUSIC_FAKE_SIZE-(*-MUSIC_START_ADDRESS),$00
+
+} else {
+  ;Music is available, therefore load it and we're done
+  ;If your music file is raw data, then you can import it with !binary <filename>
+  ;If your music file is a PRG file, then you can import it with !binary <filename>,,2 (see acme documentation)
+  !binary "music.bin"
+}
+</code>

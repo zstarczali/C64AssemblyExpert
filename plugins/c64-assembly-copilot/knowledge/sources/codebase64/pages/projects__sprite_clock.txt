@@ -1,0 +1,303 @@
+# PAGE: projects:sprite_clock
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=projects:sprite_clock
+
+====== Sprite Clock ======
+
+Download: {{:projects:spriteclock.zip|}}
+
+Simple IRQ clock for C64 that uses sprite objects for presentation.
+
+<code>
+;SPRITE IRQ CLOCK (C) M.K. HOMEBREW COMPUTERS INC.
+; Code below compiles with CC65 assembler:
+; cl65 --verbose --listing spriteclock.asm
+; Use HEX editor to insert "00 C0" at the beginning
+; of the executable to be able to run it on C64 or
+; in emulator.
+; Usage:
+; LOAD"SPRITECLOCK",8,1
+; CLR:NEW
+; SYS49152,"HHMMSS"
+; Where:
+;     HH - hours, MM - minutes, SS - seconds
+; Turn clock off:
+; SYS49152
+; Clock works in IRQ interrupt. Presentation is made
+; with sprites (clock digits are mapped to sprite
+; objects and displayed on screen). It is possible
+; to use C64 while this clock works. Oddly enough,
+; this clock seems to be interfering with I/O while
+; running on real HW (unable to use disk drive or
+; tape, will hung) but works fine in emulator.
+; My C64 is the C (european) version (in C128 like
+; case), that I use in USA using voltage converter. 
+; If you find the bug, please let me know!
+; My contact: makarcz@yahoo.com
+
+VIC      = 53248 ;VIC Base
+WSKSP0   = 2040  ;PTR. SPRITE 0
+WSKSP1   = 2041  ;PTR. SPRITE 1
+WSKSP2   = 2042  ;PTR. SPRITE 2
+BLOK13   = 832   ;PTR. BEG. OF BLOCK 13
+BLOK14   = 896   ;PTR. BEG. OF BLOCK 14
+BLOK15   = 960   ;SEE ABOVE - BLOCK 15
+IRQWKT   = 788   ;IRQ VECT.
+POBZNA   = 121   ;READ CURR. BYTE
+PRZECT   = $AEFD ;CHECK COMMA
+ANAWYR   = 44446 ;PARSE EXPR.
+POBTXT   = 46978 ;GET STRING
+
+         .ORG $C000
+
+         JMP STEROW
+LICZNIK:  .BYTE 60                   ;COUNTER
+WZORCE:   .BYTE 2,3,5,9,5,9          ;TEMPLATES
+CZAS:     .BYTE 1,2,0,0,0,0          ;TIME
+LICZPOZ:  .BYTE 1                    ;POS. COUNTER
+CYF0:     .BYTE 0,252,204,204        ;DIGIT 0
+          .BYTE 204,204,204,252
+CYF1:     .BYTE 0,12,12,12           ;DIGIT 1
+          .BYTE 12,12,12,12
+CYF2:     .BYTE 0,252,12,12          ;DIGIT 2, etc...
+          .BYTE 252,192,192,252
+CYF3:     .BYTE 0,252,12,12
+          .BYTE 60,12,12,252
+CYF4:     .BYTE 0,204,204,204
+          .BYTE 252,12,12,12
+CYF5:     .BYTE 0,252,192,252
+          .BYTE 12,12,12,252
+CYF6:     .BYTE 0,252,192,192
+          .BYTE 252,204,204,252
+CYF7:     .BYTE 0,252,12,24
+          .BYTE 48,96,192,192
+CYF8:     .BYTE 0,252,204,204
+          .BYTE 252,204,204,252
+CYF9:     .BYTE 0,252,204,204
+          .BYTE 252,12,12,252
+DWUKR:    .BYTE 0,0,48,48            ;COLON
+          .BYTE 0,48,48,0
+COPY:    LDX #$00
+         LDY #$00
+LOOP1:   LDA CYF0,X
+BLKNR:   STA BLOK13,Y
+         CPX #7
+         BEQ POZ
+         INY
+         INY
+         INY
+         INX
+         JMP LOOP1
+POZ:     RTS
+IRQROM:  JMP $EA31
+MAIN:    DEC LICZNIK
+         BNE IRQROM
+         LDA #60
+         STA LICZNIK
+         LDA CZAS
+         LDX #3
+         CMP #2
+         BEQ NOC
+         LDX #9
+NOC:     STX WZORCE+1
+         LDX #5
+NXTCYF:  LDA CZAS,X
+         INC CZAS,X
+         CMP WZORCE,X
+         BNE KOP1
+         LDA #$00
+         STA CZAS,X
+         DEX
+         BPL NXTCYF
+KOP1:    LDA #$00
+         STA LICZPOZ
+         LDX #<CZAS
+         LDY #>CZAS
+         STX KOPIUJ+1
+         STY KOPIUJ+3
+         LDX #<BLOK13
+         LDY #>BLOK13
+         STX POS0B+1
+         STY POS0C+1
+KOPIUJ:  LDX #<CZAS
+         LDY #>CZAS
+         STX POS0+1
+         STY POS0+2
+POS0:    LDA CZAS
+         CMP #$00
+         BNE NIE00
+         LDX #<CYF0
+         LDY #>CYF0
+POS0A:   STX LOOP1+1
+         STY LOOP1+2
+POS0B:   LDX #<BLOK13
+POS0C:   LDY #>BLOK13
+         STX BLKNR+1
+         STY BLKNR+2
+         JSR COPY
+         JMP POS1
+NIE00:   CMP #$01
+         BNE NIE01
+         LDX #<CYF1
+         LDY #>CYF1
+         JMP POS0A
+NIE01:   CMP #$02
+         BNE NIE02
+         LDX #<CYF2
+         LDY #>CYF2
+         JMP POS0A
+NIE02:   CMP #$03
+         BNE NIE03
+         LDX #<CYF3
+         LDY #>CYF3
+         JMP POS0A
+NIE03:   CMP #$04
+         BNE NIE04
+         LDX #<CYF4
+         LDY #>CYF4
+         JMP POS0A
+NIE04:   CMP #$05
+         BNE NIE05
+         LDX #<CYF5
+         LDY #>CYF5
+         JMP POS0A
+NIE05:   CMP #$06
+         BNE NIE06
+         LDX #<CYF6
+         LDY #>CYF6
+         JMP POS0A
+NIE06:   CMP #$07
+         BNE NIE07
+         LDX #<CYF7
+         LDY #>CYF7
+         JMP POS0A
+NIE07:   CMP #$08
+         BNE NIE08
+         LDX #<CYF8
+         LDY #>CYF8
+         JMP POS0A
+NIE08:   LDX #<CYF9
+         LDY #>CYF9
+         JMP POS0A
+POS1:    INC KOPIUJ+1
+         LDA KOPIUJ+1
+         CMP #$00
+         BNE POS1A
+         INC KOPIUJ+3
+POS1A:   INC LICZPOZ
+         LDA LICZPOZ
+         CMP #1
+         BNE POS1B
+         LDX #<(BLOK13+1)
+         LDY #>(BLOK13+1)
+POS1A1:  STX POS0B+1
+         STY POS0C+1
+         JMP KOPIUJ
+POS1B:   CMP #2
+         BNE POS1C
+         LDX #<BLOK14
+         LDY #>BLOK14
+         JMP POS1A1
+POS1C:   CMP #3
+         BNE POS1D
+         LDX #<(BLOK14+1)
+         LDY #>(BLOK14+1)
+         JMP POS1A1
+POS1D:   CMP #4
+         BNE POS1E
+         LDX #<BLOK15
+         LDY #>BLOK15
+         JMP POS1A1
+POS1E:   CMP #5
+         BNE POS1F
+         LDX #<(BLOK15+1)
+         LDY #>(BLOK15+1)
+         JMP POS1A1
+POS1F:   JMP $EA31
+START:   LDX #$00
+         LDA #$00
+STLOOP:  STA BLOK13,X
+         STA BLOK14,X
+         STA BLOK15,X
+         INX
+         CPX #63
+         BEQ ST1
+         JMP STLOOP
+ST1:     LDX #$00
+         LDY #$00
+ST1LOOP: LDA DWUKR,X
+         STA BLOK13+2,Y
+         STA BLOK14+2,Y
+         INX
+         CPX #8
+         BEQ ST2
+         INY
+         INY
+         INY
+         JMP ST1LOOP
+ST2:     LDX #13
+         STX WSKSP0
+         INX
+         STX WSKSP1
+         INX
+         STX WSKSP2
+KOLOR:   LDA #13
+         STA VIC+39
+         STA VIC+40
+         STA VIC+41
+         LDA #%00000110
+         STA VIC+16
+         LDA #215
+         LDX #50
+         STA VIC
+         STX VIC+1
+         LDA #7
+         STA VIC+2
+         STX VIC+3
+         ADC #48
+         STA VIC+4
+         STX VIC+5
+         LDA #%00000111
+         STA VIC+23
+         STA VIC+29
+         STA VIC+27
+         STA VIC+21
+         LDX #<MAIN
+         LDY #>MAIN
+         SEI
+         STX IRQWKT
+         STY IRQWKT+1
+         CLI
+         RTS
+STEROW:  JSR POBZNA
+         BEQ WYLACZ
+         JSR PRZECT
+         JSR ANAWYR
+         ROL 13
+         BCS NASTAW
+ILLQUA:  JMP 47000
+NASTAW:  JSR POBTXT
+         CMP #6
+         BNE ILLQUA
+         LDY #5
+         SEI
+NASTPE:  LDA (34),Y
+         SEC
+         SBC #48
+         STA CZAS,Y
+         DEY
+         BPL NASTPE
+         LDA #60
+         STA LICZNIK
+         CLI
+         JMP START
+WYLACZ:  LDX #$31
+         LDY #$EA
+         SEI
+         STX IRQWKT
+         STY IRQWKT+1
+         CLI
+         LDA #$00
+         STA VIC+21
+         RTS
+
+</code>

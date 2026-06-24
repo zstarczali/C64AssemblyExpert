@@ -1,0 +1,50 @@
+# PAGE: base:jch_20.g4_player_file_format
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:jch_20.g4_player_file_format
+
+====== JCH 20.G4 Player File Format ======
+By FTC/HT.
+
+I wanted to code a converter from the JCH editor file format into the format I use in my own editor, and I thought I could just as well share the structure of the JCH file format with you. The description is not 100% complete, but maybe someone will find it useful anyway. Enjoy!
+
+I might add some more info here some other day, but don't hesitate to improve on this info yourself!
+
+===== Memory Locations of various Tables and Datachunks =====
+
+^ Arpeggio table Col 1       | $18CB  |
+^ Arpeggio table Col 2       | $19CB  |
+^ Filter table               | $1ACB  | 
+^ Pulse table                | $1BCB  |
+^ Instrument table           | $1CCB  |
+^ Sequence Pointers (Lobyte) | $1DCB  |
+^ Sequence Pointers (Hibyte) | $1ECB  |
+^ Super Table                | $1FCB  |
+
+^ Sequence List - Voice 0    | $20CB  |
+^ Sequence List - Voice 1    | $24CB  |
+^ Sequence List - Voice 2    | $28CB  |
+
+^ Sequence 0 data            | $2CCB  | Seq data starts at +3 bytes from here |
+^ Sequence 1 data            | $2DCB  |  Seq data starts at +3 bytes from here |
+^ Sequence ...               | ...  |  Seq data starts at +3 bytes from here |
+
+===== Sequence Data Format =====
+
+Most of the tables contain data just as it is shown from within the editor. The sequence format is not directly visible in the editor though, and therefore a brief description of this data format comes here. Each step in the sequence is represented by byte pairs (called AA and BB respectively here). Byte AA corresponds to what is found in the left column in each sequence in the editor screen and byte BB corresponds to notes or gate holds (+++) in the note column (the right column).
+
+AA:
+^ $7F     | End of Sequence (byte BB is not significant in this case) |
+^ $90     | Tie Note (***) |
+^ $A0-$BF | Instrument $00-$1F |
+^ $C0-$DF | Pointer to Super Table |
+^ $80     | "Nothing", i.e. no instrument, supertable pointer or tie note. |
+
+BB:
+^ $00     | No note (gate off) |
+^ $01-..  | Note value (Will trig currently active instrument) |
+^ $7E     | Gate on hold (+++) |
+
+Example:
+| $A2 | $24 ^ Instrument $02 and C-3 |
+| $80 | $7E ^ "Do nothing" in the first column, so is instrument held with gate on |
+| $80 | $00 ^ Empty row in the sequence |
+| $90 | $25 ^ Change note to C#4 without retrigging the instrument |

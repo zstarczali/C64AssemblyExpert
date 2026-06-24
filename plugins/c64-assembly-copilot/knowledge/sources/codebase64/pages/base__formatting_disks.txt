@@ -1,0 +1,42 @@
+# PAGE: base:formatting_disks
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:formatting_disks
+
+====== Formatting disks ======
+
+By various people, based on [[http://noname.c64.org/csdb/forums/?roomid=7&topicid=74685|this CSDb thread]].
+
+This is currently not really a coding article, but it would be appreciated if someone could extend it a bit along those lines.
+
+Krill says; If speed is not an issue, just use the built-in format:
+
+<code>
+    openN,8,15,"n:disk,id"
+</code>
+
+…where N can be at least any number between 0 and 15, and the 8 is obviously the drive number. This command immediately returns, so you can issue it multiple times on multiple connected drives. Just increase N with every invocation. However, before re-using an N, you need to:
+
+<code>
+    close N
+</code>
+
+This formatter does all the necessary error checking. Graham's fast formatter in The Final Replay is also reliable. Apart from that, many fast-formatters are unreliable.
+
+In the words of Groepaz;
+
+For example, the Action Replay formatter does no error checking whatsoever, and that is also why many people remember it as non-problematic. (You won't notice any problems before you get errors on your files later on.)
+
+A proper format routine as a first step determines how many bit cells can be written to a track in one rotation (the duration of a bit cell it can write is fixed, but the rotation speed is not). Now it calculates the number of padding bytes that must be used to fill the various gaps on the track. many fast-formatters skip this step completely and use hardcoded values for an assumed rotation speed of 300rpm. (and this is what saves a lot of time, its not the verify of actual written blocks - that can be done in a single additional rotation).
+
+…and this is why omitting the above eventually becomes a problem:
+
+Assume you AR fast-formatted a disk on a drive that spins slightly slower than 300rpm. the consequence would be that all gaps are slightly shorter on the medium than they should be. now you put this disk into a drive which is slightly faster than 300rpm.... you can read the disk fine, no problem. but when writing to the disk all hell breaks lose: when writing a block, the drive looks for the sector header, and when the sector is found waits until the data block comes by, switches to write mode and then writes out a full block. due to the analog nature of the media (rotation speed is not fixed) the actual physical area on disk which represents this written sector doesn't always perfectly match the old same sector, but "moves back and forth" a bit - thats why the padding gaps between data blocks and sector headers exist. now remember, the drive we are using is a bit too fast, and this very gap is a bit too short. what eventually happens now is that the data block overwrites the sync mark before the following sector header - resulting in that sector being unreadable (sector header not found).
+
+…and thats why a proper format routine is win :)
+
+TLR adds;
+
+In my practical experience most drives have been close to 300 rpm but that's not guaranteed. Also many fast formatters (including my older one) assume the same static gap for all speed zones. Some (e.g Jiffy DOS) assume different static gaps for each speed zone which is slightly better. Whereas the normal 1541 formatter measures track length for each track, the Speed DOS+ formatter improves speed by only measuring the track length once per speed zone.
+
+TLR also released a fast formatter (including sources) named "Format II", which is available on CSDb.
+
+  * [[http://noname.c64.org/csdb/release/?id=90210]]

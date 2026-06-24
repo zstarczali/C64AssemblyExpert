@@ -1,0 +1,70 @@
+# PAGE: base:supercpu_bra
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:supercpu_bra
+
+====== BRA / BRL ======
+
+This pseudocommand merges both BRA and BRL opcommands and chooses automatically which one to use.
+
+<code>
+    //---------------------------------------------------------------------------------------------
+    // PseudoCommand-OPC: BRA (BRanch Always)
+    //
+    // Addressing Modes:
+    //   Program Counter Relative                ($80 - 2 bytes, 3 cycles¹)
+    //   Program Counter Relative Long           ($82 - 3 bytes, 4 cycles)
+    //   ¹ - Add 1 cycle if branch crosses page boundary on 65C02 or in 65816/65802’s 6502
+    //       emulation mode (e = 1)
+    //
+    // Flags Affected:
+    //   N/A
+    //
+    // Description - BRA:
+    //   A branch is always taken, and no testing is done: in effect, an unconditional JMP is
+    //   executed, but since signed displacements are used, the instruction is only two bytes,
+    //   rather than the three bytes of a JMP. Additionally, using displacements from the program
+    //   counter makes the BRA instruction relocatable. Unlike a JMP instruction, the BRA is
+    //   limited to targets that lie within the range of the one-byte signed displacement of the
+    //   conditional branches: - 128 to + 127 bytes from the first byte following the BRA
+    //   instruction.
+    //
+    //   To branch, a one-byte signed displacement, fetched from the second byte of the
+    //   instruction, is signextended to sixteen bits and added to the program counter. Once the
+    //   branch address has been calculated, the result is loaded into the program counter,
+    //   transferring control to that location.
+    //
+    // Description - BRL:
+    //   A branch is always taken, similar to the BRA instruction. However, BRL is a three-byte
+    //   instruction; the two bytes immediately following the opcode form a sixteen-bit signed
+    //   displacement from the program counter. Once the branch address has been calculated, the
+    //   result is loaded into the program counter, transferring control to that location.
+    //
+    //   The allowable range of the displacement is anywhere within the current 64K program bank.
+    //
+    //   The long branch provides an unconditional transfer of control similar to the JMP
+    //   instruction, with one major advantage: the branch instruction is relocatable while jump
+    //   instructions are not. However, the (nonrelocatable) jump absolute instruction executes one
+    //   cycle faster.
+    //
+    // Notes:
+    //   BRL & BRA is the same, just different relative range. Incorporated into one OPCommand.
+    //   Boundary conditions checked and work correctly!
+    //   Has this "unresolved label" bug when branching forwards. Do not understand as this surely
+    //   worked before. Not sure if this will ever be fixed. Substitute with JMP for now.
+    //---------------------------------------------------------------------------------------------
+
+    .pseudocommand bra val {
+        .if(val.getValue() < *-2) {              // Check if branching to lower or higher address
+            .if(val.getValue()-*-2 < -128) {     // Branching to a lower address, Check BRA/BRL
+                .byte $82, <val.getValue()-*-3, >val.getValue()-*-3 // Branch out of range, use BRL
+            } else {
+                .byte $80,val.getValue()-*-2     // Branch in range, use BRA
+            }
+        } else {
+            .if(val.getValue()-*-2 > 129) {      // Branching to a higher address, Check BRA/BRL
+                .byte $82, <val.getValue()-*-3, >val.getValue()-*-3 // Branch out of range, use BRL
+            } else {
+                .byte $80,val.getValue()-*-2     // Branch in range, use BRA
+            }
+        }
+    }
+</code>

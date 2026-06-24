@@ -1,0 +1,913 @@
+# PAGE: base:freeload_v5.0_saver
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:freeload_v5.0_saver
+
+====== FreeLoad V5.0 Tape Saver ======
+This code was used to master freeload files to tape.
+
+<code>
+;----------------------------------------------------------------------------
+;          * FREELOAD V5.0 Cassette mastering system By Paul Hughes *
+;
+;                              Rainbow Islands
+;
+;                     (C) Copyright 1984-1988 Paul Hughes
+;
+; Ported to DASM 09/11/04 by Paulie.
+;----------------------------------------------------------------------------
+
+	processor 6502
+
+      	seg code
+
+;-----------------------------------------------------------------------------
+
+AT             EQU $80
+FROM           EQU $FC
+TO             EQU $FE
+
+;-----------------------------------------------------------------------------
+; ZP
+;-----------------------------------------------------------------------------
+TX             EQU $20
+TY             EQU $21
+
+BYTE           EQU $BD
+LODFLAG        EQU $02
+START          EQU $2B
+TXTTAB         EQU $2B
+END            EQU $2D
+MSGFLAG        EQU $9D
+BCOUNT         EQU $A3
+BITIN          EQU $03
+EADR           EQU $AE
+SADR           EQU $C1
+CHKSUM         EQU $05
+VERIFY         EQU $06
+CHKSM2         EQU $FB
+LSTART         EQU $07
+LEND           EQU $09
+HEDNUM         EQU $80
+HEDBYT         EQU $40
+HEDEND         EQU $5A
+
+;-----------------------------------------------------------------------------
+
+
+;
+; S"SAVER",$0316,$03FF   <------ This MUST be the first file on the disk (!)
+; S"PCODE",$C000,FINISH
+;
+
+	#if 0 			; :PH - Ignore the disk boot, just sys 49152 to fire it up for now
+               ORG $0316
+
+VECT           dc.w $FE66                ; System Vectors
+               dc.w $FE47
+               dc.w $F34A
+               dc.w $F291
+               dc.w $F20E
+               dc.w $F250
+               dc.w $F333
+               dc.w $F157
+               dc.w AUTO_START
+               dc.w $F6ED
+               dc.w $F13E
+               dc.w $F32F
+               dc.w $FE66
+               dc.w $F4A5
+               dc.w $F5ED
+
+               ORG $0363
+
+AUTO_START     SEI                      ; FreeLoad Loader
+               LDA #$37
+               STA $01                  ; ROMS in
+               LDA #$F1
+               STA $0327                ; Point Vector
+               LDA #$CA
+               STA $0326
+               LDA #0                   ; Messages OFF
+               STA $9D
+               CLI                      ; Enable Interrupts
+               LDA #1
+               LDX #8
+               LDY #$FF
+               JSR $FFBA
+               LDA #FNLENGTH
+               LDX #FILENAME
+               LDY ^FILENAME
+               JSR $FFBD                ; Set Header
+               LDY #$04
+               LDX #0
+               LDA #0
+               JSR $FFD5                ; Load File
+               JMP SAVER_START          ; Fire Up
+
+FILENAME       DC.B "PCODE"
+FNLENGTH       EQU @-FILENAME
+
+	#endif
+
+;
+; FreeLoad Cassette Saver starts here...
+;
+
+               ORG $C000
+
+SAVER_START    LDA #$97                 ; The beginning of a nightmare!
+               STA $DD00
+               LDA #$15
+               STA $D018
+               LDA #$1B
+               STA $D011
+
+               JSR CLS
+               LDX #8
+               STX $D020
+               INX
+               STX $D021
+
+               LDX #<INTRO
+               LDY #>INTRO
+               JSR SPRINT
+
+WAIT_SPACE     LDA #60
+               JSR KEYSCAN
+               BCC WAIT_SPACE
+
+               JSR CLS
+               LDX #<MASTER_MODE
+               LDY #>MASTER_MODE
+               JSR SPRINT
+
+SELECT_MODE    LDX #0                   ; Selects the mastering mode
+               LDA #56                  ; "1"
+               JSR KEYSCAN
+               BCS GOT_MODE
+               INX
+               LDA #59                  ; "2"
+               JSR KEYSCAN
+               BCC SELECT_MODE
+
+GOT_MODE       STX WHICH_MODE
+
+;-----------------------------------------------------------------------------
+; SETUP - creates the slow loading turbo loader file (huh!)
+;-----------------------------------------------------------------------------
+
+SETUP          SEI
+               LDY #$33                 ; Copy in the Kernal vectors
+VECToR         LDA IERRoR,Y
+               STA SAVVEC,Y
+               DEY
+               BPL VECToR
+
+               LDX #<UNUSED              ; Point fire-up to the vectors
+               LDY #>UNUSED
+               STX SAVVEC+$02
+               STY SAVVEC+$03
+               STX SAVVEC+$16
+               STY SAVVEC+$17
+               STX SAVVEC+$24
+               STY SAVVEC+$25
+               STX SAVVEC+$2E
+               STY SAVVEC+$2F
+
+               LDX #<ANMIVC              ; Point NMI to RTI
+               LDY #>ANMIVC
+               STX SAVVEC+$18
+               STY SAVVEC+$19
+
+               JSR CLS
+               LDA #1                   ; Ensure that
+               STA 646                  ; Record & Play message is printed
+               JSR $E544                ; in white
+
+               LDA #1                   ; Set the cassette device up
+               TAX
+               TAY
+               JSR SETLFS
+
+               LDA #FILEND-FLNAME       ; Set up the file name pointers
+               LDX #<FLNAME
+               LDY #>FLNAME
+               JSR SETNAM
+
+               LDA #0
+               STA MSGFLAG              ; Kill Load & Save messages
+
+               LDX #<UNUSED
+               LDY #>UNUSED              ; Set up the loader's Header Address
+               STX SADR
+               STY SADR+1               ; usually @ $02A7
+               LDX #<UNUSD2
+               LDY #>UNUSD2
+               STX EADR
+               STY EADR+1
+               LDA #3                   ; Unrelocatable save
+               JSR HEADER
+
+               LDX #<LOADER
+               LDY #>LOADER              ; Save the loader from it's actual
+               STX SADR
+               STY SADR+1               ; position in memory.
+               LDX #<LODEND
+               LDY #>LODEND
+               STX EADR
+               STY EADR+1
+               JSR SAVE
+               LDA #1                   ; Close all output channels
+               JSR CLOSE
+
+;----------------------------------------------------------------------------
+
+               LDY #HOWMANY-1           ; Set howmany files to save
+               LDX #0
+
+NEXTSAVE       STY TY
+               STX TX
+
+               LDA FLNAM,Y              ; Get the disk filename
+               STA NUMBA
+
+               LDA WHICHDISK,Y          ; See if a new file disk is required
+               BEQ NODISKCHANGE
+
+               ASL                      ; Yes, inform user of which disk
+               TAY
+               LDA WHICHMES,Y
+               STA MESCH+1
+               LDA WHICHMES+1,Y
+               STA MESCH+2
+
+               JSR CLS
+
+               LDY #$27
+MESCH          LDA $FFFF,Y              ; Self modified print address
+               AND #$3F
+               STA $0400+01*40,Y
+               DEY
+               BPL MESCH
+
+WAIT_SPACE_2   LDA #60                  ; Wait for the space bar
+               JSR KEYSCAN
+               BCC WAIT_SPACE_2
+
+               LDX TX
+               LDY TY
+
+NODISKCHANGE   JSR GETFILE              ; Load that file
+               LDX TX
+               LDY TY
+               LDA FILEDATA,X
+               STA START
+               LDA FILEDATA+1,X
+               STA START+1
+               LDA FILEDATA+2,X
+               STA END
+               LDA FILEDATA+3,X
+               STA END+1
+               STX TX
+               STY TY
+
+               LDA WHICH_MODE           ; Check mastering mode
+               BEQ DOTURBO
+
+;-----------------------------------------------------------------------------
+
+               JSR CLS                  ; Manual mastering mode
+
+               LDX #<WAIT_MES
+               LDY #>WAIT_MES
+               JSR SPRINT
+
+WAIT_SPACE_3   LDA #60
+               JSR KEYSCAN
+               BCC WAIT_SPACE_3
+
+;-----------------------------------------------------------------------------
+
+DOTURBO        JSR TURBO                ; AutoMaster mode selected
+               LDX TX
+               LDY TY
+               INX                      ; Process the next file
+               INX
+               INX
+               INX
+               DEY
+               BMI ALLDONE
+               JMP NEXTSAVE
+
+;-----------------------------------------------------------------------------
+
+ALLDONE        JSR CLS                  ; Mastering Complete.
+
+               LDX #<ALL_DONE
+               LDY #>ALL_DONE
+               JSR SPRINT
+
+               LDX #8
+               STX $D020
+               INX
+               STX $D021
+
+WAIT_SPACE_4   LDA #60
+               JSR KEYSCAN
+               BCC WAIT_SPACE_4
+
+FINISHED       JMP SAVER_START          ; Call BASIC ready
+
+;-----------------------------------------------------------------------------
+
+CLS            LDY #0                   ; Clear screen & attributes
+CLR            LDA #$20
+               STA $0400,Y
+               STA $0500,Y
+               STA $0600,Y
+               STA $0700,Y
+               LDA #1
+               STA $D800,Y
+               STA $D900,Y
+               STA $DA00,Y
+               STA $DB00,Y
+               INY
+               BNE CLR
+               RTS
+
+;----------------------------------------------------------------------------
+
+GETFILE        JSR CLS                  ; Load a file from disk
+
+               LDX #8
+               STX $D020
+               INX
+               STX $D021
+
+               LDX #<LOAD_MES
+               LDY #>LOAD_MES
+               JSR SPRINT
+
+               LDA NUMBA
+               AND #$3F
+               STA $0400+17
+
+               LDA #8                   ; Set up disk device
+               TAX
+               LDY #0
+               JSR $FFBA
+               LDA #1                   ; Point to filename
+               LDX #<NUMBA
+               LDY #>NUMBA
+               JSR $FFBD
+               LDA #0
+               LDX #<$1000               ; Force load file to $1000
+               LDY #>$1000
+               JSR $FFD5
+               RTS
+
+;----------------------------------------------------------------------------
+; Messages & other such bunf
+;----------------------------------------------------------------------------
+TEXT
+
+INTRO          dc.b AT,4,2,"F R E E L O A D - BY PAUL HUGHES"
+               dc.b AT,5,4,"CASSETTE MASTERING SYSTEM V5.0"
+               dc.b AT,5,7,"SYSTEM INITIALISED FOR RAINBOW"
+               dc.b AT,8,23,"PRESS SPACE  TO CONTINUE",0
+
+MASTER_MODE    dc.b AT,5,1,"SELECT FREELOAD MASTERING MODE"
+               dc.b AT,1,6,"1. AUTOMASTER - THE LOOK NO HANDS MODE"
+               dc.b AT,1,10,"2. MANUAL     - WAIT FOR A KEY (YAWN!)"
+               dc.b AT,2,23,"IT'S MAKE YOUR MIND UP TIME - 1 OR 2",0
+
+LOAD_MES       dc.b AT,0,0,"NOW LOADING FILE",0
+
+ALL_DONE       dc.b AT,8,1,"CASSETTE MASTER COMPLETE"
+               dc.b AT,8,23,"PRESS SPACE  TO CONTINUE",0
+
+WAIT_MES       dc.b AT,5,12,"PRESS SPACE TO SAVE THIS FILE.",0
+
+DISK2          dc.b " FLIP THIS DISK ...... THEN PRESS SPACE "
+
+;-----------------------------------------------------------------------------
+;Saver variables
+
+WHICH_MODE     dc.b 0
+NUMBA          dc.b 0
+TEMP           dc.w 0
+WHICHMES       dc.w DUMMY,DISK2
+DUMMY          dc.b 0
+
+;-----------------------------------------------------------------------------
+; Freeload file data
+;
+; WHICHDISK & FLNAM are read backwards !
+;-----------------------------------------------------------------------------
+HOWMANY        EQU 14
+
+FILEDATA       dc.w $0800,$0C40          ;A  Freeloader control software
+               dc.w $4000,$5000          ;B  $D000-$E000
+               dc.w $0800,$0C40          ;A  Overload of control software
+               dc.w $B43E,$C800          ;C  Music
+               dc.w $4000,$43FF          ;D  Colram
+               dc.w $C800,$CBFF          ;E  Scrcol
+               dc.w $E000,$FF40          ;F  Bitmap
+               dc.w $0C40,$B43E          ;G  Game Code
+               dc.w $C800,$CFFF          ;H  Game Code
+               dc.w $E000,$FFFA          ;I  Game Code
+               dc.w $0200,$02A6          ;J  Stack destroyer
+               dc.w $0800,$0C40          ;A  Overload again !
+               dc.w $B43E,$C800          ;K  Game Code
+               dc.w $0400,$0C40          ;L  Game Code
+
+FLNAM          dc.b "LKAJIHGFEDCABA"
+
+WHICHDISK      dc.b 0,0,0,0,0,0,0,0,0,0,0,0,0,0
+
+STARTUP        EQU $0800
+
+;-----------------------------------------------------------------------------
+; TURBO - Blasts streams of data to the cassette
+;-----------------------------------------------------------------------------
+
+
+TURBO          JSR SENDHEADER
+               LDA START                ; Send the correct file header
+               JSR SENDBYTE
+               LDA START+1
+               JSR SENDBYTE
+               LDA END
+               JSR SENDBYTE
+               LDA END+1
+               JSR SENDBYTE
+               STY CHKSM2               ; Store the Header's Checksum.
+
+               LDA END                  ; Send the data from $1000
+	       SEC
+               SBC START
+               STA TEMP
+               LDA END+1
+               SBC START+1
+               STA TEMP+1               ; Calculate the actual File end addr
+               LDA #<$1000
+               STA START
+               LDA #>$1000
+               STA START+1
+               LDA START
+	       CLC
+               ADC TEMP
+               STA END                  ; Point the start to $1000
+               LDA START+1
+               ADC TEMP+1
+               STA END+1
+
+               LDY START
+               LDA #0
+               STA START
+SAVELOOP       LDA (START),Y            ; Get a byte
+               JSR SENDBYTE             ; Write that byte to tape
+               INY
+               BNE SAVE2
+               INC START+1
+               INC $D020                ; Change border colour every page
+SAVE2          CPY END
+               LDA START+1
+               SBC END+1
+               BCC SAVELOOP
+               LDA CHKSM2
+               JSR SENDBYTE
+               JSR SENDBIT
+               LDA #$1B
+               STA $D011                ; Enable the screen
+               LDA #$37
+               STA $01
+               CLI
+               JSR IOINIT               ; Re-initialise the I/O's
+               RTS
+
+;
+; SENDHEADER - Sends header byte stream followed header termination bytes
+;
+
+SENDHEADER     SEI
+               LDA #5
+               STA 1                    ; Cassette motor on, ROM's out
+               LDA #$0B
+               STA $D011
+               LDY #0
+               JSR DELAY                ; Let tape get to full speed
+               JSR DELAY
+               JSR DELAY
+               LDA #<$00A0
+               STA $DD04
+               LDA #>$00A0
+               STA $DD05
+               LDA #$19
+               STA $DD0E
+
+               LDY #HEDNUM
+SENDHEAD       LDA #HEDBYT              ; Write $80 Header bytes ($40)
+               JSR SENDBYTE
+               DEY
+               BNE SENDHEAD
+               LDA #HEDEND              ; Header complete byte ($5A)
+               JSR SENDBYTE
+               RTS
+
+;
+; SENDBYTE - Gets byte to be sent, then shifts out each bit
+;
+
+SENDBYTE       STA BYTE                 ; Store Byte to be written
+               EOR CHKSM2
+               STA CHKSM2               ; Create a checksum
+               LDA #8
+               STA BCOUNT
+GETBIT         ROL BYTE                 ; Rotate out & write each BIT
+               JSR SENDBIT
+               DEC BCOUNT
+               BNE GETBIT
+               RTS
+
+;
+; SENDBIT - set CIA timer clock values, then sends tape pulse
+;
+
+SENDBIT        LDX #$70                 ; Timing for a '0' bit
+               BCC BIT1
+               LDX #$FF                 ; Timing for a '1' bit
+BIT1           STX $DD04
+               LDA #$00
+               STA $DD05
+               LDA #$01
+WAIT           BIT $DD0D                ; Wait for NMI
+               BEQ WAIT
+               LDA $01
+               EOR #$08
+               STA $01                  ; Send Pulse to tape
+
+               LDA $D020                ; Does the mindless border
+               EOR #5
+               STA $D020                ; flashing
+
+               LDA #$19
+               STA $DD0E                ; Start timer counting down
+               LDA #$01
+WAIT2          BIT $DD0D                ; Wait for NMI
+               BEQ WAIT2
+               LDA $01
+               EOR #$08
+               STA $01                  ; Stop sending Pulse
+               LDA #$19
+               STA $DD0E                ; Stop the timer
+               RTS
+
+;
+
+DELAY          DEX
+               BNE DELAY                ; Delay to allow tape to reach
+               DEY
+               BNE DELAY
+HERE           RTS                      ; speed - avoids load errors
+
+;-----------------------------------------------------------------------------
+; SPRINT - Prints text pointed to in X&Y
+;-----------------------------------------------------------------------------
+
+SPRINT         STX FROM
+               STY FROM+1
+
+PRINT_LOOP     LDY #0
+               LDA (FROM),Y
+               BMI GET_COORDS
+               BNE NOT_FINISH
+               RTS
+NOT_FINISH     AND #$3F
+               STA (TO),Y
+               INC FROM
+               BNE SKIP_C
+               INC FROM+1
+SKIP_C         INC TO
+               BNE PRINT_LOOP
+               INC TO+1
+               JMP PRINT_LOOP
+;
+GET_COORDS     INY
+               LDA (FROM),Y
+               STA X_TEMP
+               INY
+;               LAX (FROM),Y
+		LDA (FROM),y
+		TAX
+               LDA SCR_TABLE_L,X
+	       CLC
+               ADC X_TEMP
+               STA TO
+               LDA SCR_TABLE_H,X
+               ADC #0                   ; eeeeeyuk !!
+               STA TO+1
+               LDA FROM
+	       CLC
+               ADC #3
+               STA FROM
+               BCC PRINT_LOOP
+               INC FROM+1
+               JMP PRINT_LOOP
+
+;-----------------------------------------------------------------------------
+X_TEMP         dc.b 0
+
+SCREEN_BASE    EQU $0400
+
+SCR_TABLE_L    dc.b <[SCREEN_BASE+(0*40) ]
+               dc.b <[SCREEN_BASE+(1*40) ]
+               dc.b <[SCREEN_BASE+(2*40) ]
+               dc.b <[SCREEN_BASE+(3*40) ]
+               dc.b <[SCREEN_BASE+(4*40) ]
+               dc.b <[SCREEN_BASE+(5*40) ]
+               dc.b <[SCREEN_BASE+(6*40) ]
+               dc.b <[SCREEN_BASE+(7*40) ]
+               dc.b <[SCREEN_BASE+(8*40) ]
+               dc.b <[SCREEN_BASE+(9*40) ]
+               dc.b <[SCREEN_BASE+(10*40)]
+               dc.b <[SCREEN_BASE+(11*40)]
+               dc.b <[SCREEN_BASE+(12*40)]
+               dc.b <[SCREEN_BASE+(13*40)]
+               dc.b <[SCREEN_BASE+(14*40)]
+               dc.b <[SCREEN_BASE+(15*40)]
+               dc.b <[SCREEN_BASE+(16*40)]
+               dc.b <[SCREEN_BASE+(17*40)]
+               dc.b <[SCREEN_BASE+(18*40)]
+               dc.b <[SCREEN_BASE+(19*40)]
+               dc.b <[SCREEN_BASE+(20*40)]
+               dc.b <[SCREEN_BASE+(21*40)]
+               dc.b <[SCREEN_BASE+(22*40)]
+               dc.b <[SCREEN_BASE+(23*40)]
+               dc.b <[SCREEN_BASE+(24*40)]
+
+SCR_TABLE_H    dc.b >[SCREEN_BASE+(0*40) ]
+               dc.b >[SCREEN_BASE+(1*40) ]
+               dc.b >[SCREEN_BASE+(2*40) ]
+               dc.b >[SCREEN_BASE+(3*40) ]
+               dc.b >[SCREEN_BASE+(4*40) ]
+               dc.b >[SCREEN_BASE+(5*40) ]
+               dc.b >[SCREEN_BASE+(6*40) ]
+               dc.b >[SCREEN_BASE+(7*40) ]
+               dc.b >[SCREEN_BASE+(8*40) ]
+               dc.b >[SCREEN_BASE+(9*40) ]
+               dc.b >[SCREEN_BASE+(10*40)]
+               dc.b >[SCREEN_BASE+(11*40)]
+               dc.b >[SCREEN_BASE+(12*40)]
+               dc.b >[SCREEN_BASE+(13*40)]
+               dc.b >[SCREEN_BASE+(14*40)]
+               dc.b >[SCREEN_BASE+(15*40)]
+               dc.b >[SCREEN_BASE+(16*40)]
+               dc.b >[SCREEN_BASE+(17*40)]
+               dc.b >[SCREEN_BASE+(18*40)]
+               dc.b >[SCREEN_BASE+(19*40)]
+               dc.b >[SCREEN_BASE+(20*40)]
+               dc.b >[SCREEN_BASE+(21*40)]
+               dc.b >[SCREEN_BASE+(22*40)]
+               dc.b >[SCREEN_BASE+(23*40)]
+               dc.b >[SCREEN_BASE+(24*40)]
+
+;-----------------------------------------------------------------------------
+; KEYSCAN - Entered with desired key in A, Carry set if pressed.
+;-----------------------------------------------------------------------------
+
+KEYSCAN        STY KEYT
+               PHA
+               LSR
+               LSR
+               LSR
+               TAY
+               LDA COLUMN,Y
+               STA $DC00
+               PLA
+               AND #7
+               TAY
+               LDA $DC01
+               AND ROW,Y
+               BNE NOT_PRESS
+               LDA #$FF
+               STA $DC00
+               LDA $DC01
+               AND ROW,Y
+               BEQ NOT_PRESS
+               SEC
+               BCS GOT_KEY              ; always
+NOT_PRESS      CLC
+GOT_KEY        LDY KEYT
+               LDA #$FF
+               STA $DC00
+               LDA #$7F
+               STA $DC01
+               RTS
+
+;
+KEYT           dc.b 0
+COLUMN         HEX FEFDFBF7EFDFBF7F
+ROW            HEX 0102040810204080
+;
+;-----------------------------------------------------------------------------
+; LOADER - Suprisingly enough this bit handles the cassette loading !
+;-----------------------------------------------------------------------------
+
+LOADER         SEI
+               LDA #5                   ; ROMS's out cassette motor on
+               STA 1
+               LDA #$1F                 ; Clear any spurious interrupts
+               STA $DC0D
+               LDA $DC0D
+               LDA #<$0368
+               STA $DC04                ; Set CIA #1 Timer A countdown time
+               LDA #>$0368
+               STA $DC05
+               LDA #$90
+               STA $DC0D
+               LDA #<CASBUF
+               STA $FFFE                ; Point the interrupt vector to loader
+               LDA #>CASBUF
+               STA $FFFF
+               LDA #0
+               STA LODFLAG
+               STA BITIN
+
+LEXIT          NOP                      ; Modifies from NOP-CLI-RTS
+               JMP ASeCURE
+;
+RESTOAR        LDA #7
+               STA 1
+               LDA CHKSUM
+               CMP VERIFY               ; Check the Checksum
+               BNE LODERR
+               RTS
+
+LODERR         JMP $FCE2                ; LOAD ERROR
+
+SeCURE         LDA #<APRIMR
+               STA $FFFA                ; Set timer in single shot mode
+               LDA #>APRIMR
+               STA $FFFB                ; Start NMI but don't clear it
+               LDA #$01
+               STA $DD05                ; This screws up Freeze Frame IIIb
+               LDA #$81
+               STA $DD0D
+               LDA #$99
+               STA $DD0E
+HOLD           BNE HOLD
+
+               ORG LOADER-UNUSED+IERRoR
+SAVVEC
+               ORG LOADER-UNUSED+UNUSD2
+LODEND
+
+FLNAME         dc.b $05,$93              ; White text, Clear screen
+               dc.b "RAINBOW.     "      ; Game file name 13 Letters MAX
+               dc.b $1F                  ; Blue text
+
+LODIRQ         PHA
+               TYA
+               PHA
+
+               LDA $D020                ; Flash the screen
+               EOR #5
+               STA $D020
+
+               LDA $DC05
+               LDY #$19                 ; Trigger the counters
+               STY $DC0E
+               EOR #$02
+               LSR
+               LSR                      ; Shift in a BIT
+               ROL BITIN
+               LDA BITIN
+BITDEC         BCC BYTGOT               ; Got a full BYTE ?
+BITDEF         BCS EXIT
+BYTGOT         CMP #HEDBYT              ; Is it a Header ?
+               BNE EXIT
+               LDA #BYTGT1-BITDEF
+               STA ABITDC
+
+EX1            LDA #$FE                 ; Get next sequence of BITS
+               STA BITIN
+EXIT           LDA $DC0D                ; Acknowledge NMI
+               PLA
+               TAY
+               PLA
+NMIVEC         RTI                      ; Return
+
+;
+
+BYTGT1         CMP #HEDBYT
+               BEQ EX1                  ; Confirmed Header Byte
+               CMP #HEDEND              ; Is it a Header END marker ?
+               BEQ BYTGT2               ; Yes it is
+               BNE BYTGT7
+
+BYTGT2         LDA #BYTGT3-BITDEF
+               STA ABITDC
+               LDA #0                   ; Clear the checksum
+               STA CHKSUM
+               BEQ EX1                  ; Branch Always !
+
+BYTGT3         STA LSTART               ; Store Load Address
+               INC ABYTG3
+               LDA ABYTG3
+               CMP #LSTART+4
+               BNE EX1
+               LDA #BYTGT4-BITDEF
+               STA ABITDC
+               BNE EX1
+
+BYTGT4         LDY #0
+               STA (LSTART),Y           ; Store recieved BYTE
+               EOR CHKSUM
+               STA CHKSUM               ; Store Checksum
+               INC LSTART               ; Bump the LOAD ADDRESS COUNTER
+               BNE BYTGT5
+               INC LSTART+1
+               INC $D020
+
+BYTGT5         LDA LSTART               ; Have we finished yet ?
+               CMP LEND
+               LDA LSTART+1
+               SBC LEND+1
+               BCC EX1                  ; No
+               LDA #BYTGT6-BITDEF
+               STA ABITDC
+               BNE EX1
+
+BYTGT6         STA VERIFY               ; Store the verify BYTE
+               LDA #$FF                 ; Signal to FREELOAD that a load
+               STA LODFLAG              ; has completed
+               LDA #LSTART
+               STA ABYTG3
+
+BYTGT7         LDA #BYTGOT-BITDEF       ; Reset ready for next file
+               STA ABITDC
+               BNE EX1
+
+PRIMARY        CLI
+               LDA #$58
+               STA ALECLI               ; Self modifying CLI byte
+               LDA #$1B
+               STA $D011                ; Screen on
+
+PAUSE          LDA LODFLAG              ; Free running program to get
+               BEQ PAUSE                ; the FREELOAD program in
+
+;      JSR ARESTR                       ; This does a checksum
+
+               LDA #<STARTUP
+               STA ALEJMP               ; Point to the FREELOAD Start Address
+               LDA #>STARTUP
+               STA ALEJMP+1
+               JMP UNUSED               ; Jump to it
+
+FILEND         EQU .
+
+;-----------------------------------------------------------------------------
+;VARIABLES - Lots & lots of 'em
+;-----------------------------------------------------------------------------
+
+VICCR1         EQU $D011
+C1TIMA         EQU $DC04
+C2TIMA         EQU $DD04
+C1ICR          EQU $DC0D
+C2ICR          EQU $DD0D
+C1CRA          EQU $DC0E
+C2CRA          EQU $DD0E
+UNUSED         EQU $02A7
+UNUSD2         EQU $0334
+IERRoR         EQU $0300
+CASBUF         EQU $0351
+IOINIT         EQU $FF84
+SETLFS         EQU $FFBA
+SETNAM         EQU $FFBD
+HEADER         EQU $F76A
+SAVE           EQU $F867
+CLOSE          EQU $FFC3
+READY          EQU $A474
+
+; All these EQUates are used to relocate the Loader to $02A7
+
+APRIMR         EQU (PRIMARY-LODIRQ)+CASBUF
+ABYTG3         EQU (BYTGT3-LODIRQ)+CASBUF+1
+ANMIVC         EQU (NMIVEC-LODIRQ)+CASBUF
+ABITDC         EQU (BITDEC-LODIRQ)+CASBUF+1
+ALECLI         EQU (LEXIT-LOADER)+UNUSED
+ALEJMP         EQU (LEXIT-LOADER)+UNUSED+2
+ARESTR         EQU (RESTOAR-LOADER)+UNUSED
+ASeCURE        EQU (SeCURE-LOADER)+UNUSED
+
+FINISH         EQU .
+
+;
+; Finito, all is now done ...... Sleep !
+;
+
+</code>
+
+
+

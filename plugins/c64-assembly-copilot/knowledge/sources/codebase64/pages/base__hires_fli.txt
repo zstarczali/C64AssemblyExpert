@@ -1,0 +1,6 @@
+# PAGE: base:hires_fli
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:hires_fli
+
+====== Hires FLI ======
+
+Same as [[base:fli|FLI]] but in hires mode (set by $d016). Now the FLI-bug area always becomes visible, since all pixel codes there are represented by $ff -> bright gray. The bug has to be covered with sprites, or merged to other parts of the screen by using bright gray as background, borders etc.

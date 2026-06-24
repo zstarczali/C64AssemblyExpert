@@ -1,0 +1,218 @@
+# PAGE: base:basic_rnd_routine
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:basic_rnd_routine
+
+<code>
+Newsgroups: comp.sys.cbm
+Subject: Re: C64 Random Generator?
+Summary: 
+Expires: 
+References: <Pine.GSO.3.95.980424085552.16245A-100000@wartburg.kom.auc.dk> <Pine.SOL.3.95.980424134847.17282G-100000@hobbes.dai.ed.ac.uk> <6hq9sp$ok7@news.acns.nwu.edu> <6hqisi$qg6@examiner.concentric.net>
+Sender: 
+Followup-To: 
+Reply-To: sjudd@nwu.edu (Stephen Judd)
+Distribution: 
+Organization: Northwestern University, Evanston, IL
+Keywords: 
+Cc: 
+
+In article <6hqisi$qg6@examiner.concentric.net>,
+Cameron Kaiser  <cdkaiser@delete.these.four.words.concentric.net> wrote:
+>judd@merle.acns.nwu.edu (Stephen Judd) writes:
+>
+>>Another method I have seen is the "middle-squares" process: if x is
+>>an m-digit random number, then the next number is given by the middle
+>>m digits of x^2 (which is of size 2m).  Anyways, as you can see it 
+
+The "it" above refers to any random number generation algorithm, btw.
+
+>>is a deterministic process, and if you start from the same initial
+>>value (the "seed"), then you will generate the same sequence.  This
+>>isn't a bad thing, btw -- it means you can reproduce results, initial
+>>conditions, etc.
+>
+>I think this is the one proposed by von Neumann, and someone demonstrated a
+>seed that when plugged into the von Neumann generator will devolve to zero
+>after only a few cycles. Apparently there are many such seeds, so this
+>generator is effectively useless.
+
+I read about this method in the paper "Equation of State Calculations by 
+Fast Computing Machines", by Nick Metropolis, Edward Teller, Marshall
+Rosenbluth, Arianna Rosenbluth, and Augusta Teller (Journal Chem Phys.,
+v21 No. 6, June 1953).  "Useless" is a very strong adjective; therefore
+I strongly disagree with it.
+
+>>Also, RND(-X) swaps bytes in the random number ($61<->$64 and 
+>>$62<->$63 I believe) -- silly.
+>
+>IIRC RND(-X) puts X as the seed. So RND(-TI) works well, provided you
+>consider the time a random number (but since it always starts at zero when
+>you turn the computer on it's less random than you think).
+
+Not quite.  Let's have a look-see:
+
+E097   20 2B BC   JSR $BC2B	;Get sign of function argument
+E09A   30 37      BMI $E0D3
+E09C   D0 20      BNE $E0BE
+
+E09E   20 F3 FF   JSR $FFF3	;If zero, initialize from CIA timers
+E0A1   86 22      STX $22
+E0A3   84 23      STY $23
+E0A5   A0 04      LDY #$04
+E0A7   B1 22      LDA ($22),Y
+E0A9   85 62      STA $62
+E0AB   C8         INY
+E0AC   B1 22      LDA ($22),Y
+E0AE   85 64      STA $64
+E0B0   A0 08      LDY #$08
+E0B2   B1 22      LDA ($22),Y
+E0B4   85 63      STA $63
+E0B6   C8         INY
+E0B7   B1 22      LDA ($22),Y
+E0B9   85 65      STA $65
+E0BB   4C E3 E0   JMP $E0E3
+
+E0BE   A9 8B      LDA #$8B	;If positive, copy iterate to FAC1 (from $8B)
+E0C0   A0 00      LDY #$00
+E0C2   20 A2 BB   JSR $BBA2
+E0C5   A9 8D      LDA #$8D	;Then multiply by num at $E08D (= 11879546)
+E0C7   A0 E0      LDY #$E0
+E0C9   20 28 BA   JSR $BA28	;Your favorite routine :)
+E0CC   A9 92      LDA #$92	;And add number at $E092 (= 3.927677739e-8)
+E0CE   A0 E0      LDY #$E0
+E0D0   20 67 B8   JSR $B867
+				;Entry point for RND(-X)
+E0D3   A6 65      LDX $65	;Do something dumb like reverse all the bytes
+E0D5   A5 62      LDA $62
+E0D7   85 65      STA $65
+E0D9   86 62      STX $62
+E0DB   A6 63      LDX $63
+E0DD   A5 64      LDA $64
+E0DF   85 63      STA $63
+E0E1   86 64      STX $64
+E0E3   A9 00      LDA #$00	;Make positive
+E0E5   85 66      STA $66
+E0E7   A5 61      LDA $61	;Do something dumb like use old exponent 
+E0E9   85 70      STA $70	;as extra bits
+E0EB   A9 80      LDA #$80	;Set exponent to -1
+E0ED   85 61      STA $61
+E0EF   20 D7 B8   JSR $B8D7	;Normalize result (remove leading zeroes)
+E0F2   A2 8B      LDX #$8B	;(mark another correction in Mapping the 64...)
+E0F4   A0 00      LDY #$00
+E0F6   4C D4 BB   JMP $BBD4	;Store number at $008B
+
+As you can see, this is a pretty nutty algorithm.
+
+>>Now, what is relevant here is that some sequences are better than
+>>others!  The choice of a and m in a*x mod m affects the calculation
+>>quite significantly.  Ideally you want to generate every number
+>>in an interval (i.e. all numbers between 0 and 1 that the computer
+>>can represent), and you want the sequence to be evenly distributed.
+>
+>I disagree with this definition. I read 'even distribution' to say that
+>no number *should* appear more frequently than any other, but I consider it
+>random and acceptable for a random number generator to continually return 1,
+>as long as the generator depends nothing on the numbers before it. One has
+
+I'm really unclear about what you are saying.  I for one don't think
+x=1 is a particularly good random number generator, and I'm not even
+sure what the last "it" of the last sentence refers to.  Moreover,
+all random number generators use an iterative method.  I will try 
+another explanation.
+
+First, an anecdote from "Numerical Recipies".  One of the authors had 
+found that the IBM "RANDU" random number generator didn't work very well.
+He called customer support, and they said he had misused their generator:
+"We guarantee that each number is random individually, but we don't 
+guarantee that more than one of them is random."
+
+There's an important moral here: "random" is really a relative quantity.
+That is, the important thing is the _sequence_ of numbers that a
+random generator produces.  The sequence should be very long, and be
+totally uncorrelated.
+
+So now consider a generator like x=f(x), and for simplicity consider x to
+be an 8-bit number.  Eventually the generator will hit a number it has
+already generated, at which point the sequence will repeat.  Naturally one
+would like the sequence to be as long as possible -- 23 233 23 233 ...
+isn't a very useful sequence.  Since x is an 8-bit number, the longest
+possible sequence has all 256 numbers.  This is one reason to generate
+every number in the interval -- it makes sure the sequence has a long
+period.
+
+Moreover, the sequence should be uniformly distributed throughout the
+interval -- not only should no single number be more probable than
+any other, but no group of numbers should be more probable than
+any other.  For example, numbers between 20 and 30 shouldn't be more
+probable than numbers between 241 and 251.  Note that sometimes you
+do want a non-uniform distribution -- say, a Gaussian distribution 
+of random numbers -- but these are invariably generated from a
+uniform distribution.
+
+Finally, the sequence should be uncorrelated.  The sequence  0 1 2 3 ...
+is uniform and has a long period, but certainly isn't random.  Here's
+another sequence: 
+
+	142 3 84 242 198 30 34 204 239 77 ...
+
+It looks reasonably random.  In fact, I generated it using a=a+2*pi/4.321
+x=128*(1+cos(a)).  So it takes some real work to ensure that a sequence
+really is random.  Much of this falls under the broad rubric of "Time
+Series Analysis" -- you've got a sensor sending numbers to you, and want
+to know if the resulting time series is chaotic, nonlinear, deterministic,
+correlated, etc.  This is also a subject I don't know much about.  For
+random numbers, though, there are several tests available.  Knuth has
+one in vol. 2 of "The Art of Computer Programming", and I'm sure that
+Numerical Recipies references some of the more recent schemes.
+
+It is worth emphasizing that what is important here is that the _sequence_
+is random.  Making sure that "each number is random individually" doesn't
+mean anything.  This is why doing things like swapping bytes is such
+a bad idea -- it doesn't make the number "more random", but it does
+wreck the sequence.  It's also why doing things like reading from
+SID four times to make a new floating point number never work well.
+In fact, even reading from SID is probably a bad idea, in terms of
+generating a sequence with the above properties (and at worst, you
+might sample at some period of the random number generator -- of
+course it's very improbable :), but it gives a flavor of the problems).
+
+Why is all of this important?  For most computer science applications,
+it isn't.  For most scientific applications, it is terribly important.
+Cute tricks like swapping bytes can be absolutely devastating to e.g.
+a Monte-Carlo integrator.  Unless that sequence has the right properties,
+you just aren't simulating nature.  A computer jock without any 
+mathematical or scientific background is to be distrusted absolutely!  
+(For scientific applications anyways.  If it makes you feel better,
+don't trust me to write a database :).
+ 
+>Someone (Larry Wall?) likes this as a good source of random numbers:
+>
+>% ps -auxww | compress | compress > random
+>
+>Read random bytes from the file random, and run again to re-seed. Hope
+>you have a busy system ;-)
+
+Looks neat, but I bet it fails the spectral tests -- i.e. probably
+fine for CS applications, but death for any Real application :).
+
+BTW, looks like you're on a Sun -- those ps options have different
+meanings on different computers.
+ 
+>F-Secure ssh for Windows has you move your mouse around in circular motion
+>and measures the eccentricity; a lot of PGP implementations just have you bang
+>on the keyboard.
+
+It would be interesting to see if these pass the tests.  I also wonder
+what effect generators have on the underlying security.  I have zero
+experience in this area -- it's a serious question!
+
+S/KEY uses a phrase typed in from the keyboard, so my guess is
+"not much".
+ 
+>>Any other questions? :)
+>
+>Why is the earth round? :-)
+
+Because a truncated earth wouldn't give as good of a result.
+
+	evetS-
+</code>

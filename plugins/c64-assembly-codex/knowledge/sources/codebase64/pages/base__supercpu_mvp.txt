@@ -1,0 +1,80 @@
+# PAGE: base:supercpu_mvp
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:supercpu_mvp
+
+====== MVP ======
+
+<code>
+    /*-------------------------------------------------------------------------
+    OP CODE: MVP (block MoVe Previous)
+    ==============================
+    
+    Addressing Modes:
+        Block Move                        ($44 - 3 bytes, * cycles)
+        * 7 Cycles per byte moved.
+
+    Flags Affected:
+        N/A
+
+    Description:
+        Moves (copies) a block of memory to a new location. The source,
+        destination and length operands of this instruction are taken from the
+        X, Y, and C (double accumulator) registers; these should be loaded with
+        the correct values before executing the MVP instruction.
+
+        The source address for MVP, taken from the X register, should be the
+        ending address (highest in memory) of the block to be moved. The
+        destination address, in the Y register, should be the new ending
+        address for the moved block. The length, loaded into the double
+        accumulator (the value in C is always used, regardless of the setting
+        of the m flag) should be the length of the block to be moved minus one;
+        if C contains $0005, six bytes will be moved. The two operand bytes of
+        the MVP instruction specify the banks holding the two blocks of memory:
+        the first operand byte (of object code) specifies the destination bank;
+        the second operand byte specifies the source bank.
+
+        The execution sequence is: the first byte is moved from the address in
+        X to the address in Y; then X and Y are decremented, C is decremented,
+        and the previous byte is moved; this process continues until the number
+        of bytes specified by the value in C plus one is moved. In other words,
+        until the value in C is $FFFF.
+        
+        If the source and destination blocks do not overlap, then the source
+        block remains intact after it has been copied to the destination.
+        
+        If the index registers are in eight-bit mode (x = 1), or the processor
+        is in 6502 emulation mode (e = 1), then the blocks If the source and
+        destination blocks do overlap, then MVP should be used only if the
+        destination is higher than the source to avoid overwriting source bytes
+        before they’ve been copied to the destination. If the destination is
+        lower, then the MVN instruction should be used instead.
+
+        When execution is complete, the value in C is $FFFF, registers X and Y
+        each point one byte past the beginning of the blocks to which they were
+        pointing, and the data bank register holds the destination bank value
+        (the first operand byte).
+
+        Assembler syntax for the block move instruction calls for the operand
+        field to be coded as two addresses, source first, then destination
+        – the move intuitive ordering, but the opposite of the actual operand
+        order in the object code. The assembler strips the bank bytes from the
+        addresses (ignoring the rest) and reverses them to object code order.
+        If a block move instruction is interrupted, it may be resumed
+        automatically via execution of an RTI if all of the registers are
+        restored or intact. The value pushed onto the stack when a block move
+        is interrupted is the address of the block move instruction. The
+        current byte-move is completed before the interrupt is serviced.
+
+        If the index registers are in eight-bit mode (x = 1), or the processor
+        is in 6502 emulation mode (e = 1), then the blocks being specified must
+        necessarily be in page zero since the high bytes of the index registers
+        will contain zeroes.
+
+    Notes:
+
+    -------------------------------------------------------------------------*/
+
+    .pseudocommand mvp val1 : val2 {
+        .byte $44, val2.getValue(), val1.getValue()
+    }
+
+</code>

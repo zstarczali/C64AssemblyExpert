@@ -1,0 +1,97 @@
+# PAGE: cia:initialize_tod_clock_on_all_platforms
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=cia:initialize_tod_clock_on_all_platforms
+
+====== Initializing TOD clock on all platforms ======
+
+Before using the TOD Clock, you need to tell it if it's clocked at 50Hz or 60Hz, in order for it to measure time correctly.
+The TOD is clocked from the A/C Power frequency on C64 and C128. On the SX-64 however, the TOD clock comes from a 60Hz crystal in both the NTSC and PAL machines. This means that figuring out if the machine is NTSC or PAL is not enough to determine if the TOD is clocked at 50Hz or 60Hz.
+
+It is however possible to initialize the TOD correctly on both PAL and NTSC machines regardless if their TOD is clocked at 50Hz or 60Hz by using a single piece of code. And you don't even need to figure out if the machine is PAL or NTSC. There're several ways to do this. I will only describe one of them here.
+
+===== Theory of Operation =====
+
+  - Gain max control by setting a dummy NMI and disabling the display
+  - Set TOD Clock Frequency to 60Hz
+  - Sync raster to real TOD Clock Frequency
+  - Count number of CPU cycles it takes for TOD to count 1 decisecond
+  - If number of cycles counted is less than 118230, TOD Clock Frequency is set to 60Hz, otherwise 50Hz.
+
+
+Alternatively the same result can be achieved by clocking TOD at 50Hz and
+then just counting 98525, but then the margin for error increases slightly.
+
+===== The code =====
+
+
+<code>
+;Initialize TOD Clock by correctly determining the actual frequency
+;by which the TOD is clocked.
+;Supports PAL/NTSC with 50/60Hz TOD-Clock in ANY combination.
+;by Devia/Ancients 2009-02-13
+
+TODInit2:
+	sei
+	lda	#<INT_NMI	;Setup NMI vector
+	sta	$fffa		; to catch unwanted NMIs
+	lda	#>INT_NMI	;
+	sta	$fffb		;
+	lda	#$35		;Bank out KERNAL
+	sta	$01		; so new NMI vector is active
+
+	lda	#0
+	sta	$d011		;Turn off display to disable badlines
+	sta	$dc0e		;Set TOD Clock Frequency to 60Hz
+	sta	$dc0f		;Enable Set-TOD-Clock
+	sta	$dc0b		;Set TOD-Clock to 0 (hours)
+	sta	$dc0a		;- (minutes)
+	sta	$dc09		;- (seconds)
+	sta	$dc08		;- (deciseconds)
+
+	lda	$dc08		;
+:	cmp	$dc08		;Sync raster to TOD Clock Frequency
+	beq	:-		;
+	
+	ldx	#0		;Prep X and Y for 16 bit
+	ldy	#0		; counter operation
+	lda	$dc08		;Read deciseconds
+:	inx			;2   -+
+	bne	:+		;2/3  | Do 16 bit count up on
+	iny			;2    | X(lo) and Y(hi) regs in a 
+	jmp	:++		;3    | fixed cycle manner
+:	nop			;2    |
+	nop			;2   -+
+:	cmp	$dc08		;4 - Did 1 decisecond pass?
+	beq	:---		;3 - If not, loop-di-doop
+				;Each loop = 16 cycles
+				;If less than 118230 cycles passed, TOD is 
+				;clocked at 60Hz. If 118230 or more cycles
+				;passed, TOD is clocked at 50Hz.
+				;It might be a good idea to account for a bit
+				;of slack and since every loop is 16 cycles,
+				;28*256 loops = 114688 cycles, which seems to be
+				;acceptable. That means we need to check for
+				;a Y value of 28.
+
+	cpy	#28		;Did 114688 cycles or less go by?
+	bcc	:+		;- Then we already have correct 60Hz $dc0e value
+	lda	#$80		;Otherwise, we need to set it to 50Hz
+	sta	$dc0e
+:
+	lda	#$1b		;Enable the display again
+	sta	$d011
+	rts		
+
+INT_NMI:
+	rti
+</code>
+
+===== Example Program =====
+
+An example program using the above method can be found here: {{:sourcecode:todinit.zip|}}
+
+===== Footnotes =====
+
+The sta $dc0b, sta $dc0a and sta $dc09 can be omitted if you don't need to reset the clock to 0:00:00. The sta $dc08 is needed to unlatch the TOD in case it got latched prior to this routine.
+When running this in Vice, it will always end up detecting the Vice TOD Clock as 60Hz clocked and it will always be counting correct despite of this. In other words: Vice seems to ignore bit 7 of $dc0e and just always clock correctly.
+In CCS64, the reset of the TOD seems to take longer than it should, but the routine still works.
+In Hoxs64 the emulation is correct down to the last cycle!

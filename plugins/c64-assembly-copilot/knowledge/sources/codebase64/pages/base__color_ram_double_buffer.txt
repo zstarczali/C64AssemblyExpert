@@ -1,0 +1,111 @@
+# PAGE: base:color_ram_double_buffer
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:color_ram_double_buffer
+
+====== Color Ram Double Buffer ======
+
+By Sokrates
+
+This section describes an example implementation of a double buffer for the Commodore 64 color ram using character mode.
+
+The first 12 even lines of the screen memory and the color ram are buffer 0, the first 12 odd lines are buffer 1. Character size is 8x16, the upper 8x8 part of a character number x is defined by charset 0, the lower 8x8 part is defined by the same character number x in charset 1. So the character screen consist of 8x16 character size times 12 lines (=24 lines in standard mode) and the number of columns remains the standard 40 columns.
+
+The example works for all VIC-II types (pal, ntsc, drean, etc.):
+
+{{ base:c64colorramdoublebuffer.gif }}
+
+The main purposes of this implementation:
+  * understand the double buffer idea better by looking at an example
+  * inspiration and good starting point for your own use-cases
+
+Known implementation restrictions: sprites can disturb the raster timing depending on their position and their sprite number.
+
+===== Introduction =====
+
+Double Buffering is used in computer graphics to improve quality by avoiding artifacts like stuttering and tearing. The image in first buffer is shown while the image in the second buffer is updated. Once the update is done, the second buffer is shown and the first buffer can be used for updating the next image and so on.
+
+The Commodore 64 video interface controller II (VIC-II) supports double buffering for bitmaps, character memory, and screen memory - but unfortunately not for the color ram.
+
+Thanks to undocumented tricks and side effects of the VIC-II there is a way to address this problem - split the color ram in even and odd lines to implement a double buffer.
+
+===== Howto =====
+
+The basic idea is to split up the screen memory and the color ram: the first 12 even lines of the screen memory and the color ram are buffer 0, the first 12 odd lines are buffer 1. This idea has the following implications:
+  * each line has to be doubled to fill at least most of the screen.
+  * the screen sums up to the size of 24 standard lines (instead of 25 like in normal mode).
+  * the number of columns remains at 40.
+  * the size of a char is 8x16 (instead of 8x8 for standard chars).
+  * two charsets are needed for the definition of the 8x16 chars (instead of one charset for standard chars). The upper 8x8 part of a character number x is defined by charset 0, the lower 8x8 part is defined by the same character number x in charset 1.
+  * a significant amount of rasterlines in each frame is needed for the implementation.
+  * raster interrupts must be precise and thus can be disturbed by other interrupts or sprites. Therefore, sprites must be handled with care.
+
+Applied techniques:
+  * stable und unstable raster interrupts (use fast unstable interrupts when possible and stable interrupts when needed)
+  * doubled text lines
+  * switch between charsets
+  * linecrunch
+  * invalid text mode
+  * open upper/lower border
+
+==== Build up Buffer 0 ==== 
+
+To show buffer 0 on the screen, the first 12 even lines of the screen memory and the color ram have to be drawn, this are the lines [0,2,4,...,22].
+
+This is done by:
+  * use black background for outer frame (top/bottom screen) to hide black pixels when using invalid text mode
+  * before line 0 switch to valid text mode to show lines
+  * set Background color for inner frame (since the normal inner frame does not exist any more due to opened upper/lower border). This is technically not needed for the double buffer, but it's a nice extra.
+  * Loop 12 times beginning with line 0:
+    * switch to charset 0
+    * show one char line
+    * repeat this char line (double line)
+    * switch to charset 1 for doubled line
+  * switch to invalid text mode to hide pixels (all invalid modes draw black pixels on black background) of the next char line. Please note that sprites can still collide with these black pixels.
+  * open top/bottom border. This is technically not needed for the double buffer, but it's a nice extra.
+
+==== Build up Buffer 1 ====
+
+To show buffer 1 on the screen, the first 12 odd lines of the screen memory and the color ram have to be drawn, this are the lines [1,3,5,...,23].
+
+This is done by:
+  * use black background for outer frame (top/bottom screen) to hide black pixels when using invalid text mode
+  * do one line crunch for line 0 (so start screen with line 1)
+  * switch on invalid text mode to hide last raster line pixels from crunched char line (all invalid modes draw black pixels on black background). Please note that sprites can still collide with these black pixels.
+  * set Background color for inner frame (since the normal inner frame does not exist any more due to opened upper/lower border). This is technically not needed for the double buffer, but it's a nice extra.
+  * switch back to valid text mode to show line 1
+  * Loop 12 times beginning with line 1:
+    * switch to charset 0
+    * show one char line
+    * repeat this char line (double line)
+    * switch to charset 1 for doubled line
+  * switch to invalid text mode to hide pixels (all invalid modes draw black pixels on black background) of the next char line. Please note that sprites can still collide with these black pixels.
+  * open top/bottom border. This is technically not needed for the double buffer, but it's a nice extra.
+
+The linecrunch draws the last raster line of the first text line 0. So normally due to this additional raster line buffer 1 would start one rasterline later than buffer 0 causing the screen "jumping" one raster line when switching between the buffers. But fortunately the linecrunch can be started some rasterlines before the first line is shown on display, so technically no shift down of buffer 0 is needed. If for any reason the shift down is necessary for a use-case, it can be done by manipulating yscroll or by using FLD (Flexible Line Distance).
+
+===== Optimizations =====
+
+Whether and which optimizations are needed depends on the application.
+
+As mentioned above, sprites can disturb the raster timing depending on their position and their sprite number. If you need multiple sprites with random positions for your use-case then the raster line timing must be adapted and additional multiplexers can be added.
+
+The raster interrupts generate a constant workload for each frame. To reduce this workload the stable raster interrupts can implemented faster, e.g. by using the Ninja-method:
+  * [[base:nmis_and_distributed_jitter-correction_routines|The Ninja-Method]]
+  * [[https://www.the-dreams.de/articles/2x2-fli.txt|The Dreams: How to get a fast 2x2-FLI routine]]
+
+When using this method you have to take care of the fragmented memory and the VIC-II and Complex Interface Adapter (CIA) type dependencies.
+
+Repeating char lines and switching the character set can also be applied multiple times in succession. This further increases the number of freely definable pixels and further reduces the memory required for graphical content and the data to be updated per buffer, without increasing the overhead caused by raster interrupts. This improves the speed advantage of the color ram double buffer. The disadvantage is that the same color ram value applies to correspondingly more characters in a column, and additional memory is required for the additional character sets.
+
+
+===== Download files =====
+
+Source code, binary and documentation:
+
+{{base:c64colorramdoublebuffer.zip?linkonly}}
+
+===== Additional information =====
+
+Compilation hints, a detailed comparison with the standard text mode, and information about the first appearance can be found here:
+
+https://github.com/FPT-Sokrates/C64ColorRamDoubleBuffer
+

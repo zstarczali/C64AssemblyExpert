@@ -1,0 +1,11 @@
+# PAGE: projects:game_of_life
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=projects:game_of_life
+
+====== Conway's Game Of Life port for Commodore 64. ======
+Created in C64 Studio.
+
+Packed with features: full screen colony editor, random colony generator, disk I/O.
+
+Full source code and binaries with documentation: {{:projects:conwayslife.zip|}}
+
+{{:projects:scr11.jpg?direct&200|}} {{:projects:scr6.png?direct&200 |}}{{:projects:scr8.jpg?direct&200|}}

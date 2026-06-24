@@ -1,0 +1,1278 @@
+# PAGE: base:4_ways_scroll_part_1
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:4_ways_scroll_part_1
+
+====== 4 ways scroll part 1 ======
+
+<code> 
+;  4 Ways Scroll
+;  by malcolm bamber
+;  http://www.dark-well.pwp.blueyonder.co.uk/
+;  Assembler Used C64ASM.EXE
+
+.word $0801 		; Starting address for loader
+* = $0801
+.word nextLine 		; Line link
+.word $0 	        ; Line number
+.byte 158 		; SYS
+.byte '1','4','5','0','0'						
+.byte 0
+nextLine .byte 0,0 	; end of basic
+
+* = 14500   
+asemcode       		
+     		
+Ptrhiddenscreen	        = $2b		; hidden screen address	        two byte address
+Ptrscreen		= $2d		; screen address you can see	two byte address
+Ptrmap 			= $2f		; map address 	                two byte address
+Ptrmapcolour	        = $31		; map colour address            two byte address
+Ptrcolour		= $33		; colour address                two byte address	
+PtrSparecolour          = $35
+raster			= 245
+free			= $5		; THESE ARE FREE AT THE MONENT	
+free1			= $6		; THESE ARE FREE AT THE MOMENT
+scrollstop		= $7		; if set then no stop scrolling screen
+sync			= $8			
+xscroll			= $9		; screen is all the way to the left
+yscroll			= $c		; screen is all the way to the up
+whichscreen		= $d		; which screen we are showing 1024 or 3072
+mapwidth		= $e			
+maphight		= $f			
+mapx			= $12		; this will tell how far left or right we are on map
+mapy			= $14		; this will tell how far up or down we are on the map	
+udflag			= $15		; if udflag = 0 
+lrflag			= $16		; what side of 
+key			= $C5		; WHAT KEY IS PRESSED					
+temp0           = $37 
+temp1           = $38                           
+temp2           = $39                           
+temp3           = $3a                           
+temp4           = $3b                           
+temp5           = $3c
+temp6           = $3d
+temp7           = $3e
+temp8           = $3f
+temp9           = $40
+temp10          = $41
+temp11          = $42
+temp12          = $43
+temp13          = $44
+temp14          = $45
+temp15          = $46
+temp16		= $fb
+temp17		= $fc
+temp18		= $fd
+temp19		= $fe
+temp20		= $ff
+temp21		= $20
+					
+maxwidth	= 39	        ; You must take 20 from mapwidth has 20 tiles are show across	
+maxheight 	= 23	        ; you must take 13 from maphight has 13 tiles arw show down
+					
+;*** setup varibles  ****
+lda #0				; MAKE IRQ JUMP OUT BEFORE DOING ANY SCROLL WORK
+sta scrollstop			; STORE VALUE HERE
+lda #0				; SET SCREEN XSCROLL POSITION NEAR THE MIDDLE 7=left 0=right
+sta xscroll			; 
+lda #0			        ; SET SCREEN YSCROLL POSITION NEAR THE MIDDLE 7=up 0=down
+sta yscroll			; 
+lda #59				; TILES ACROSS
+sta mapwidth			; MAP WIDTH	
+lda #36 			; ROW DOWN
+sta maphight			; MAP HEIGHT
+lda #$0f
+sta $d418			; SELECT FILTER MODE AND VOLUME	
+         			
+lda #0
+sta mapx			; THIS WILL TELL HOW FAR LEFT OR RIGHT WE ARE ON MAP
+lda #0
+sta mapy			; THIS WILL TELL HOW FAR UP OR DOWN WE ARE ON THE MAP	
+sta sync			; WAIT FOR RASTER TO START AT THE TOP	
+lda #0
+sta free
+sta free1	                
+lda #0
+sta udflag			; WHICH SIDE TO DRAW NEXT TILE STRIP TOP OR BOTTOM OF SCREEN 
+sta lrflag			; WHICH SIDE TO DRAW NEXT TILE STRIP LEFT OR RIGHT OF SCREEN
+lda #<1024			; SET ADDRESS OF SCREEN YOU CAN SEE
+sta Ptrscreen			; SET CURRENT SCREEN BITMAP
+lda #>1024
+sta Ptrscreen+1			; SET CURRENT SCREEN BITMAP
+lda #<3072			; SET ADDRESS OF SCREEN THAT IS HIDDEN
+sta Ptrhiddenscreen		; SET HIDDEN SCREEN BITMAP
+lda #>3072
+sta Ptrhiddenscreen+1		; SET HIDDEN SCREEN BITMAP
+lda #1
+sta whichscreen 		; WHICH SCREEN WE ARE SHOWING 1024 OR 3072
+					
+lda #1  			; TEXT COLOUR 
+jsr $ffd2			; SET COLOUR FOR KERNAL	SCREEN PRINTING
+          			
+jsr setup			; SET UP MEMORY FOR GAME
+jsr $e544			; CLEAR SCREEN
+;inc $d020
+					 					
+jsr setcursor		
+jsr makemapynumbers		; WORK OUT ALL 16 BIT ADD VALUES FOR MAPY
+
+;***************
+;** MAIN LOOP **
+;***************
+main				
+jsr setupirq			; START IRQ
+
+																			
+ldy #0				; FILL SCREEN WITH VALUE IN Y AND FILL COLOUR WITH VALUE IN X
+ldx #0						
+lda Ptrscreen	
+sta temp0
+lda Ptrscreen+1	
+sta temp1
+lda Ptrcolour
+sta temp2
+lda Ptrcolour+1
+sta temp3
+jsr fillscreen					
+					
+													
+ldy #0				; FILL SCREEN WITH VALUE IN Y AND FILL COLOUR WITH VALUE IN X
+ldx #0							
+lda Ptrhiddenscreen	
+sta temp0
+lda Ptrhiddenscreen+1	
+sta temp1
+lda PtrSparecolour				
+sta temp2
+lda PtrSparecolour+1
+sta temp3
+jsr fillscreen					
+					
+lda Ptrscreen		        ; SCREEN ADDRESS
+sta temp0
+lda Ptrscreen+1
+sta temp1
+lda Ptrcolour		        ; COLOUR ADDRESS 
+sta temp2
+lda Ptrcolour+1
+sta temp3
+jsr drawscreen			; DRAW MAP ON SCREEN
+					
+lda Ptrscreen			; SCREEN ADDRESS
+sta temp1
+lda Ptrscreen+1
+sta temp2
+lda Ptrcolour			; COLOUR ADDRESS 
+sta temp3
+lda Ptrcolour+1
+sta temp4
+jsr fillrightside		; DRAW RIGHT SIDE OF SCREEN 
+  					
+clc								
+lda Ptrscreen			; SCREEN ADDRESS
+adc #<960	
+sta temp1
+lda Ptrscreen+1
+adc #>960
+sta temp2
+clc
+lda Ptrcolour			; COLOUR ADDRESS 
+adc #<960
+sta temp3
+lda Ptrcolour+1
+adc #>960
+sta temp4									
+jsr fillbottom		        ; DRAW BOTTOM ROW ON SCREEN
+					
+mainloop  			
+lda sync			; WAIT FOR SYNC TO = ONE
+cmp #1
+bne mainloop
+lda #0				; CLEAR OLD SYNC FLAG
+sta sync
+  					
+lda scrollstop			; CHECK IRQ FLAG 
+cmp #0				; IS IT ZERO
+bne mainloop		        ; NO
+										
+lda 197				; get key
+cmp #1				; is it returnkey
+bne _next 			; no
+jsr swapscreen
+jsr setcursor			; yes
+ldx mapx
+ldy #0
+jsr printnum
+jsr swapscreen
+_next					
+			
+joystick			
+;lda $DC01			; VALUE FOR JOYSTICK IN PORT ONE
+;cmp #$7F			; NEUTRAL
+;bne _checkforup
+lda $DC00			; VALUE FOR JOYSTICK IN PORT TWO
+cmp #$7F
+bne _checkforup
+jmp mainloop
+  					
+_checkforup			
+cmp #$7E			; UP                
+bne _checkfordown		; NO NOT UP
+lda mapy		        ; GET VALUE OF MAP POINTER
+cmp #0				; MAKE SURE WE CAN STILL MOVE DOWN 
+beq _quitup		        ; NO
+lda #2			        ; VALUE TO USE  
+sta scrollstop			; SET FLAG TO SCROLL UP 
+lda #3				; YSCROLL VALUE
+sta yscroll			; SET SCREEN STARTING POSITION
+_quitup				
+jmp mainloop			; END OF JOYSTICK LEFT
+  					  					
+_checkfordown		
+cmp #$7D			; DOWN               
+bne _checkforleft		; NO NOT DOWN
+lda mapy			; GET VALUE OF MAP POINTER
+cmp #maxheight			; MAKE SURE WE CAN STILL MOVE DOWN 
+beq _quitdown		        ; NO
+lda #2				; VALUE TO USE  
+sta scrollstop			; SET FLAG TO SCROLL DOWN 
+lda #4				; YSCROLL VALUE
+sta yscroll			; SET SCREEN STARTING POSITION
+_quitdown			
+jmp mainloop			; END OF JOYSTICK RIGHT  					
+  					
+_checkforleft		
+cmp #$7B			; LEFT                
+bne _checkforright		; NO NOT LEFT
+lda mapx			; GET VALUE OF MAP POINTER
+cmp #0			        ; MAKE SURE WE CAN STILL MOVE LEFT 
+beq _quitleft			; NO
+lda #1			        ; VALUE TO USE  
+sta scrollstop			; SET FLAG TO SCROLL LEFT 
+lda #3				; XSCROLL VALUE
+sta xscroll		        ; SET SCREEN STARTING POSITION
+_quitleft			
+jmp mainloop			; END OF JOYSTICK LEFT
+  					  					
+_checkforright		
+cmp #$77			; RIGHT                
+bne _quitright		        ; NO NOT RIGHT
+lda mapx			; GET VALUE OF MAP POINTER
+cmp #maxwidth			; MAKE SURE WE CAN STILL MOVE LEFT 
+beq _quitright		        ; NO	
+lda #1				; VALUE TO USE  
+sta scrollstop			; SET FLAG TO SCROLL RIGHT 
+lda #4				; XSCROLL VALUE
+sta xscroll			; SET SCREEN STARTING POSITION
+_quitright			
+jmp mainloop			; END OF JOYSTICK RIGHT
+ 
+; quit
+_quitout			
+lda $D016			; SELECT 38/40 COLUMN TEXT DISPLAY: 1 = 40 COLS
+eor #%00001000			; BIT 3=1 40 COLS MODE,BIT 4=1 MULTI-COLOR MODE
+sta $D016
+lda $D016			; END OF SCROLL PART OF THE SCREEN
+and #%11111000
+ora #7 				
+sta $D016			; MOVE THE SCREEN ALL THE WAY LEFT
+rts	
+
+;************************************
+;* WORK OUT Y VALUES OF MAP ADDRESS *
+;************************************
+makemapynumbers		
+lda #0			        ; mapy value to use
+sta temp8						
+lda #0					
+sta (temp9)			; index to pointer array
+									
+_loop	
+lda temp8			; number to times
+sta temp0
+lda #0
+sta temp1
+lda mapwidth			; multiplicand
+sta temp2
+lda #0
+sta temp3
+jsr mult16			; scratch temp0 - temp7		
+  															
+ldy temp9
+lda temp4			; low byte value return from mult16
+sta mapyaddress,y		; store low byte
+iny
+lda temp5			; high byte value return from mult16
+sta mapyaddress,y		; store high byte
+inc temp9
+inc temp9		        ; move y index pointer 
+inc temp8		        ; next y value
+lda maphight		        ; get the map hight
+cmp temp8			; is y value = to it
+bne _loop			; no
+rts				; yes	
+
+;*****************************************
+;* FILL TOP ROW ON SCREEN                *
+;* using temp1 - temp13			 * 
+;* temp 1 & 2 	= screen address         *
+;* temp 3 & 4 	= colour address         *	
+;* temp 5 & 6 	= Ptrmap address         *
+;* temp 7 & 8 	= Ptrmapcolour	         *
+;* temp 10	= X Position On Screen	 *
+;* temp 11	= X Position On Map      *
+;* temp 12	= Ascii Value From Map   * 
+;* temp 13	= Colour Value	From Map * 
+;*****************************************		
+filltop				
+clc
+lda mapy			; get map array index
+asl a
+tay
+clc
+lda Ptrmap			; map address
+adc mapyaddress,y		; RESULT FROM mapy*mapwidth
+sta temp5
+lda Ptrmap+1
+adc mapyaddress+1,y		; RESULT FROM mapy*mapwidth
+sta temp6
+clc
+lda Ptrmapcolour		; map colour address
+adc mapyaddress,y	        ; RESULT FROM 
+sta temp7
+lda Ptrmapcolour+1
+adc mapyaddress+1,y	    	; RESULT FROM 
+sta temp8
+					
+lda #0
+sta temp10			; SET ACROSS POSITION ON SCREEN
+lda mapx			; HOW FAR ACROSS MAP
+sta temp11						
+
+_drawtile			
+ldy temp11			; SET ACROSS ON MAP
+lda (temp5),y			; GET FIRST CHAR ON TILE FROM MAP
+;lda #0				; ***** DEBUG ONLY	*****
+sta temp12			; STORE IT
+lda (temp7),y			; COLOUR MAP
+sta temp13			; STORE COLOUR OF TILE 
+					
+lda udflag			; ARE WE DRAWING THE TOP OF THE TILE OR BOTTOM
+cmp #1				; ARE WE DRAWING THE BOTTOM PART OF THE TILE
+bne _drawfirst			; KEEP TEMP12 HAS IT IS FOR DRAWING
+					
+inc temp12			; YES THEN SET CHAR VALUE TO SECOND LINE OF TILE	
+inc temp12
+					
+
+_drawfirst			
+ldy temp10			; SET X POSITION ON SCREEN
+lda temp12			; GET TILE CHAR VALUE	
+sta (temp1),y			; WRITE OUT CHAR TO SCREEN
+lda temp13			; GET COLOUR VALUE
+sta (temp3),y		        ; WRITE OUT COLOUR TO SCREEN
+inc temp10			; MOVE TO NEXT POSITION ON SCREEN
+										
+_drawsecond			
+ldy temp10		        ; SET X POSITION ON SCREEN
+ldx temp12			; GET TILE CHAR VALUE	
+inx
+txa
+sta (temp1),y			; WRITE OUT CHAR TO SCREEN
+lda temp13			; GET COLOUR VALUE
+sta (temp3),y			; WRITE OUT COLOUR TO SCREEN
+inc temp10		        ; MOVE TO NEXT POSITION ON SCREEN
+					
+inc temp11			; HOW FAR ACROSS MAP 						
+
+lda temp10			; CHECK HOW MANY TILE WE HAVE DRAWN
+cmp #39				; HAVE WE DONE A FULL ROW ACROSS
+beq _quit
+cmp #40				; HAVE WE DONE A FULL ROW ACROSS
+beq _quit
+jmp _drawtile			; JUMP IF CMP >TEMP10 
+_quit				
+rts		
+
+;*****************************************
+;* FILL BOTTOM ROW ON SCREEN             *
+;* using temp1 - temp13 		 * 
+;* temp 1 & 2 	= screen address         *
+;* temp 3 & 4 	= colour address	 *	
+;* temp 5 & 6 	= Ptrmap address	 *
+;* temp 7 & 8 	= Ptrmapcolour		 *
+;* temp 10	= X Position On Screen	 *
+;* temp 11	= X Position On Map      *
+;* temp 12	= Ascii Value From Map   * 
+;* temp 13	= Colour Value	From Map * 
+;*****************************************				
+fillbottom		   	
+clc
+lda mapy			; get map array index
+adc #12				; 
+asl a
+tay
+clc
+lda Ptrmap			; map address
+adc mapyaddress,y	        ; RESULT FROM mapy*mapwidth
+sta temp5
+lda Ptrmap+1
+adc mapyaddress+1,y		; RESULT FROM mapy*mapwidth
+sta temp6
+clc
+lda Ptrmapcolour		; map colour address
+adc mapyaddress,y		; RESULT FROM 
+sta temp7
+lda Ptrmapcolour+1
+adc mapyaddress+1,y	        ; RESULT FROM 
+sta temp8
+lda #0
+sta temp10			; SET ACROSS POSITION ON SCREEN
+lda mapx			; HOW FAR ACROSS MAP
+sta temp11						
+					
+_drawtile			
+ldy temp11			; SET ACROSS ON MAP
+lda (temp5),y			; GET FIRST CHAR ON TILE FROM MAP
+;lda #0				; ***** DEBUG ONLY	*****
+sta temp12			; STORE IT
+lda (temp7),y			; COLOUR MAP
+sta temp13			; STORE COLOUR OF TILE 
+					
+lda udflag			; ARE WE DRAWING THE TOP OF THE TILE OR BOTTOM
+cmp #1				; ARE WE DRAWING THE BOTTOM PART OF THE TILE
+bne _drawfirst		        ; KEEP TEMP12 HAS IT IS FOR DRAWING
+					
+inc temp12			; YES THEN SET CHAR VALUE TO SECOND LINE OF TILE	
+inc temp12
+	
+_drawfirst			
+ldy temp10		        ; SET X POSITION ON SCREEN
+lda temp12			; GET TILE CHAR VALUE	
+sta (temp1),y			; WRITE OUT CHAR TO SCREEN
+lda temp13			; GET COLOUR VALUE
+sta (temp3),y			; WRITE OUT COLOUR TO SCREEN
+inc temp10			; MOVE TO NEXT POSITION ON SCREEN
+										
+_drawsecond			
+ldy temp10			; SET X POSITION ON SCREEN
+ldx temp12			; GET TILE CHAR VALUE	
+inx
+txa
+sta (temp1),y		        ; WRITE OUT CHAR TO SCREEN
+lda temp13			; GET COLOUR VALUE
+sta (temp3),y			; WRITE OUT COLOUR TO SCREEN
+inc temp10			; MOVE TO NEXT POSITION ON SCREEN
+					
+inc temp11			; HOW FAR ACROSS MAP 	
+					
+lda temp10			; CHECK HOW MANY TILE WE HAVE DRAWN
+cmp #39				; HAVE WE DONE A FULL ROW ACROSS
+beq _quit
+cmp #40				; HAVE WE DONE A FULL ROW ACROSS
+beq _quit
+jmp  _drawtile			; JUMP IF CMP >TEMP10 
+_quit				
+rts		
+					
+;********************************************* 
+;* FILL LEFT SIDE ON SCREEN                  *
+;* using temp1 - temp14		             * 
+;* temp 1 & 2 	= screen address     	     *
+;* temp 3 & 4 	= colour address	     *	
+;* temp 5 & 6 	= Ptrmap address	     *
+;* temp 7 & 8 	= Ptrmap colour	address	     *
+;* temp 9 	= Ascii Value From Map	     *
+;* temp 10	= Colour Value	From Map     *
+;* temp 11	= Were line count is stored  *
+;* temp 12	= Y Value On Map	     *
+;* temp 13	= which side of tile to draw * 
+;* temp 14	= X Position On Map          *
+;*********************************************		
+fillleftside		
+lda mapy
+sta temp12			; set mapy
+					
+lda temp12			; get mapy value
+asl a
+tay
+clc
+lda Ptrmap			; map address
+adc mapyaddress,y
+sta temp5
+lda Ptrmap+1
+adc mapyaddress+1,y
+sta temp6
+clc
+lda Ptrmapcolour		; map colour address
+adc mapyaddress,y
+sta temp7
+lda Ptrmapcolour+1
+adc mapyaddress+1,y
+sta temp8	
+					
+lda #0				; count line drawn down
+sta temp11			; SET ACROSS POSITION ON SCREEN
+lda #0 				; WE ALLWAYS START ON THE FIRST PART OF A tile
+sta temp13
+					
+lda mapx			; set mapx to left side of map
+sta temp14
+					
+_drawtile			
+ldy temp14			; SET ACROSS ON MAP
+lda (temp5),y			; GET FIRST CHAR ON TILE FROM MAP
+;lda #0				; ***** DEBUG ONLY	*****
+sta temp9			; STORE IT
+lda (temp7),y			; COLOUR MAP
+sta temp10			; STORE COLOUR OF TILE 
+					
+lda temp13			; ARE WE DRAWING THE TOP OF THE TILE OR BOTTOM
+cmp #0				; ARE WE DRAWING THE TOP PART OF THE TILE
+beq _topline		        ; YES
+					
+inc temp9			; NO THEN SET CHAR VALUE TO SECOND LINE OF TILE	
+inc temp9	
+				
+_topline			
+lda lrflag			; YES THEN SEE WHICH SIDE OF TILE TO DRAW
+cmp #1				; RIGHT SIDE
+beq _drawrightside		; NO
+					
+_drawleftside		
+ldy #0				; SET X POSITION ON SCREEN
+lda temp9		        ; GET TILE CHAR VALUE	
+sta (temp1),y			; WRITE OUT CHAR TO SCREEN
+lda temp10			; GET COLOUR VALUE
+sta (temp3),y		        ; WRITE OUT COLOUR TO SCREEN
+jmp _next
+															
+_drawrightside		
+ldy #0				; SET X POSITION ON SCREEN
+ldx temp9			; GET TILE CHAR VALUE	
+inx
+txa
+sta (temp1),y		        ; WRITE OUT CHAR TO SCREEN
+lda temp10			; GET COLOUR VALUE
+sta (temp3),y			; WRITE OUT COLOUR TO SCREEN
+					
+_next				
+lda temp13			; ARE WE DRAWING THE TOP OF THE TILE OR BOTTOM
+cmp #1				; ARE WE DRAWING THE BOTTOM PART OF THE TILE
+bne _continue2		        ; NO
+					
+inc temp12			; move mapy value down one line
+lda temp12			; get mapy value
+asl a
+tay
+clc
+lda Ptrmap			; map address
+adc mapyaddress,y
+sta temp5
+lda Ptrmap+1
+adc mapyaddress+1,y
+sta temp6
+clc
+lda Ptrmapcolour		; map colour address
+adc mapyaddress,y
+sta temp7
+lda Ptrmapcolour+1
+adc mapyaddress+1,y
+sta temp8	
+					
+_continue2			
+sec				; BOOL UDFLAG
+lda #1							
+sbc temp13
+sta temp13
+					
+clc			        ; hidden screen address
+lda temp1
+adc #40
+sta temp1
+lda temp2
+adc #0
+sta temp2
+clc				; hidden screen colour address
+lda temp3
+adc #40
+sta temp3
+lda temp4
+adc #0
+sta temp4
+													
+inc temp11			; NEXT LINE DOWN COUNT
+lda temp11			; GET TILE DOWN COUNT
+cmp #25				; HAVE WE DONE 12 TILES DOWN
+beq _quit		        ; QUIT OUT
+jmp _drawtile			; NO THEN CONTINE	
+_quit				
+rts		
+
+;*********************************************
+;* FILL RIGHT SIDE ON SCREEN                 *
+;* using temp1 - temp14			     * 
+;* temp 1 & 2 	= screen address 	     *
+;* temp 3 & 4 	= colour address	     *	
+;* temp 5 & 6 	= Ptrmap address             *
+;* temp 7 & 8 	= Ptrmap colour	address	     *
+;* temp 9 	= Ascii Value From Map	     *
+;* temp 10	= Colour Value	From Map     *
+;* temp 11	= Were line count is stored  *
+;* temp 12	= Y Value On Map	     *	
+;* temp 13	= which side of tile to draw *
+;* temp 14	= X Position On Map 	     *
+;*********************************************		
+fillrightside		
+lda mapy
+sta temp12			; set mapy
+lda #0				; clear memory
+sta temp16
+sta temp17
+					
+lda temp12			; get mapy value
+asl a
+tay
+clc
+lda Ptrmap			; map address
+adc mapyaddress,y
+sta temp5
+lda Ptrmap+1
+adc mapyaddress+1,y
+sta temp6
+clc
+lda Ptrmapcolour		; map colour address
+adc mapyaddress,y
+sta temp7
+lda Ptrmapcolour+1
+adc mapyaddress+1,y
+sta temp8	
+					
+lda #0				; count line drawn down
+sta temp11			; SET ACROSS POSITION ON SCREEN
+					
+lda #0				; WE ALLWAYS START ON THE FIRST PART OF A TILE
+sta temp13										
+clc				; set mapx to right side of map
+lda mapx
+adc #19			        ; NOT SURE WHAT NUMBER
+sta temp14
+
+_drawtile			
+ldy temp14			; SET ACROSS ON MAP
+lda (temp5),y			; GET FIRST CHAR ON TILE FROM MAP
+;lda #0				; ***** DEBUG ONLY	*****
+sta temp9			; STORE IT
+lda (temp7),y			; COLOUR MAP
+sta temp10			; STORE COLOUR OF TILE 
+					
+lda temp13			; ARE WE DRAWING THE TOP OF THE TILE OR BOTTOM
+cmp #0				; ARE WE DRAWING THE TOP PART OF THE TILE
+beq _topline   			; YES
+					
+inc temp9			; NO THEN SET CHAR VALUE TO SECOND LINE OF TILE	
+inc temp9	
+					
+_topline			
+lda lrflag			; YES THEN SEE WHICH SIDE OF TILE TO DRAW
+cmp #1				; RIGHT SIDE
+beq _drawrightside		; NO
+										
+_drawleftside		
+ldy #38				; SET X POSITION ON SCREEN
+lda temp9			; GET TILE CHAR VALUE	
+sta (temp1),y			; WRITE OUT CHAR TO SCREEN
+lda temp10			; GET COLOUR VALUE
+sta (temp3),y			; WRITE OUT COLOUR TO SCREEN
+jmp _next
+															
+_drawrightside		
+ldy #38				; SET X POSITION ON SCREEN
+ldx temp9			; GET TILE CHAR VALUE	
+inx
+txa
+sta (temp1),y		        ; WRITE OUT CHAR TO SCREEN
+lda temp10			; GET COLOUR VALUE
+sta (temp3),y			; WRITE OUT COLOUR TO SCREEN
+					
+_next				
+lda temp13		        ; ARE WE DRAWING THE TOP OF THE TILE OR BOTTOM
+cmp #1				; ARE WE DRAWING THE BOTTOM PART OF THE TILE
+bne _continue2			; NO
+					
+inc temp12			; move mapy value down one line
+lda temp12			; get mapy value
+asl a
+tay
+clc
+lda Ptrmap		        ; map address
+adc mapyaddress,y
+sta temp5
+lda Ptrmap+1
+adc mapyaddress+1,y
+sta temp6
+clc
+lda Ptrmapcolour		; map colour address
+adc mapyaddress,y
+sta temp7
+lda Ptrmapcolour+1
+adc mapyaddress+1,y
+sta temp8	
+					
+_continue2			
+sec				; BOOL UDFLAG
+lda #1							
+sbc temp13
+sta temp13
+
+clc				; hidden screen address
+lda temp1
+adc #40
+sta temp1
+lda temp2
+adc #0
+sta temp2
+
+clc			        ; hidden screen colour address
+lda temp3
+adc #40
+sta temp3
+lda temp4
+adc #0
+sta temp4
+													
+inc temp11			; next line down count
+lda temp11			; get tile down count
+cmp #25				; have we done 12 tiles down
+beq _quit			; quit out
+jmp _drawtile			; no then contine	
+_quit				
+rts		
+
+;****************************************		
+;* COPY SCREEN LEFT & UP  		*	
+;* temp0 to temp9         		*
+;* x = 0 copy left , 1 copy up          *	
+;* temp 0 & 1	= screen address	*
+;* temp 2 & 3	= hidden screen address *
+;* temp 4 & 5	= colour address	*
+;* temp 6 & 7	= hidden colour address	*
+;* temp8	= how many items across	*
+;* temp9	= how many line 	*
+;****************************************			
+copyscreenlu		
+;inc $d020
+lda Ptrscreen			; current screen address
+sta temp0
+lda Ptrscreen+1
+sta temp1
+					
+lda Ptrhiddenscreen		; hidden screen address
+sta temp2
+lda Ptrhiddenscreen+1 
+sta temp3
+					
+lda Ptrcolour			; screen colour 
+sta temp4
+lda Ptrcolour+1
+sta temp5
+					
+lda PtrSparecolour		; spare colour
+sta temp6
+lda PtrSparecolour+1
+sta temp7
+					
+lda #39				; 40 39set how many across to maximum
+sta temp8
+lda #25				; set how many row down to maximum
+sta temp9
+				; which way are we scrolling it
+					
+cpx #0				; are we scrolling left	
+					
+bne _up				; no
+					
+sec				; yes
+lda temp8			; how many char across to copy
+sbc #1				; minus offset
+sta temp8 			; store it
+
+clc								 			
+lda temp0		        ; position screen pointer to copy from		
+adc #1
+sta temp0
+lda temp1
+adc #0
+sta temp1
+
+clc										
+lda temp4			; position screen colour to copy from	
+adc #1
+sta temp4
+lda temp5
+adc #0
+sta temp5
+jmp _continue0
+					
+_up					
+sec				; yes
+lda temp9			; how many char across to copy
+sbc #1				; minus offset
+sta temp9 			; store it
+
+clc								 			
+lda temp0			; position screen pointer to copy from		
+adc #40
+sta temp0
+lda temp1
+adc #0
+sta temp1
+
+clc										
+lda temp4			; position screen colour to copy from	
+adc #40
+sta temp4
+lda temp5
+adc #0
+sta temp5	
+							
+_continue0			
+ldy #0				; how many char across thew line have we copyed
+ldx #0				; how many lines down have we done	
+_continue			
+lda (temp0),y			; load byte from screen you can see
+sta (temp2),y			; copy it to the screen you can not see
+lda (temp4),y			; load byte from colour screen you can see
+sta (temp6),y			; copy it to the colour screen you can not see
+iny 
+cpy temp8			; have we done 40 char across
+bne _continue			; no
+								
+inx				; yes then inc row counter
+ldy #0				; set y to first char on line
+
+clc				; current screen address
+lda temp0
+adc #40				; add 40 to address to get to next line
+sta temp0
+lda temp1
+adc #0
+sta temp1
+
+clc				; hidden screen address
+lda temp2
+adc #40				; add 40 to address to get to next line
+sta temp2
+lda temp3
+adc #0
+sta temp3
+
+clc				; screen colour 
+lda temp4
+adc #40				; add 40 to address to get to next line
+sta temp4
+lda temp5
+adc #0
+sta temp5
+
+clc				; spare colour
+lda temp6
+adc #40				; add 40 to address to get to next line
+sta temp6
+lda temp7
+adc #0
+sta temp7
+					
+cpx temp9			; have we done 24 rows yes
+bne _continue			; no
+					
+_quit
+;dec $d020
+rts				; yes then quit
+					
+;****************************************			
+;* COPY SCREEN RIGHT ONE OR DOWN ONE    *
+;* temp0 - temp9			*	
+;* x = 0 copy right , 1 copy down       *	
+;* temp 0 & 1	= hidden screen address	*
+;* temp 2 & 3	= screen address 	*
+;* temp 4 & 5	= colour address	*
+;* temp 6 & 7	= hidden colour address	*
+;* temp8	= how many items across	*
+;* temp9	= how many line      	*	
+;****************************************		
+copyscreenrd		
+;inc $d020
+				
+lda Ptrhiddenscreen		; hidden screen address
+sta temp0
+lda Ptrhiddenscreen+1 
+sta temp1
+									
+lda Ptrscreen		        ; current screen address
+sta temp2
+lda Ptrscreen+1
+sta temp3
+					
+lda Ptrcolour			; screen colour 
+sta temp4
+lda Ptrcolour+1
+sta temp5
+lda PtrSparecolour		; spare colour
+sta temp6
+lda PtrSparecolour+1
+sta temp7
+					
+lda #39				; set how many across to maximum
+sta temp8
+lda #25				; set how many row up to maximum
+sta temp9
+					
+txa				; which way  are we scrolling it
+cmp #0				; are we scrolling right	
+bne _down			; no
+					
+lda #38				; set how many across to maximum
+sta temp8
+
+clc				; yes		
+lda temp0			; position screen pointer to copy from 	
+adc #1
+sta temp0
+lda temp1
+adc #0
+sta temp1
+
+clc										
+lda temp6			; position colour pointer to copy from 
+adc #1
+sta temp6
+lda temp7
+adc #0
+sta temp7
+					
+jmp _continue0
+					
+_down				
+lda #24				; set how many row up to maximum
+sta temp9
+
+clc				; yes		
+lda temp0			; position screen pointer to copy from 	
+adc #40
+sta temp0
+lda temp1
+adc #0
+sta temp1
+
+clc										
+lda temp6			; position colour pointer to copy from 
+adc #40
+sta temp6
+lda temp7
+adc #0
+sta temp7
+							
+_continue0			
+ldy #0				; how many char across thew line have we copyed
+ldx #0				; how many lines down have we done	
+_continue			
+lda (temp2),y			; load byte from screen you can see
+sta (temp0),y			; copy it to the screen you can not see
+lda (temp4),y			; load byte from colour screen you can see
+sta (temp6),y		        ; copy it to the colour screen you can not see
+iny				; next char on line
+cpy temp8 			; are we at the left side of the screen
+bne _continue			; no
+inx				; yes then dec row counter
+ldy #0				; set y to first char on line
+
+clc				; add 40 to address to get to next line
+lda temp0
+adc #40				; add 40 to address to get to next line
+sta temp0
+lda temp1
+adc #0
+sta temp1
+
+clc				; add 40 to address to get to next line
+lda temp2
+adc #40				; add 40 to address to get to next line
+sta temp2
+lda temp3
+adc #0
+sta temp3
+
+clc				; add 40 to address to get to next line
+lda temp4
+adc #40				; add 40 to address to get to next line
+sta temp4
+lda temp5
+adc #0
+sta temp5
+
+clc				; add 40 to address to get to next line
+lda temp6
+adc #40				; add 40 to address to get to next line
+sta temp6
+lda temp7
+adc #0
+sta temp7
+					
+cpx temp9			; have we done 24 rows yes
+bne _continue			; no
+;dec $d020
+rts				; yes then quit					
+
+;**************************************** HAS THE MAP IS 19 TILES ACROSS PLUS HALF A TILE
+;* DRAW MAP ON SCREEN WITH COLOUR       * AND 12 TILES DOWN PLUS HALF A TILE
+;* temp 0 & 1	= screen address	* I DID NOT WANT TO MESS A ROUND WITH DRAWING HALF A TILE
+;* temp 2 & 3 	= colour address	* WHEN I COULD CALL A SOME CODE I HAVE ALREADY
+;* temp 4 & 5	= map address		* WROTE TO DRAW ONE SIDE OF A TILE
+;* temp 6 & 7	= map colour address	*
+;* temp 8	= tiles y screen	*
+;* temp 9	= tiles down screen	*
+;* temp10	= tile value	        *
+;* temp11	= tile colour		*
+;* temp12	= ymap 			*
+;****************************************
+drawscreen			
+lda mapy			; GET CURRENT MAPY VALUE
+asl a
+tay
+clc
+lda Ptrmap			; MAP ADDRESS
+adc mapyaddress,y
+sta temp4
+lda Ptrmap+1
+adc mapyaddress+1,y
+sta temp5
+clc
+lda Ptrmapcolour	       ; COLOUR MAP ADDRESS
+adc mapyaddress,y
+sta temp6
+lda Ptrmapcolour+1
+adc mapyaddress+1,y
+sta temp7	
+					
+lda #0
+sta temp8			; TILES DRAWN ACROSS
+sta temp9			; TILES DRAWN DOWN
+sta temp10			; TILE VALUE
+sta temp11			; COLOUR VALUE
+sta temp12			; Y FOR MAP
+tay				; CLEAR Y
+					
+getdata				
+ldy temp12
+lda (temp4),y			; GET FIRST CHAR ON TILE FROM MAP
+sta temp10			; STORE IT
+lda (temp6),y			; GET COLOUR FROM COLOUR MAP
+sta temp11			; STORE IT
+					
+drawstart			
+ldy temp8			; POSITION ON LINE
+lda temp10			; USE VALUE STORED TEMP
+sta (temp0),y		        ; WRITE OUT CHAR TO SCREEN
+lda temp11			; USE VALUE STORED TEMP
+sta (temp2),y			; WRITE OUT COLOUR TO SCREEN
+										
+iny 				; MOVE RIGHT
+inc temp10			; NEXT ASCII VALUE
+					
+lda temp10			; USE VALUE STORED TEMP
+sta (temp0),y			; WRITE OUT CHAR TO SCREEN
+lda temp11			; USE VALUE STORED TEMP
+sta (temp2),y			; WRITE OUT COLOUR TO SCREEN
+						
+tya				; SET Y TO NEXT LINE POSITION
+clc
+adc #39
+tay				
+					
+inc temp10			; NEXT ASCII VALUE
+				
+lda temp10			; USE VALUE STORED TEMP
+sta (temp0),y			; WRITE OUT CHAR TO SCREEN
+lda temp11			; USE VALUE STORED TEMP
+sta (temp2),y			; WRITE OUT COLOUR TO SCREEN
+										
+iny 				; MOVE RIGHT
+inc temp10			; NEXT ASCII VALUE
+					
+lda temp10		        ; USE VALUE STORED TEMP
+sta (temp0),y			; WRITE OUT CHAR TO SCREEN
+lda temp11			; USE VALUE STORED TEMP
+sta (temp2),y		        ; WRITE OUT COLOUR TO SCREEN
+					
+tya				; SET Y BACK TO LAST LINE
+clc
+sbc #39
+tay
+					
+inc temp12
+					
+inc temp8			; MOVE TO NEXT TILE
+inc temp8			; MOVE TO NEXT TILE
+					
+lda temp8			; CHECK WHAT Y IS
+cmp #38				; IT Y SET TO THE LAST TILE ACROSS SCREEN
+bne getdata			; NO
+					
+lda #0				; YES
+sta temp8			; CLEAR VALUES
+sta temp12
+					
+inc temp9			; SET TO NEXT LINE
+					
+lda temp9			; GET LINES DOWN NUMNBER
+asl a				; TIMES IT BY 2
+tay				; COPY IT TO Y
+clc
+lda Ptrmap			; MAP ADDRESS
+adc mapyaddress,y		; PLUS NEXT LINE WIDTH 
+sta temp4
+lda Ptrmap+1
+adc mapyaddress+1,y		; PLUS NEXT LINE WIDTH 
+sta temp5
+clc
+lda Ptrmapcolour	        ; MAP COLOUR ADDRESS
+adc mapyaddress,y		; PLUS NEXT LINE WIDTH 
+sta temp6
+lda Ptrmapcolour+1
+adc mapyaddress+1,y		; PLUS NEXT LINE WIDTH 
+sta temp7	
+clc
+lda temp0			; SCREEN ADDRESS
+adc #80
+sta temp0
+lda temp1
+adc #0
+sta temp1
+clc
+lda temp2			; COLOUR ADDRESS 
+adc #80
+sta temp2
+lda temp3
+adc #0
+sta temp3
+										
+lda temp9			; GET HOW MANY LINES DOWN WE HAVE DONE
+cmp #12				; HAVE WE DONE ALL THE LINE DOWN WE CAN
+beq	_quit			; YES
+jmp getdata			; NO	
+_quit				
+rts		
+
+;****************************************
+;* FILL SCREEN WITH COLOUR       	*	
+;* temp0 - temp5                  	*	
+;* x = what colour to use         	*	
+;* y = what char to use	          	*		
+;* temp 0 & 1	= Screen Address	*	
+;* temp 2 & 3	= Colour Address 	*		
+;* temp 4 	= Colour To Use	        *
+;* temp 5	= Ascii To Use		*
+;****************************************
+fillscreen						
+					
+stx temp4			; what colour to use
+sty temp5			; what char to fill screen with		
+										
+ldx #0				; clear how many times to change high byte pointer
+ldy #0				; clear how many bytes we have written
+					
+_conloop			
+lda temp5			; do char
+sta (temp0),y			; poke char value to screen memory
+					
+lda temp4			; do colour
+sta (temp2),y			; poke colour value to colour memory
+iny				; increase byte counter
+					
+cpx #3			        ; are we on the last block of byte to write
+beq _less			; yes then only 231 bytes are needed to be written
+					
+cpy #0				; if zero then y counter has rap around from 255 
+                                ; so we have done 256 bytes
+bne _conloop			; no
+jmp _contine
+					
+_less				
+cpy #232			; have we done 231 bytes
+bne _conloop		        ; no
+rts	
+					
+_contine			
+inx			        ; yes so increase highe byte counter
+inc temp1 			; increase high byte of memeory address		
+inc temp3 			; increase high byte of memeory address				
+cpx #4				; if x = 4 then we have done 4 blocks of bytes 
+                                ; 3*(0 to 255=256) and 1 (0 to 231=232)
+bne _conloop			; no
+rts				; yes then we are done
+					
+;***********************************
+;* copy colour to on screen bitmap *
+;***********************************         			
+copycolour			
+ldy #0
+
+_loop				
+lda sparecolour+(13*40),y  	; copy memory			
+sta 55296+(13*40),y	
+lda sparecolour+(14*40),y  	; copy memory			
+sta 55296+(14*40),y	
+lda sparecolour+(15*40),y  	; copy memory			
+sta 55296+(15*40),y	
+lda sparecolour+(16*40),y  	; copy memory			
+sta 55296+(16*40),y	
+lda sparecolour+(17*40),y  	; copy memory			
+sta 55296+(17*40),y	
+lda sparecolour+(18*40),y  	; copy memory			
+sta 55296+(18*40),y	
+lda sparecolour+(19*40),y  	; copy memory			
+sta 55296+(19*40),y	
+lda sparecolour+(20*40),y  	; copy memory			
+sta 55296+(20*40),y	
+lda sparecolour+(21*40),y  	; copy memory			
+sta 55296+(21*40),y	
+lda sparecolour+(22*40),y  	; copy memory			
+sta 55296+(22*40),y	
+lda sparecolour+(23*40),y  	; copy memory			
+sta 55296+(23*40),y	
+lda sparecolour+(24*40),y       ; copy memory			
+sta 55296+(24*40),y	
+lda sparecolour+(0*40),y  	; copy memory			
+sta 55296+(0*40),y	
+lda sparecolour+(1*40),y  	; copy memory			
+sta 55296+(1*40),y	
+lda sparecolour+(2*40),y        ; copy memory			
+sta 55296+(2*40),y	
+lda sparecolour+(3*40),y  	; copy memory			
+sta 55296+(3*40),y	
+lda sparecolour+(4*40),y  	; copy memory			
+sta 55296+(4*40),y	
+lda sparecolour+(5*40),y  	; copy memory			
+sta 55296+(5*40),y	
+lda sparecolour+(6*40),y        ; copy memory			
+sta 55296+(6*40),y	
+lda sparecolour+(7*40),y  	; copy memory			
+sta 55296+(7*40),y	
+lda sparecolour+(8*40),y        ; copy memory			
+sta 55296+(8*40),y	
+lda sparecolour+(9*40),y  	; copy memory			
+sta 55296+(9*40),y	
+lda sparecolour+(10*40),y  	; copy memory			
+sta 55296+(10*40),y	
+lda sparecolour+(11*40),y  	; copy memory			
+sta 55296+(11*40),y	
+lda sparecolour+(12*40),y  	; copy memory			
+sta 55296+(12*40),y	
+   					
+iny				; move to next line
+cpy #39			        ; 40 across count
+beq _quit
+jmp _loop
+_quit      			
+rts
+
+</code>

@@ -1,0 +1,117 @@
+# PAGE: base:mathematics_in_assembly_part_6
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:mathematics_in_assembly_part_6
+
+====== Mathematics in Assembly - Part 6 ======
+
+by Krill/Plush
+
+Alright, now the multiplication for the last time. The approach discussed this time is the fastest one known to me, as one can perform a multiplication using this one in 15 clock cycles. Doesn't sound bad, does it? 
+
+Here we go. 
+
+But at first the snag: having the speed mentioned before is only 8 bits wide, relatively inaccurate and a table is needed that's growing quite fast when enlarging the range of calculation or accuracy. But the ratio of accuracy and memory expense can be changed arbitrarily, but more on that later. So, without any further delay, the actual simple approach is the following: there is a certain logarithm law, looking like this:
+
+<code>
+ log[a] (u*v) = log[a] (u) + log[a] (v)
+</code>
+
+Spinning the wheel a little further:
+
+<code>
+ a^log[a] (u*v) = a^(log[a] (u) + log[a] (v))...y u  *  v  = a^(log[a] (u) + log[a] (v))
+</code>
+
+In plain english, we calculate the logarithms to an arbitrary base of both factors, add them, raise the base with that sumand get our product. Sounds quite complicated, but actually isn't. Because we can't simply logarithmize or raise to a certain power, we first need to generate some tables, and that's best done using our good old BASIC.
+
+====== Building the tables ======
+
+As the base is arbitrary, one should choose the 2, as it's a good choice with computers and their binary number system, supplying the best ratio of accuracy and table size. With multiplication, I will suppose the following things: at first, the arguments and the result are 8 bits wide and unsigned. Furthermore, one of both factors is a whole number, i.e. a value of 0 to 255, and the other one just a fraction byte, so having a value of 0 to 255/256. The result is an integer from 0 to 255. Why that? Well, as already mentioned, there are some limitations for that speed, as this usage was, at least for me, the most useful until now: 
+
+There is a specific value, the integer factor, which is to be "scaled" with another value. This other value is a sine in most cases, which is ranging from 0 to 255/256. The result is the scaled integer which is of the same size or smaller than before. So this definition of numbers is quite useful for fast (but rather inaccurate) vector calculations (multiplication with sines), or when one wants to scale some sine tables in realtime. Who still wants to have it differently just needs to change the tables accordingly, but more on that later. 
+
+So at first we need a table holding the binary algorith for arguments from 1 to 255. The zero is ignored here as its logarithm is not defined. So the table values range from 0 (log]2[ (1)) to 7.99435344 (log]2[ (255)). To store these numbers rounded would be very inaccurate, so they first need to be scaled to a larger number range. As the logarithm values have a width of 8 bits, a factor scaling the biggest one to exactly 255 would be just right. This value, let's call it "f", calculated from:
+
+<code>
+ f = 255/log[2] (255). 
+</code>
+
+Sounds logical. Now only the logarithm table needs to be calculated in BASIC:
+
+<code>
+1 for x=1 to 255
+2 y= f*log(x)/log(2)+.5
+3 poke log2tab+x,y
+4 next
+</code>
+
+In line 2, the value is calculated. As BASIC only calculates the natural algorithm, it first needs to be transformed to the binary one (log(x)/log(2)), the .5 is just added to round the number. The values of this table are now ranging from 0 to 255. The biggest exponent for base 2 would be 255+255=510 ($01FE). That is, the second needed table, the power table with base 2 running from 1 (2^0) to 254,003906 (2^(log]2[..(255)+log]2[ (255/256)) need to be scaled to a range of $0 to $01FE, and, on the other hand, the rounded values for the table must be scaled to 0 to 255 * 255/256. In BASIC, this looks like:
+
+<code>
+1 for x= 0 to 510
+2 y=2^(x/f-8)+.5
+3 poke pow2tab+x,y
+4 next
+</code>
+
+The -8 in line 2 is caused by the fact that the result is divided by 256 (i.e. multiplied with 2^-8), as the second factor only ranges from 0 to 255/256, so its bits having a valency decreased by 8 each(2^-8 to 2^-1).
+
+====== The Routine ======
+
+Now we all needed tables in the memory and have read them out accordingly:
+
+<code>
+           LDA log2tab,x
+           STA getresult+1
+           LDX log2tab,y
+getresult  LDA pow2tab,x
+</code>
+
+Before execution, the x- and y-registers hold the two factors, after execution, the accu contains the result. This routine needs just 16 cycles to execute, or just 15 if it's running in the zero-page. Still, the problem with zero is still there, so if one of both factors is zero, that needs to be noticed and acted accordingly, as otherwise, this routine would not function as requested. 
+
+====== The problem with accuracy ======
+
+Now this routine works quite well but for operations like for instance $70 * $80/256 it doesn't calculate, as expected, the half of $70 but $37 instead of $38. If that's not okay, one needs to enlarge the accuracy. That means to enlarge the table accordingly. I'm just mentioning a case where the results won't be more accurate with a growing table, so to say the maximum case. The logarithm values are now multiplied with 256 instead of about 32, like before. So they range from 0 to 2046.55448 (about $07ff). As this won't fit in 8 bits, a table for the lobyte and one for the hibyte of the scaled algorithm needs to be generated:
+
+<code>
+1 for x= 1 to 255
+2 y= 256*log(x)/log(2)+.5
+3 poke log2tab1+x,y and 255
+4 poke log2tbh0+x,y/256
+5 poke log2tbh1+x,y/256 + pow2tab/256
+6 next
+</code>
+
+I'll explain later on why there are two hibyte tables generated here. Good, now for the power table which is now 2*$07FF+1=$0FFF (4095) bytes long:
+
+<code>
+1 for x=0 to 4094
+2 y=2^(x/256-8)+.5
+3 poke pow2tab+x,y
+4 next
+</code>
+
+Now the actual calculation routine looks a little different:
+<code>
+          CLC
+          LDA log2tab1,x
+          ADC log2tab1,y
+          STA getresult+1
+          LDA log2tbh0,x
+          ADC log2tbh1,y
+          STA getresult+2
+getresult LDA pow2tab
+</code>
+
+This routine needs 30 cycles to execute or 28 in the zeropage. Now it's getting clear why there are needed two hibyte tables: as the power table is not starting at $0 in the memory, an offset needs to be added for the table beginning. For that, the table needs to be located at an even address (Lobyte $00). If it's located at an address which is divideable by $0200 without a remainder, one can get rid of the second hibyte table and simply add an offset to the remaining hibyte table, which is of the size of the power tables hibyte divided by 2.
+
+Alright, now only some notes: signed numbers are treated as usual (buffer the signs, calculate using the numbers' absolute values, evaluate the signs). If one put the sign of one of the factors somewhere else, the values of the power table would have to be scaled accordingly, so f.e. doubled if the second factor should have one bit left and seven bits right to the point. That is, 7 instead of 8 is subtracted from the power argument, see earlier. Should the result then have more than 8 bits, so also the power table needs to be seperated in lo- and hibyte tables, the routine and the memory expense will get larger accordingly. At a certain limit, this does not pay off anymore and a common bit-wise multiplication would be more suitable.
+
+====== Division ======
+
+Yes, that's finally it for the multiplication. From the next issue of this tutorial forward I'll continue with the division. The approaches for that are quite similar to the ones for multiplication, just turned inside out. 
+
+So just look out.
+
+See you!
+
+Krill/Plush

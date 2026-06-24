@@ -1,0 +1,57 @@
+# PAGE: base:mathematics_in_assembly_part_5
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:mathematics_in_assembly_part_5
+
+====== Mathematics in Assembly - Part 5 ======
+
+by Krill/Plush
+
+And again we (still...) discuss multiplication. At first an apology to all who are already fed up with it but according to my opinion, all commonly used methods to multiply should be discussed in these tutorials, as it really depends on the specific problem and which approach is more optimal for solving it. Apart from that, also seemingly rather less interesting approaches can help finding new ideas and insights, and I'm telling that from my own experience. Enough useless talk for now. Let's begin. 
+
+The method of bit-wise multiplication discussed in the previous article is, seen relatively to it's possibilities, the most memory-efficient one but, seen globally, also one of the rather slow ones. Yet, there are also possibilities to solve a multiplication very quickly but with a relatively big expense of memory, say tables. The most simple but really most memory-ineffective method was already mentioned some issues before: simply generate a huge table with the results of the multiplication with a constant, which is read with the arbitrary factor as the index. 
+
+Shall also the second factor be chose arbitrarily, one must obviously generate several tables using this scheme, which then have different factors, one for each table, as the specific constant multiplication factor. As already mentioned, extremely inefficient, the whole business, as for a number range of for instance 7 bits width that's already 128 tables with 128 elements each * 2 (lo- and hibyte tables of the result = 32768 bytes, i.e. half of the C64's main memory. Even using tricks like for instance leaving out equivalent multiplication terms (3*4 is the same as 4*3), not little amounts of memory can be saved, still not too much, and to handle these tables would be a lot more complicated. 
+
+Now what to do? Do you remember the old school times, where your maths teachers could multiply almost arbitrary numbers unbelievably fast (for a pupil) only using their heads, or those dudes in TV-shows multiplying extremely long numbers? The trick's called: Binomial formulas. 
+
+====== Binomial formulas? ====== 
+
+Exactly. Here we have a small approach showing what's meant by that
+
+<code>
+ a * b = (4*a*b) / 4
+       = (2*a*b + 2*a*b) / 4
+       = (2*a*b + 2*a*b +a^2 - a^2 + b^2 - b^2) / 4
+       = (a2+2*a*b+b^2) - (a^2-2*a*b+b^2) / 4
+       = ( (a^2+2*a*b+b^2) - (a^2-2*a*b+b^2) ) / 4
+       = ((a+b)^2 - (a-b)^2) / 4
+       = (a+b)^2/4 - (a-b)^2/4
+</code>
+
+From line 5 to line number 6 one can see what's meant by binomial formulas: the two bracketed terms were transformed to two binomes using the 2nd binomial formula. But what's the use of this mathematical transformation? Let's have a closer look at the created term: it consists of addition, squaring and dividing by four. 
+
+To square a number only needs one argument, an addition is one of the simplest exercises for the processor, and the division by four is also just a twofold binary shifting right. 
+
+So we just derived a formula for fast multiplication, as the squares divided by four can be held in one (1) short table, and the addition is a basic operation that the processor can execute in almost no time. A routine to calculate a product using the described algorithm would look like this:
+
+<code>
+STA factor1 ; factors in accu and x-register
+TXA
+SEC
+SBC factor1
+TAY ; factor 2 - factor 1
+TXA
+CLC
+ADC factor1
+TAX ; factor 2 + factor 1
+SEC
+LDA table,x
+SBC table,y ; subtract the squares
+</code>
+
+As a result we get the product of the two factors. By the way, in this routine the factors of the derivation are swapped, but that does not matter at all because of the commutative law. Furthermore, 4 bit factors are supposed, an extension to bigger numbers then leads to a bigger square table and a longer routine that can handle results of at least two bytes size. Also important is that factor 2 must be bigger than factor 1, as otherwise, the table indices would be negative numbers; alternatively, the table could respect that one can save a lot of execution time. 
+
+I hope that you understood my explanations. Now just only a small hint for generating the table (which is always better than having pre-stored tables as it's more memory efficient): the squares are 0, 1, 4, 9, 16 etc.; the differences 1, 3,5, 7 etc. - so the table can be generated only using the addition and shifting right and without complicated routines. 
+
+That's it for this article. Read this magazine's next chapter to learn about the last approach to multiplication that I wrote about
+
+Krill

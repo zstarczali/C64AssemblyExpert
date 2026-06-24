@@ -1,0 +1,128 @@
+# PAGE: base:supercpu_cmp
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:supercpu_cmp
+
+====== CMP ======
+
+<code>
+    //---------------------------------------------------------------------------------------------
+    // PseudoCommand-OPC: CMP16 (CoMPare accumulator with memory)
+    //
+    // Addressing Modes:
+    //   Immediate                               ($c9 - 2 bytes*, 2 cycles¹)
+    //   Absolute                                ($cd - 3 bytes, 4 cycles¹)
+    //   Absolute Long                           ($cf - 4 bytes, 5 cycles¹)
+    //   Direct Page (also DP)                   ($c5 - 2 bytes, 3 cycles¹²)
+    //   DP Indirect                             ($d2 - 2 bytes, 5 cycles¹²)
+    //   DP Indirect Long                        ($c7 - 2 bytes, 6 cycles¹²)
+    //   Absolute Indexed, X                     ($dd - 3 bytes, 4 cycles¹³)
+    //   Absolute Long Indexed, X                ($df - 4 bytes, 5 cycles¹)
+    //   Absolute Indexed, Y                     ($d9 - 3 bytes, 4 cycles¹³)
+    //   DP Indexed, X                           ($d5 - 2 bytes, 4 cycles¹²)
+    //   DP Indexed Indirect, X                  ($c1 - 2 bytes, 6 cycles¹²)
+    //   DP Indirect Indexed, Y                  ($d1 - 2 bytes, 5 cycles¹²³)
+    //   DP Indirect Long Indexed, Y             ($d7 - 2 bytes, 6 cycles¹²)
+    //   Stack Relative (also SR)                ($c3 - 2 bytes, 4 cycles¹)
+    //   SR Indirect Indexed, Y                  ($d3 - 2 bytes, 7 cycles¹)
+    //   * - Add 1 byte if m = 0 (16-bit memory/accumulator)
+    //   ¹ - Add 1 cycle if m = 0 (16-bit memory/accumulator)
+    //   ² - Add 1 cycle if low byte of Direct Page register is other than zero (DL< >0)
+    //   ³ - Add 1 cycle if adding index crosses a page boundary
+    //
+    // Flags Affected:
+    //   n - Set if most significant bit of result is set; else cleared.
+    //   z - Set if result is zero; else cleared.
+    //   c - Set if no borrow required (accumulator value higher or same);
+    //       cleared if borrow required (accumulator value lower).
+    //
+    // Description:
+    //   Subtract the data located at the effective address specified by the operand from the
+    //   contents of the accumulator, setting the carry, zero, and negative flags based on the
+    //   result, but without altering the contents of either the memory location or the
+    //   accumulator. That is, the result is not saved. The comparison is of unsigned binary values
+    //   only.
+    //
+    //   The CMP instruction differs from the SBC instruction in several ways.
+    //    - First, the result is not saved.
+    //    - Second, the value in the carry prior to the operation is irrelevant to the operation;
+    //      that is, the carry does not have to be set prior to a compare as it is with 65x
+    //      subtractions.
+    //    - Third, the compare instruction does not set the overflow flag, so it cannot be used for
+    //      signed comparisons. Although decimal mode does not affect the CMP instruction, decimal
+    //      comparisons are effective, since the equivalent binary values maintain the same
+    //      magnitude relationships as the decimal values have, for example, $99 > $04
+    //      just as 99 > 4.
+    //
+    //   The primary use for the compare instruction is to set the flags so that a conditional
+    //   branch can then be executed.
+    //
+    //   8-bit accumulator (all processors): Data compared is eight-bit.
+    //
+    //   16-bit accumulator (65802/65816 only, m = 0): Data compared is sixteen-bit:
+    //    - the low-order eight bits of the data in memory are located at the effective address;
+    //    - the high-order eight bits are located at the effective address plus one.
+    //---------------------------------------------------------------------------------------------
+
+    .pseudocommand cmp16 val {
+        .if (val.getType()==AT_IMMEDIATE) {
+            .byte $c9, <val.getValue(), >val.getValue()
+        }
+
+        .if (val.getType()==AT_ABSOLUTE) {
+            .if (val.getValue()<256) {
+                .byte $c5, <val.getValue()  // Direct Page
+            } else {
+                .if (val.getValue()<65536) {
+                    .byte $cd, <val.getValue(), >val.getValue()
+                } else {
+                    .byte $cf, <val.getValue(), >val.getValue(), val.getValue() >> 16
+                }
+            }
+        }
+
+        .if (val.getType()==AT_ABSOLUTEX) {
+            .if (val.getValue()<256) {
+                .byte $d5, <val.getValue()       // Direct Page
+            } else {
+                .if (val.getValue()<65536) {
+                    .byte $dd, <val.getValue(), >val.getValue()
+                } else {
+                    .byte $df, <val.getValue(), >val.getValue(), val.getValue() >> 16
+                }
+            }
+        }
+
+        .if (val.getType()==AT_ABSOLUTEY) {
+            .byte $d9, <val.getValue(), >val.getValue()
+        }
+        .if (val.getType()==AT_IZEROPAGEX) {
+            cmp (val.getValue(),x)
+        }
+        .if (val.getType()==AT_IZEROPAGEY) {
+            cmp (val.getValue()),y
+        }
+        .if (val.getType()==AT_INDIRECT) {
+            .byte $d2, val.getValue()
+        }
+
+    }
+
+    // Handle long addressing modes for Indirect and Indirect,y:
+    .pseudocommand cmp_l val {
+        .if (val.getType()==AT_INDIRECT) {
+            .byte $c7, val.getValue()
+        }
+        .if (val.getType()==AT_IZEROPAGEY) {
+            .byte $d7, val.getValue()
+        }
+    }
+
+    // Handle stack addressing modes for Stack Relative and Stack Indirect Indexed,y:
+    .pseudocommand cmp_s val {
+        .if (val.getType()==AT_INDIRECT) {
+            .byte $c3, val.getValue()
+        }
+        .if (val.getType()==AT_IZEROPAGEY) {
+            .byte $d3, val.getValue()
+        }
+    }
+</code>

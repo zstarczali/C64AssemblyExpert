@@ -1,0 +1,108 @@
+# PAGE: base:spritevectors
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:spritevectors
+
+===== Sprite vectors =====
+
+In 2010 Glance presented a vector in there Demo Snapshot, that updated at 50 frames per secons. The technique used therefore was originally named SMGF (Sprite Masking Gap Filling), yet only black blackground was used and no x/y-movement.
+
+So as you see, basically one can also draw edges by displaying sprites and manipulating their x-position per line. If done so from left to right and with rising priority, several edges can be stacked and thus a vector being build. The rightmost edge then needs to be drawn in background color. But faces might not get bigger than 24 pixels and higher than 21 pixels, a bit small. Also other restrictions hit in, like badlines which makes it impossible to manipulate all sprites each rasterline.
+
+As a first step, we can expand all sprites in X and Y to achieve more effect area, but this is still not satisfactory. As we inspect the shape of a cube, we notice, that it maximum has 3 edges on the left side and a final edge at the right to separate it from the background. So if we manage to display those 4 edges with 4 sprites, we are already on a good way and only need to change 4 x-positions per rasterline, do we?
+As for the height, we can make use of the sprite stretching trick to make the sprites up to 200 pixels high or even beyond. Happily, this trick also gives us other advantages, as we can switch sprites on/off by omitting a stretch for a single sprite at any given line. Means, our timing over the whole screen will stay the same for each rasterline and thus we can easily use unrolled display code.
+
+{{:base:sprite_base.png?96|}}
+
+This is what sprites look like unexpanded. If only first line is stretched, nothing is displayed, if first line is skipped, display of solid lines start until also this line is skipped in the stretcher.
+
+{{:base:spritefiller_step01.png?768|}}
+First edge being rendered
+
+{{:base:spritefiller_step02.png?768|}}
+Second edge being rendered
+
+{{:base:spritefiller_step03.png?768|}}
+Right edge/background added 
+
+{{:base:spritefiller_step04.png?768|}}
+First gap sprite with static x position being underlayed
+
+{{:base:spritefiller_step05.png?768|}}
+And colored like first face
+
+{{:base:spritefiller_step06.png?768|}}
+Second gap sprite with static x position being underlayed
+
+{{:base:spritefiller_step07.png?768|}}
+And colored like first face
+
+{{:base:spritefiller_step08.png?768|}}
+Still a small gap left, need to underlay another sprite
+
+As the bright green rightmost edge has priority bit set to char underlay, it will vanish under any graphics that uses ink and will just peek through where paper is used. Now as there is a graphic behind that consists of bright green traces and a green background, the rightmost slope sprites only appear bright green on the traces, that are bright green anyway. Cookie cutter ftw \o/
+
+{{:base:spritefiller.png?768|}}
+
+Full display with altered colours for better visibility of the different elements the vector is made of. Spot the now red sprite under the traces and the gap sprites being colored differently (and with an ugly palette :-D)
+
+The display code looks like this:
+<code>
+ldy #$ff
+ldx #$ff
+lda #$00          ;corresponding bit for each sprite is set here if we want to
+                  ;advance one line in sprite -> on/off
+sta $d017
+eor #$ff
+sta $d017
+sty $d006
+lda #$3b          ;value is advanced each line to supress badlines and repeat last screen line
+stx $d004
+ldy #$ff
+ldx #$ff
+sta $d011
+sty $d002
+stx $d000
+nop
+</code>
+
+So what does the display code? It stretches all 8 sprites each rasterline, except if $d017 is written with set bits in the first round, then the sprites corresponding to the set bits advance one line. Means, they then display a solid line and are thus turned on on the first occasion. On the second occasion, they advance again to an empty line and are thus again invisible.
+The x-positions of the sprite are distributed that way that they are valid when being displayed and that writes do not clash and cause display glitches. This works pretty well for the visible range up to 255 (remember, we do not use the MSB, that would just be too much)
+
+====== Y-movement ======
+
+The display code is entered at the right offset at the right rasterline and is left after the full height of the object being displayed. The entry can only happen on full charlines, as sprite display and badline supression can only work from there on. So some offsetting wizardry has to be added (rough y position charline-wise, y & 7 as an offset to the object's y-position). Upon leaving of the display code badlines are again allowed and the invisible sprites will be displayed until line 21 is displayed on each sprite, no more stretching happens from there on.
+
+====== Precalced flat slopes ======
+
+Flat slopes are stores in slope tables. To save space, each slope is references with a pointer. Thus, we have the possibility to also reference parts of other slopes in case of matches and save memory.
+The slope code plots directly into the ldx/y statements of the display-code one value per codeblock/rasterline. To offset to the values of the other three sprites, the write is x-indexed. 
+
+<code>
+sbc (slope),y           ;other case: adc
+iny
+sta sprite1_pos + .x * dcode_size,x       
+</code>
+
+Thus we save on code and only need unrolled code for increasing and decreasing slopes. Way less than for the steep case!
+====== Steep slopes - Bresenham vs. fixed point math ======
+
+Bresenham can be done pretty fast, but when doing fixed point we are even faster and the accuracy bears still enough potential to not cause glitches. The unrolled code however is pretty much expensive size-wise. It works the same like the flat slope plotting, but 8 replicas are needed, 4 (max. 4 sprites/slopes/edges) for increasing and 4 for decreasing values.
+
+<code>
+      sbc frac
+      bcs +
+      inx
++
+      stx sprite1_pos + .x * dcode_size
+</code>
+
+====== The data exporter ======
+
+The nifty part is to write a data exporter that runs through all edges from left to right and finds out about the right order to build up the object with sprites with the right order/priority. It also calculates the dimensions of the gap sprites. Also all data should be as tiny as possible. In fact, it uses two passes (slope generation, edge sorting) and is that butt ugly and bad documented that i do not know if it is good to share, and that means something :-D But it is worth an exercise in our nowadays world of cross-development.
+
+====== Future work / outlook ======
+
+If the badline-supression is done per frame and not per line (but black background then) the ratio of edge building sprites and gap sprites can be shifted towards more edges, as more x-position writes can happen. Also this technique peaks on frames where a lot of nearly 45° slopes happen, else quite some rastertime is left, but on peaks (SID included) only 3 rasterlines are left at maximum size of 160x160. Also if going one pixel beyond in size, 3 gap sprites are needed for a single face and we run out of sprites anyway :-)
+
+====== Adding the Wurstglanz ======
+
+to be continued soon...

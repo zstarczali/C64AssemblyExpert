@@ -1,0 +1,1850 @@
+# PAGE: base:fli-fpp-scroller
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:fli-fpp-scroller
+
+<code>
+	; ----------------------------------------------------------------------------------------------------
+	;
+	;	afli-fpp-scroll
+	;	----------------------
+	;
+	;	coding: testicle/payday
+	;	logo: fabu/payday
+	;	musik: anvil/topaz beerline
+	;	afli-char: tts/oxyron
+	;
+	;
+	;	contact and payday-releases:
+	;	------------------------------------
+	;
+	;	daniel@popelganda.de
+	;	www.popelganda.de
+	;
+	;
+	;	this sourcecode is best view with the font "tahoma", font size 9.
+	;	you can compile this code using the ACME crossassembler. get the complete
+	;	package including resource files at www.popelganda.de
+	;
+	;	the code was written with Relaunch64, the c64-crossassembler-tool
+	;	for windows-pc. grab it at www.popelganda.de!
+	;
+	; ----------------------------------------------------------------------------------------------------
+
+
+; --------------------------------------------------
+;	globale variablen
+; --------------------------------------------------
+
+!to "flifpp-scroll.prg"
+
+text=$96
+fli_sinen=$0b00
+pic_char=$3200
+pic_farb=$3400
+nextpart=$080b
+
+
+
+; --------------------------------------------------
+;	includes der roh-daten
+; --------------------------------------------------
+
+;*= $0800
+;!byte $00,$0c,$08,$0a, $00,$9e,$33,$32,$37,$36,$38,$00,$00,$00,$00
+
+*= $1000
+!bin "music.bin"
+
+*= $2000
+!bin "pic-bmp.bin"
+
+*= pic_char
+!bin "pic-data.bin"
+
+*= fli_sinen
+!bin "fliscroll-sinen.bin"
+
+*= $c000
+!bin "fli-char.bin"
+
+*= $3800
+!bin "fastload.bin"
+
+
+
+; --------------------------------------------------
+;	start des haupt-sourcecodes
+; --------------------------------------------------
+
+*= $8000
+		
+		lda #0
+		jsr $e536
+		sei
+		lda #<firq
+		sta $0314
+		lda #>firq
+		sta $0315
+		lda #1
+		sta $d01a
+		lda #$7f
+		sta $dc0d
+		lda #$38
+		sta $d012
+		lda #$1b
+		sta $d011
+		lda #0
+		sta $d020
+		sta $d021
+		sta $dc0e
+		
+		;most zeropage-adresses are used as counter-variables
+		;for the fpp-effects
+
+		sta $50
+		sta $52
+		sta $53
+		sta $55
+		sta $56
+		sta $45
+		sta $46
+		sta $35
+		sta $36
+		sta $60
+		sta $62
+		sta $64
+		sta $63
+		sta $68
+		sta $d001
+		jsr $1000
+		lda #16
+		sta $65
+		lda #text
+		sta $51
+		lda #8
+		sta $27
+		sta $34
+		sta $37
+		sta $54
+		sta $57
+		sta $44
+		sta $47
+		ldx #0
+.loop1		lda #0
+.cnt1		sta $4000,x
+		inx
+		bne .loop1
+		inc .cnt1+2
+		lda .cnt1+2
+		cmp #$80
+		bne .loop1
+		lda #$40
+		sta .cnt1+2
+		ldx #0
+.loop2		lda #$cc			;bitmap or "pattern" of the flichar
+		sta $6140,x
+		sta $6240,x
+		inx
+		bne .loop2
+		ldx #0
+.loop3		lda pic_char+$28,x		;payday-logo init
+		sta $0450,x
+		lda pic_farb+$28,x
+		sta $d850,x
+		lda pic_char+$0128,x
+		sta $0550,x
+		lda pic_farb+$0128,x
+		sta $d950,x
+		inx
+		bne .loop3
+		cli
+loading	lda #0
+		beq loading
+
+		jsr $c800
+		ldx #8
+		ldy #1
+		jsr $ffba
+		lda #2
+		ldx #<.fname
+		ldy #>.fname
+		jsr $ffbd
+		lda #0
+		jsr $ffd5
+		jmp nextpart
+
+.fname
+!ct pet
+!tx "4*"
+
+
+
+; --------------------------------------------------
+;	dummy-irq: short break before start
+; --------------------------------------------------
+		
+!zone		
+firq		inc $d019
+		lda #$7b
+		sta $d011
+.wait		lda #50
+		dec .wait+1
+		lda .wait+1
+		bne .weiter
+		lda #<irq1
+		sta $0314
+		lda #>irq1
+		sta $0315
+		lda #$3a
+		sta $d012
+.weiter	jmp $ea7e
+
+
+
+
+; --------------------------------------------------
+;
+;	first irq: afli-routine (display afli-scroller)
+;
+; --------------------------------------------------
+
+!zone
+irq1		inc $d019
+save		lda #$c7		;soft-position of scroller
+		sta $d016
+		lda #2
+		sta $dd00
+
+
+		ldy #$3c
+		lda #$7c
+		cpy $d012
+		bne *-3
+!set m=0
+!do {
+		sta $d011
+		lda chartab+m
+		sta $d018
+		cmp ($00,x)
+		lda #$3d
+		sta $d011
+		lda chartab+1+m
+		sta $d018
+		cmp ($00,x)
+		lda #$3e
+		sta $d011
+		lda chartab+2+m
+		sta $d018
+		cmp ($00,x)
+		lda #$3f
+		sta $d011
+		lda chartab+3+m
+		sta $d018
+		cmp ($00,x)
+		lda #$38
+		sta $d011
+		lda chartab+4+m
+		sta $d018
+		cmp ($00,x)
+		lda #$39
+		sta $d011
+		lda chartab+5+m
+		sta $d018
+		cmp ($00,x)
+		lda #$3a
+		sta $d011
+		lda chartab+6+m
+		sta $d018
+		cmp ($00,x)
+		lda #$3b
+		sta $d011
+		lda chartab+7+m
+		sta $d018
+		cmp ($00,x)
+		lda #$3c
+		sta $d011
+		lda chartab+8+m
+		sta $d018
+		cmp ($00,x)
+		lda #$3d
+		sta $d011
+		lda chartab+9+m
+		sta $d018
+		cmp ($00,x)
+		lda #$3e
+		sta $d011
+		lda chartab+10+m
+		sta $d018
+		cmp ($00,x)
+		lda #$3f
+		sta $d011
+		lda chartab+11+m
+		sta $d018
+		cmp ($00,x)
+		lda #$38
+		sta $d011
+		lda chartab+12+m
+		sta $d018
+		cmp ($00,x)
+		lda #$39
+		sta $d011
+		lda chartab+13+m
+		sta $d018
+		cmp ($00,x)
+		lda #$3a
+		sta $d011
+		lda chartab+14+m
+		sta $d018
+		cmp ($00,x)
+		lda #$3b
+		sta $d011
+		lda chartab+15+m
+		sta $d018
+		cmp ($00,x)
+		lda #$3c
+!set m=m+16
+} until m=96
+
+		lda #$7b
+		sta $d011
+
+		lda #$9f
+		sta $d012
+		lda #$1b
+		sta $d011
+		lda #<irq2
+		sta $0314
+		lda #>irq2
+		sta $0315
+		jmp $ea7e
+
+
+
+
+; --------------------------------------------------
+;
+;	second irq: calculate afli-scroller
+;
+;	this irq displays the payday-logo.
+;	furthermore, the different fpp-effects are
+;	calculated and the scroll-routine is run
+;
+; --------------------------------------------------
+
+!zone
+irq2		inc $d019
+
+		lda #3
+		sta $dd00
+		lda #$19
+		sta $d018
+		lda #$3b
+		sta $d011
+		lda #$d8
+		sta $d016
+		
+		cmp ($00,x)
+		
+		lda #15
+		ldy $d012
+		cpy $d012
+		beq *-3
+		sta $d020
+		sta $d021
+
+		lda #0
+		ldy $d012
+		cpy $d012
+		beq *-3
+		sta $d020		
+		sta $d021
+
+showlogo	lda #$7b		;logo off in the beginning
+		sta $d011
+
+		jsr clear			;clear chartab (the $d018-value)
+					;these values are used by the afli-scrollers, and set by the fpp-effects
+
+		lda $65			;check out, which effect is currently activated
+		cmp #1
+		bne .boot1
+		jsr fpp1
+		jmp back
+.boot1	cmp #2
+		bne .boot2
+		jsr fpp2
+		jmp back
+.boot2	cmp #3
+		bne .boot3
+		jsr fpp3
+		jmp back
+.boot3	cmp #4
+		bne .boot4
+		jsr fpp4
+		jmp back
+.boot4	cmp #5
+		bne .boot5
+		jsr fpp5
+		jmp back
+.boot5	cmp #6
+		bne .boot6
+		jsr fpp6
+		jmp back
+.boot6	cmp #7
+		bne .boot7
+		jsr fpp7
+		jmp back
+.boot7	cmp #8
+		bne .boot8
+		jsr fpp8
+		jmp back
+.boot8	cmp #9
+		bne .boot9
+		jsr fpp9
+		jmp back
+.boot9	cmp #10
+		bne .boot10
+		jsr fpp10
+		jmp back
+.boot10	cmp #11
+		bne .boot11
+		jsr fpp11
+		jmp back
+.boot11	cmp #12
+		bne .boot12
+		jsr fpp12
+		jmp back
+.boot12	cmp #13
+		bne .boot13
+		jsr fpp13
+		jmp back
+.boot13	cmp #14
+		bne .boot14
+		jsr fpp14
+		jmp back
+.boot14	cmp #15
+		bne .boot15
+		jsr fpp15
+		jmp back
+.boot15	cmp #16
+		bne .boot16
+		jsr fpp16
+		jmp back
+.boot16	cmp #17
+		bne .boot17
+		jsr fpp17
+		jmp back
+.boot17	cmp #18
+		bne .boot18
+		jsr fpp18
+		jmp back
+.boot18	cmp #19
+		bne .boot19
+		jsr fpp19
+		jmp back
+.boot19	cmp #20
+		bne .boot20
+		jsr fpp20
+		jmp back
+.boot20	cmp #21
+		bne .boot21
+		jsr fpp21
+		jmp back
+.boot21	cmp #22
+		bne .boot22
+		jsr fpp22
+		jmp back
+.boot22	jsr fpp4
+
+; ------------------------------------------------------------
+;	after setting up the fpp-effect
+;	continue with fli-scroller
+; ------------------------------------------------------------
+
+back		lda save+1
+		sec:sbc .speed
+		sta save+1		;softscroll done?
+		cmp #$c0
+		bcc .copy
+		jmp backy		;if no hardscroll, go on
+.copy		lda #$c7
+		sta save+1
+		ldx #0
+.loop1		lda $4029,x		;if softscroll done, move all chars to the left
+		sta $4028,x
+		lda $4429,x
+		sta $4428,x
+		lda $4829,x
+		sta $4828,x
+		lda $4c29,x
+		sta $4c28,x
+		lda $5029,x
+		sta $5028,x
+		lda $5429,x
+		sta $5428,x
+		lda $5829,x
+		sta $5828,x
+		lda $5c29,x
+		sta $5c28,x
+		lda $6029,x
+		sta $6028,x
+		lda $6429,x
+		sta $6428,x
+		lda $6829,x
+		sta $6828,x
+		lda $6c29,x
+		sta $6c28,x
+		lda $7029,x
+		sta $7028,x
+		lda $7429,x
+		sta $7428,x
+		lda $7829,x
+		sta $7828,x
+		inx:cpx #40
+		bne .loop1
+
+.fadeout	jmp .nofade
+
+.nofade	lda $52			;check out if new char is to be set or the rest of 
+		beq .out1		;an old char is to be displayed
+		jmp out2
+
+.out1		ldy #0			;read new sign
+		lda ($50),y
+		tax
+		cmp #$a0		;sign for activating the space-key?
+		bcc .slogo
+		lda #$dc		;if yes, free space-key
+		sta backy+2
+		lda #$20
+		tax
+.slogo		txa			;sign for activating logo?
+		cmp #$80
+		bcc .yoyo
+		lda #$3b		;if so, activate logo
+		sta showlogo+1
+		lda #$20
+		tax
+.yoyo		txa			;the chars from $60 to $68 in the scroller
+		cmp #$60		;are responsible for the different scrollspeeds
+		bcc .yoyo1
+		and #15
+		sta .speed
+		lda #$20
+		tax
+.yoyo1	txa			;the chatrs from $41 to $5f are responsible
+		cmp #$40		;for activating the different fpp-effects
+		bcc .yoyo2
+		sec
+		sbc #$40
+		sta $65			;store current fpp-effect-number in fpp-value ($65 zeropage)
+		lda #$20
+		tax
+.yoyo2	txa
+		bne .weiter2		;if char was 0, reset text-vector
+		lda #$00
+		sta $50
+		lda #text
+		sta $51
+		lda #$20
+.weiter2	sta byte		;store current char and 
+		jsr textout		;display on screen
+
+		jsr charl		;read the length of the new char (e.g.,
+					;"w" is much wider than "i".
+
+		inc $52			;and update counter for char-length
+		inc $50			;increase textcounter/vector
+		bne backy
+		inc $51
+backy		lda $d001		;don't change $d001! this is set via the
+		cmp #$ef		;scroller (this is the space-key-check)
+		bne .serve2
+		lda #<.serve3		;space was pressed...
+		sta .fadeout+1
+		lda #>.serve3
+		sta .fadeout+2
+.serve2	jsr $1003		;play sound
+		lda #<irq3
+		sta $0314
+		lda #>irq3
+		sta $0315
+		lda #$30
+		sta $d012
+		jmp $ea7e
+
+;--------------------------------------------------
+;	fadeout
+;--------------------------------------------------
+
+.serve3	jsr $1003
+		dec .warten+1
+.warten	lda #45
+		bne .nix
+		lda #<.serve4
+		sta .fadeout+1
+		lda #>.serve4
+		sta .fadeout+2
+		lda #$7b
+		sta showlogo+1
+.nix		lda #<irq3
+		sta $0314
+		lda #>irq3
+		sta $0315
+		lda #$30
+		sta $d012
+		jmp $ea7e
+
+.serve4	jsr $1003
+.leiser		lda #15
+		sta $d418
+		dec .leiser+1
+		lda .leiser+1
+		cmp #$ff
+		bne .nix2
+
+		sei
+		lda #$7b
+		sta $d011
+		lda #0
+		sta $d418
+		sta $d015
+		lda #$31
+		sta $0314
+		lda #$ea
+		sta $0315
+		lda #0
+		sta $d01a
+		sta $d020
+		sta $d021
+		jsr $e536
+		lda #$81
+		sta $dc0d
+		ldx #0
+.fload		lda $3800,x
+		sta $c800,x
+		lda $3900,x
+		sta $c900,x
+		lda $3a00,x
+		sta $ca00,x
+		lda $3b00,x
+		sta $cb00,x
+		lda $3c00,x
+		sta $cc00,x
+		lda $3d00,x
+		sta $cd00,x
+		lda $3e00,x
+		sta $ce00,x
+		lda $3f00,x
+		sta $cf00,x
+		inx:bne .fload
+		lda #1
+		sta loading+1
+		cli
+		jmp $ea7e
+
+.nix2		lda #<irq3
+		sta $0314
+		lda #>irq3
+		sta $0315
+		lda #$30
+		sta $d012
+		jmp $ea7e
+
+.speed					;scroll-speed
+!byte 2
+
+
+
+; --------------------------------------------------
+;
+;	third  irq: upper rasterline
+;
+; --------------------------------------------------
+
+
+!zone
+irq3		inc $d019
+
+		ldy $d012
+		cpy $d012
+		beq *-3
+		
+		lda #15
+		ldy $d012
+		cpy $d012
+		beq *-3
+		sta $d020
+		
+		lda #0
+		ldy $d012
+		cpy $d012
+		beq *-3
+
+		sta $d020
+		
+		lda #$3a
+		sta $d012
+		lda #$1b
+		sta $d011
+		lda #<irq1
+		sta $0314
+		lda #>irq1
+		sta $0315
+		jmp $ea7e
+
+
+
+
+; --------------------------------------------------
+;
+;	text-out
+;
+;	this routine reads the afli-data of
+;	a new char and writes it in the afli-matrix/pattern
+;
+; --------------------------------------------------
+
+!zone
+textout	lda byte		;read char
+		asl:asl:asl		;hi-byte of char
+		sta $53			;needs to be stored
+		tax
+textit		lda $c000,x		;load char-data and write
+		sta $404f		;it into the afli-matrix
+		lda $c100,x
+		sta $444f
+		lda $c200,x
+		sta $484f
+		lda $c300,x
+		sta $4c4f
+		lda $c400,x
+		sta $504f
+		lda $c500,x
+		sta $544f
+		lda $c600,x
+		sta $584f
+		lda $c700,x
+		sta $5c4f
+		lda $c800,x
+		sta $604f
+		lda $c900,x
+		sta $644f
+		lda $ca00,x
+		sta $684f
+		lda $cb00,x
+		sta $6c4f
+		lda $cc00,x
+		sta $704f
+		lda $cd00,x
+		sta $744f
+		rts
+
+
+
+
+; --------------------------------------------------
+;
+;	out2
+;
+;	this routine does not set a new char, but
+;	reads the remaining parts of the current char
+;	and writes it in the afli-matrix
+;
+; --------------------------------------------------
+
+!zone
+out2		inc $53			;position of current char-value
+		ldx $53
+		jsr textit		;out chatr
+		inc $52			;increase charlength-counter
+		lda $52
+leng		cmp #5			;char finished?
+		bne .weiter
+		lda #0			;if yes, reset
+		sta $52
+.weiter	jmp backy
+
+
+
+
+; --------------------------------------------------
+;
+;	charl
+;
+;	this routine calculates the length of a char
+;
+; --------------------------------------------------
+
+!zone
+charl		ldx byte
+		lda chle,x
+		sta leng+1
+		rts
+		
+chle
+!byte 2,4,4,4,4,4,4,4,4,2,4,4,4,6,4,4,4,4
+!byte 4,4,4,4,4,6,4,4,4,2,2,2,2,2,3
+		
+byte
+!byte 0
+
+
+
+
+; --------------------------------------------------
+;
+;	clear
+;
+;	this routine clears the chartable,
+;	the $d018-values of the afli-routine
+;	of the first irq.
+;
+; --------------------------------------------------
+
+!zone
+clear		ldx #0
+		lda #$f8
+.ooo		sta chartab,x
+		inx:bpl .ooo
+		rts
+
+
+
+
+
+; --------------------------------------------------
+;
+;	start of the fpp-effects
+;
+;	the fpp-effectsare activated in the scroll-text.
+;	$40+effectnumber activates the effect.
+;	byte $46 in the scrolltext means,
+;	fpp6 will be activated.
+;
+; --------------------------------------------------
+
+
+
+; --------------------------------------------------
+;	fpp1: stretch mit pixellines
+; --------------------------------------------------
+
+!zone
+fpp1
+.sinz		ldx #0
+		ldy #0
+.setp		lda #$e8
+		sta chartab,y
+		iny
+		tya
+		clc
+		adc sinus,x
+		tay
+		inx
+		lda .setp+1
+		clc:adc #$10
+		sta .setp+1
+		cmp #$e8
+		beq .ready
+		jmp .setp
+.ready		lda #$e8
+		sta .setp+1
+		sta chartab,y
+		inc .sinz+1
+		lda .sinz+1
+		cmp #95
+		bcc .serve
+		lda #0
+		sta .sinz+1
+.serve		rts
+
+
+
+
+; --------------------------------------------------
+;	fpp2: sourround
+; --------------------------------------------------
+
+!zone
+fpp2		ldy $62
+.loop		ldx fli_sinen+$0200,y
+.incr		lda #8
+		sta chartab+3,x
+		cpx #8
+		bcc .weiter
+		cpx #$4c
+		bcs .weiter
+		sta chartab+4,x
+.weiter	iny
+		lda .incr+1:clc
+		adc #$10:sta .incr+1
+		bcc .loop
+		lda #8
+		sta .incr+1
+		inc $62
+		rts
+
+
+
+
+; --------------------------------------------------
+;	fpp3: swing
+; --------------------------------------------------
+
+!zone
+fpp3		ldy $63
+		ldx fli_sinen+$0300,y
+.loop		lda #8
+		sta chartab+1,x
+		inx
+		lda .loop+1:clc
+		adc #$10:sta .loop+1
+		bcc .loop
+		lda #8
+		sta .loop+1
+		inc $63
+		rts
+
+
+
+
+; --------------------------------------------------
+;	fpp4: normal
+; --------------------------------------------------
+
+!zone
+fpp4		ldx #32
+.loop		lda #8
+		sta chartab,x
+		inx
+		lda .loop+1:clc
+
+		adc #$10:sta .loop+1
+		bcc .loop
+		lda #8
+		sta .loop+1
+		rts
+
+
+
+
+; --------------------------------------------------
+;	fpp5: normaler scroll, der sourrounded wird
+; --------------------------------------------------
+
+!zone
+fpp5		lda $62
+		cmp #$20
+		bcc .first
+		cmp #$60
+		bcc .second
+		cmp #$a0
+		bcc .first
+		cmp #$e0
+		bcc .second
+.first		jsr fpp4
+		jsr fpp2
+		jsr mirror
+		rts
+.second	jsr fpp2
+		jsr fpp4
+		jsr mirror
+		rts
+
+
+
+
+; --------------------------------------------------
+;	fpp6: swing über pixel-stretsch, gespiegelt
+; --------------------------------------------------
+
+!zone
+fpp6		jsr fpp1
+		jsr fpp3
+		jsr mirror
+		rts
+
+
+
+
+; --------------------------------------------------
+;	fpp7: stretch full
+; --------------------------------------------------
+
+!zone
+fpp7
+.sinz		ldx #0
+
+		ldy #0
+.setp		lda #$e8
+		sta chartab+0,y
+		sta chartab+1,y
+		sta chartab+2,y
+		sta chartab+3,y
+		sta chartab+4,y
+		sta chartab+5,y
+		sta chartab+6,y
+		sta chartab+7,y
+		sta chartab+8,y
+		sta chartab+9,y
+		sta chartab+10,y
+		iny
+		tya
+		clc
+		adc sinus2,x
+		tay
+		inx
+		lda .setp+1
+		clc:adc #$10
+		sta .setp+1
+		cmp #$e8
+		beq .ready
+		jmp .setp
+.ready		lda #$e8
+		sta .setp+1
+		sta chartab+0,y
+		sta chartab+1,y
+		sta chartab+2,y
+		sta chartab+3,y
+		sta chartab+4,y
+		sta chartab+5,y
+		sta chartab+6,y
+		sta chartab+7,y
+		sta chartab+8,y
+		sta chartab+9,y
+		sta chartab+10,y
+		inc .sinz+1
+		lda .sinz+1
+		cmp #95
+		bcc .serve
+		lda #0
+		sta .sinz+1
+.serve		rts
+
+
+
+
+; --------------------------------------------------
+;	fpp8: stretch full, gespiegelt
+; --------------------------------------------------
+
+!zone
+fpp8		jsr fpp7
+		jsr mirror
+		rts
+
+
+
+
+; --------------------------------------------------
+;	fpp9: normaler-scroll, half-surround
+; --------------------------------------------------
+
+!zone
+fpp9		ldy $64
+		lda fli_sinen+$0100,y
+		sta $62
+		jsr fpp4
+		jsr fpp5
+		jsr mirror
+		inc $64
+		lda $64
+		cmp #$af
+		bcc .serve
+		lda #0
+		sta $64
+.serve		rts
+
+
+
+
+; --------------------------------------------------
+;	fpp10: stretch full, gespiegelt, mit swing drüber
+; --------------------------------------------------
+
+!zone
+fpp10		jsr fpp7
+		jsr mirror
+		jsr fpp3
+		rts
+
+
+
+
+; --------------------------------------------------
+;	fpp11: swingende rolle
+; --------------------------------------------------
+
+!zone
+fpp11		ldy $68
+		ldx fli_sinen,y
+fpprolle	lda aa
+		sta chartab,x
+		lda aa+5
+		sta chartab+1,x
+		lda aa+9
+		sta chartab+2,x
+		lda aa+12
+		sta chartab+3,x
+		lda aa+13
+		sta chartab+4,x
+		lda aa+14
+		sta chartab+5,x
+		lda aa+15
+		sta chartab+6,x
+		sta chartab+7,x
+		lda aa+16
+		sta chartab+8,x
+		sta chartab+9,x
+		sta chartab+10,x
+		lda aa+17
+		sta chartab+11,x
+		sta chartab+12,x
+		sta chartab+13,x
+		sta chartab+14,x
+		lda aa+18
+		sta chartab+15,x
+		sta chartab+16,x
+		sta chartab+17,x
+		sta chartab+18,x
+		sta chartab+19,x
+		lda aa+19
+		sta chartab+20,x
+		sta chartab+21,x
+		sta chartab+22,x
+		sta chartab+23,x
+		sta chartab+24,x
+		sta chartab+25,x
+		lda aa+20
+		sta chartab+26,x
+		sta chartab+27,x
+		sta chartab+28,x
+		sta chartab+29,x
+		sta chartab+30,x
+		lda aa+21
+		sta chartab+31,x
+		sta chartab+32,x
+		sta chartab+33,x
+		sta chartab+34,x
+		lda aa+22
+		sta chartab+35,x
+		sta chartab+36,x
+		sta chartab+37,x
+		lda aa+23
+		sta chartab+38,x
+		sta chartab+39,x
+		lda aa+24
+		sta chartab+40,x
+		lda aa+25
+		sta chartab+41,x
+		lda aa+27
+		sta chartab+42,x
+		lda aa+30
+		sta chartab+43,x
+		lda aa+34
+		sta chartab+44,x
+		lda aa+39
+		sta chartab+45,x
+		lda $68
+		and #1
+		bne .ende
+		ldx #0
+		ldy aa
+.loop		lda aa+1,x
+		sta aa,x
+		inx:cpx #$2a
+		bne .loop
+		sty aa+$29
+.ende		inc $68
+		rts
+
+
+
+aa
+!byte $08,$18,$28,$38,$48,$58,$68,$78
+!byte $88,$98,$a8,$b8,$c8,$d8,$08,$18
+!byte $28,$38,$48,$58,$68,$78,$88,$98
+!byte $a8,$b8,$c8,$d8,$08,$18,$28,$38
+!byte $48,$58,$68,$78,$88,$98,$a8,$b8
+!byte $c8,$d8
+
+
+
+
+; --------------------------------------------------
+;	fpp12: swingende rolle, gespiegelt
+; --------------------------------------------------
+
+!zone
+fpp12		jsr fpp11
+		jsr mirror
+		rts
+
+
+
+
+; --------------------------------------------------
+;	fpp13: swingende rolle, gespiegelt, mit swing drüber
+; --------------------------------------------------
+
+!zone
+fpp13		jsr fpp11
+		jsr mirror
+		jsr fpp3
+		rts
+
+
+
+; --------------------------------------------------
+;	fpp14: swingende rolle, gespiegelt
+; --------------------------------------------------
+
+!zone
+fpp14		
+.sinz		ldx #0
+		ldy #0
+.setp		lda $27
+		sta chartab,y
+		iny
+		tya
+		adc sinus3,x
+		tay
+		inx
+		lda $27
+		adc #$10
+		sta $27
+		cmp #$e8
+		beq .ready
+		jmp .setp
+.ready		lda #$08
+		sta $27
+		sta chartab,y
+		inc .sinz+1
+		lda .sinz+1
+		cmp #99
+		bcc .serve
+		lda #0
+		sta .sinz+1
+.serve		rts
+
+
+
+
+; --------------------------------------------------
+;	fpp15: swingende rolle, gespiegelt
+; --------------------------------------------------
+
+!zone
+fpp15		jsr fpp17
+		jsr mirror
+		rts
+
+
+
+; --------------------------------------------------
+;	fpp16: rolle mit surround
+; --------------------------------------------------
+
+!zone
+fpp16		lda $62
+		cmp #$24
+		bcc .w1
+		cmp #$60
+		bcc .w2
+		cmp #$a0
+		bcc .w1
+		cmp #$e0
+		bcc .w2
+.w1		ldx #$13
+		jsr fpprolle
+		jsr fpp2
+		rts
+.w2		jsr fpp2
+		ldx #$13
+		jsr fpprolle
+		rts
+
+
+
+; --------------------------------------------------
+;	fpp17: swingende rolle, gespiegelt
+; --------------------------------------------------
+
+!zone
+fpp17
+.sinz		ldx #0
+		ldy #0
+.setp		lda #$e8
+		sta chartab+0,y
+		sta chartab+1,y
+		sta chartab+2,y
+		sta chartab+3,y
+		sta chartab+4,y
+		sta chartab+5,y
+		sta chartab+6,y
+		sta chartab+7,y
+		sta chartab+8,y
+		sta chartab+9,y
+		sta chartab+10,y
+		iny
+		tya
+		clc
+		adc sinus4,x
+		tay
+		inx
+		lda .setp+1
+		clc:adc #$10
+		sta .setp+1
+		cmp #$e8
+		beq .ready
+		jmp .setp
+.ready		lda #$e8
+		sta .setp+1
+		sta chartab+0,y
+		sta chartab+1,y
+		sta chartab+2,y
+		sta chartab+3,y
+		sta chartab+4,y
+		sta chartab+5,y
+		sta chartab+6,y
+		sta chartab+7,y
+		sta chartab+8,y
+		sta chartab+9,y
+		sta chartab+10,y
+		inc .sinz+1
+		lda .sinz+1
+		cmp #99
+		bcc .serve
+		lda #0
+		sta .sinz+1
+.serve		rts
+
+
+
+; --------------------------------------------------
+;	fpp18: swingende rolle, gespiegelt
+; --------------------------------------------------
+
+!zone
+fpp18		lda $54
+		pha
+		lda $56
+		pha
+.cnt		ldx $56
+.loop		ldy sinus6,x
+		beq .nichts
+		ldx $55
+		lda $54
+.loop2		sta chartab,x
+		inx
+		dey
+		bne .loop2
+		stx $55
+.nichts	lda $54
+		adc #$10
+		sta $54
+		inc $56
+		lda $55
+		cmp #96
+		bcc .cnt
+		pla
+		tax
+		inc .wait+1
+.wait		lda #1
+		and #1
+		bne .w3
+		inx
+.w3		cpx #72
+		bne .w2
+		ldx #0
+.w2		stx $56
+		pla
+		adc #$10
+
+		sta $54
+		lda #0
+		sta $55
+.weiter	rts
+
+
+
+; --------------------------------------------------
+;	fpp19: swingende rolle, gespiegelt
+; --------------------------------------------------
+
+!zone
+fpp19
+.sinz		ldx #0
+		ldy #0
+.setp		lda #$e8
+		sta chartab+0,y
+		sta chartab+1,y
+		sta chartab+2,y
+		sta chartab+3,y
+		sta chartab+4,y
+		sta chartab+5,y
+		sta chartab+6,y
+		sta chartab+7,y
+		sta chartab+8,y
+		sta chartab+9,y
+		sta chartab+10,y
+		iny
+		tya
+		clc
+		adc sinus5,x
+		tay
+		inx
+		lda .setp+1
+		clc:adc #$10
+		sta .setp+1
+		cmp #$e8
+		beq .ready
+		jmp .setp
+.ready		lda #$e8
+		sta .setp+1
+		sta chartab+0,y
+		sta chartab+1,y
+		sta chartab+2,y
+		sta chartab+3,y
+		sta chartab+4,y
+		sta chartab+5,y
+		sta chartab+6,y
+		sta chartab+7,y
+		sta chartab+8,y
+		sta chartab+9,y
+		sta chartab+10,y
+		inc .sinz+1
+		lda .sinz+1
+		cmp #66
+		bcc .serve
+		lda #0
+		sta .sinz+1
+.serve		rts
+
+
+
+; --------------------------------------------------
+;	fpp20: swingende rolle, gespiegelt
+; --------------------------------------------------
+
+!zone
+fpp20		lda $44
+		pha
+		lda $46
+		pha
+.cnt		ldx $46
+.loop		ldy sinus6,x
+		beq .nichts
+		ldx $45
+		lda $44
+.loop2		sta chartab,x
+		inx
+		dey
+		bne .loop2
+		stx $45
+.nichts	lda $44
+		adc #$10
+		sta $44
+		inc $46
+		lda $45
+		cmp #96
+		bcc .cnt
+		pla
+		tax
+		inc .wait+1
+.wait		lda #1
+		and #1
+		bne .w3
+		inx
+.w3		cpx #72
+		bne .w2
+		ldx #0
+.w2		stx $46
+		pla
+		sbc #$10
+		sta $44
+		lda #0
+		sta $45
+.weiter	rts
+
+
+
+; --------------------------------------------------
+;	fpp21: swingende rolle, gespiegelt
+; --------------------------------------------------
+
+!zone
+fpp21		lda $34
+		pha
+.cnt		ldx $36
+.loop		ldy sinus6,x
+		beq .nichts
+		ldx $35
+		lda $34
+.loop2		sta chartab,x
+		inx
+		dey
+		bne .loop2
+		stx $35
+.nichts	lda $34
+		adc #$10
+		sta $34
+		inc $36
+		lda $35
+		cmp #96
+		bcc .cnt
+		inc .wait+1
+.wait		lda #1
+		and #1
+		bne .w3
+		inx
+.w3		cpx #72
+		bne .w2
+		ldx #0
+.w2		stx $36
+		pla
+		sbc #$10
+		sta $34
+		lda #0
+		sta $35
+.weiter		rts
+
+
+
+; --------------------------------------------------
+;	fpp22: sourround-schlange
+; --------------------------------------------------
+
+!zone
+fpp22		ldy $62
+.cnt		lda #5
+.loop		ldx fli_sinen+$0200,y
+.incr		lda #8
+		sta chartab+3,x
+		cpx #8
+		bcc .weiter
+		cpx #$4c
+		bcs .weiter
+		sta chartab+4,x
+.weiter	iny
+		lda .incr+1:clc
+		adc #$10:sta .incr+1
+		bcc .loop
+		lda #8
+		sta .incr+1
+		dec .cnt+1
+		lda .cnt+1
+		bne .loop
+		lda #5
+		sta .cnt+1
+		inc $62
+		rts
+ 
+
+
+; --------------------------------------------------
+;
+;	mirror: dieser effekt spiegelt
+;	die fpp-effekte
+;
+; --------------------------------------------------
+
+!zone
+mirror		ldx #65
+		ldy #65
+.loop		lda chartab,x
+		sta chartab+1,y
+		dex:iny
+		cpy #93
+		bne .loop
+		lda #$f8
+.coco		ldx #0
+		sta chartab+65
+		rts
+
+
+
+
+
+; --------------------------------------------------
+;
+;	char-tabelle.
+;
+;	hier liegen die $d018-werte der
+;	afli-routine
+;
+; --------------------------------------------------
+
+*= $8f00
+chartab
+!fill 255,0
+
+
+
+
+; --------------------------------------------------
+;
+;	sinen.
+;
+;	hier liegen die sinen für die
+;	verschiedenen fpp-effekte
+;
+; --------------------------------------------------
+
+*= $9000
+sinus
+!fill 40,0
+!byte 1,2,2,3,3,4,4,4,4,5,5,5,6,6,5,5,5,4,4,4,4,3,3
+!byte 3,2,2,1
+!fill 90,00
+		
+*= $9100
+sinus2
+!fill 40,0
+!byte 1,1,1,2,2,2,3,3,3,4,4,4,5,5,5,6,6,6,5,5,5,4,4,4
+!byte 3,3,3,2,2,2,1,1,1
+!fill 90,00
+		
+*= $9200
+sinus3
+!byte 0,0,0
+!byte 1,2,2,3,3,4,4,4,4,5
+!byte 5,5,6,6,5,5,5,4,4,4
+!byte 4,3,3,3,2,2,1,0,0,1
+!byte 2,2,3,3,3,4,4,4,4,3
+!byte 3,3,2,2,1,0,0,1,1,2
+!byte 2,2,3,3,3,4,4,4,4,5
+!byte 5,5,5,5,6,6,6,6,6,6
+!byte 5,5,5,5,5,4,4,4,4,3
+!byte 3,3,4,4,5,5,6,5,5,4
+!byte 4,3,3,2,2,1,0,0,0
+
+!byte 1,2,2,3,3,4,4,4,4,5,5,5,6,6,5,5,5,4,4,4,4,3,3
+!byte 3,2,2,1,0,0,1,2,2,3,3,3,4,4,4,4,3,3,3,2,2
+		
+*= $9300
+sinus4
+!byte 0,0,0
+!byte 1,1,1,2,2,3,3,4,4,4
+!byte 5,5,5,5,5,4,4,4,4,3
+!byte 3,3,2,2,1,1,1,0,0,0
+!byte 1,1,2,2,3,3,3,4,4,4
+!byte 4,3,3,3,2,2,1,1,1,2
+!byte 2,2,3,3,3,4,4,4,4,5
+!byte 5,5,5,6,6,6,5,5,5,4
+!byte 4,3,3,3,2,2,2,2,3,3
+!byte 3,4,4,4,5,5,5,5,5,4
+!byte 4,3,3,2,2,1,0,0,0
+
+!byte 1,1,1,2,2,3,3,4,4,4
+!byte 5,5,5,5,5,4,4,4,4,3
+!byte 3,3,2,2,1,1,1,0,0,0
+
+*= $9400
+sinus5
+!byte 0,0,0,1,1,1,2,2,2,3
+!byte 3,3,4,4,4,5,5,5,6,6
+!byte 6,5,5,5,4,4,4,3,3,3
+!byte 2,2,2,1,1,1,2,2,2,3
+
+!byte 3,3,4,4,4,5,5,5,6,6
+!byte 6,5,5,5,4,4,4,3,3,3
+!byte 2,2,2,1,1,1
+
+!byte 0,0,0,1,1,1,2,2,2,3
+!byte 3,3,4,4,4,5,5,5,6,6
+!byte 6,5,5,5,4,4,4,3,3,3
+!byte 2,2,2,1,1,1,2,2,2,3
+
+!byte 3,3,4,4,4,5,5,5,6,6
+!byte 6,5,5,5,4,4,4,3,3,3
+!byte 2,2,2,1,1,1
+
+!byte 0,0,0,1,1,1,2,2,2,3
+!byte 3,3,4,4,4,5,5,5,6,6
+!byte 6,5,5,5,4,4,4,3,3,3
+!byte 2,2,2,1,1,1,2,2,2,3
+
+!byte 3,3,4,4,4,5,5,5,6,6
+!byte 6,5,5,5,4,4,4,3,3,3
+!byte 2,2,2,1,1,1
+
+*= $9500
+sinus6
+!byte 0,0,0,1,1,1,1,1
+!byte 1,1,1,1,1,1,1,1
+!byte 1,1,1,1,2,2,2,2
+!byte 2,2,2,2,2,2,2,3
+!byte 3,3,3,3,3,4,4,5
+!byte 4,4,3,3,3,3,3,3
+!byte 2,2,2,2,2,2,2,2
+!byte 2,2,2,2,1,1,1,1
+!byte 1,1,1,1,1,1,1,1
+
+!byte 0,0,0,1,1,1,1,1
+!byte 1,1,1,1,1,1,1,1
+!byte 1,1,1,1,2,2,2,2
+!byte 2,2,2,2,2,2,2,3
+!byte 3,3,3,3,3,4,4,5
+!byte 4,4,3,3,3,3,3,3
+!byte 2,2,2,2,2,2,2,2
+!byte 2,2,2,2,1,1,1,1
+!byte 1,1,1,1,1,1,1,1
+
+!byte 0,0,0,1,1,1,1,1
+!byte 1,1,1,1,1,1,1,1
+!byte 1,1,1,1,2,2,2,2
+!byte 2,2,2,2,2,2,2,3
+!byte 3,3,3,3,3,4,4,5
+!byte 4,4,3,3,3,3,3,3
+!byte 2,2,2,2,2,2,2,2
+!byte 2,2,2,2,1,1,1,1
+!byte 1,1,1,1,1,1,1,1
+
+
+
+
+
+
+; --------------------------------------------------
+;
+;	der scroll-text
+;
+;	endmarke:	$00
+;	logo aktivieren:	$80
+;	space:		$a0
+;	speed:		$61-$68
+;	effekte:	$41-$55
+;
+; --------------------------------------------------
+
+*= $9600
+!ct scr
+
+!tx " "
+!byte $44
+!tx "          welcome to another part presented by testicle of"
+!byte $64
+!text "   "
+!byte $68
+!tx "                 "
+
+!byte $43
+!tx "payday"
+
+!byte $80
+
+!byte $61
+!tx "            "
+!byte $62
+
+!byte $41
+!tx "   this time with a very nice afli fpp scroller"
+!tx "              "
+
+!byte $42
+!tx "the credits go as following"
+!tx "              "
+
+!byte $52
+!tx "the incredible coding was done by"
+!tx "              "
+!byte $61
+
+!byte $53
+!tx "testicle of payday"
+!tx "              "
+!byte $62
+
+!byte $54
+!tx "the old but still beautiful logo you see was painted by"
+!tx "              "
+!byte $61
+
+!byte $56
+!tx "fabu of payday"
+!tx "              "
+!byte $62
+
+!byte $55
+!tx "the sound you can hear was composed by"
+!tx "              "
+!byte $61
+
+!byte $4b
+!tx "anvil of topaz beerline"
+!tx "              "
+!byte $62
+
+!byte $46
+!tx "and this nice afli charset was painted by"
+!tx "              "
+!byte $61
+
+!byte $50
+!tx "tts of oxyron"
+!tx "              "
+!byte $62
+
+!byte $a0
+
+!byte $4e
+!tx "now that you have seen some nice effects you can use space to continue"
+!tx "              "
+
+!byte $48
+!tx "or you take some time to watch all remaining effects"
+!tx "              "
+!byte $64
+
+!byte $45
+!tx "at this point i want to thank fabu for being lazy and not supporting any new stuff for this demo   he he he"
+!tx "              "
+!byte $62
+
+!byte $4f
+!tx "but anyway   the old grafix i found were good enough though"
+!tx "              "
+
+!byte $4c
+!tx "i really would like to send some greetings"
+!tx "              "
+
+!byte $4a
+!tx "but payday actually knows no one to greet because we were away from scene for over eight years"
+!tx "              "
+
+!byte $54
+!tx "and now we suddenly decided to release another issue of our great discmag"
+!byte $68
+!tx "              "
+!byte $61
+
+!byte $51
+!tx "popelganda"
+
+!tx "              "
+!byte $62
+
+!byte $49
+!tx "i hope we will gather some fans around us with the new issue"
+!tx "              "
+
+!byte $53
+!tx "well at least i hope we will release this issue at all   he he he"
+!tx "              "
+
+!byte $4d
+!tx "ok   all effects were shown i think"
+!tx "              "
+
+!byte $50
+!tx "it is time to restart this text"
+!tx "              "
+
+!byte $47
+!tx "have a nice day   "
+!tx "              "
+
+!byte 0
+</code>

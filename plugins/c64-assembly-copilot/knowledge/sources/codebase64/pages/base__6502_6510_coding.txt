@@ -1,0 +1,87 @@
+# PAGE: base:6502_6510_coding
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:6502_6510_coding
+
+====== 6502/6510 Coding ======
+
+This section contains articles on 6502/6510 programming in general. The information here is not primarily focused on coding graphics, sound or IO stuff, but covers instead operations of various opcodes and about speed/memory optimization and so on.
+
+====== General tutorials ======
+
+  * [[base:mc_al#bg_-_part_one|Beginners guide - Part 1]] - Beginners guide to machine-code and assembly-language for the 6510 by Rudi B. Stranden
+  * [[base:machine_language_tutorial|Machine language tutorial]] - An incomplete series about 6510 machine language written by Karmic/HVSC.
+  * Tutorials by Craig Bruce, from C= Hacking:
+    * [[magazines:chacking1#beginning_ml_-_part_one|Learning ML 1]] - Documented and undocumented opcodes.
+    * [[magazines:chacking2#beginning_ml_2|Learning ML 2]] - Indexed addressing.
+  * [[TurboAssembler 5.2 (Bacchus Version)]] — This may be useful if you plan to code on the C64 itself. Reference document by Bacchus/FLT.
+  * [[http://forum.6502.org/viewtopic.php?f=2&t=6796|HeyMon]] - If all else fails, here's an 86-line BASIC monitor to type in, with assembler and disassembler, by White Flame.
+
+====== Instruction set and Addressing modes ======
+
+This section should contain info on the instruction set of the 6502 and 6510, addressing modes, cycle tables, illegal opcodes, timings pinout, etc.
+
+===== General Documentation =====
+
+  * [[base:c64doc]] - detailed specification of opcodes & memory handling, by John West and Marko Mäkelä
+  * [[magazines:chacking1&#opcodes_and_quasi-opcodes|Opcodes and Quasi-opcodes]] - by Craig Taylor from C=Hacking #1
+
+In general external links should be avoided in the "base" section of this wiki, but the following two links to references of opcodes (including the "illegal" ones) are suitable here:
+
+  * [[http://unusedino.de/ec64/technical/aay/c64/ibmain.htm|Ninjas reference]]
+  * [[http://www.oxyron.de/html/opcodes02.html|Grahams reference]]
+
+===== Definitions of constants for Mnemonic to Opcode correspondence =====
+
+This section contains two lists of constant definitions without meta information for inclusion in your assembler code. The first list includes only the legal opcodes, whereas the second list includes also the illegal ones.
+The lists were checked against Grahams table, which seems to be error free in contrast to other sources (For example the Commodore Hacking list).  
+
+  * [[LegalMnemonicsList|Legal Mnemonics]]
+  * [[IllegalMnemonicsList|Legal + Illegal Mnemonics]]
+
+===== Illegal opcodes =====
+In addition to the standard opcodes available in 6502, the 6510 CPU of the C64 also have a few undocumented opcodes. Some of them are possible to use in a productive way and this section contains some info on this. Note that the fact that these opcodes are not official ones has resulted in a situation where there is no real naming convention. Thus you will find that the same illegal opcode will have a range of different names in different documents.
+
+  * [[Extra Instructions Of The 65XX Series CPU]] - Overview article by Adam Vardy from 1995 - quite old by now
+  * {{:base:nomoresecrets-nmos6510unintendedopcodes-20252412.pdf|No More Secrets 1.0}} - Documentation of unintended opcodes by Groepaz (2024-24-12 version). ([[https://csdb.dk/release/?id=258111|No More Secrets 1.0 @CSDb]])
+
+A collection articles and routines that exemplify particular aspects of some illegal opcode:
+
+  * [[Decrease X register by more than 1]] - by FTC/HT
+  * [[Some words about the ANC opcode]] - by FTC/HT
+  * [[Use SHY as sty,x or SHX as stx,y|Store X Indexed by Y and Vice-Versa With SHX/SHY]] - by Cruzer/CML
+  * [[Shift bits and throw carry away with ALR]] - by Cruzer/CML
+
+====== The Addresses 00 and 01 ======
+
+These two addresses are used for (among other things) settings up the memory layout of the C64. These are the only differences between a 6502 and a 6510 (besides the Tri-State Bus, which is needed to cooperate with the Video Chip)
+
+   * [[base:memconfig|Memory Management]] - 00 and 01 can be used to switching on/off BASIC, KERNAL, and CHAR ROM.
+   * [[Datasette]]
+   * [[RAM beneath $00 and $01]]
+
+====== Optimization ======
+Various tricks and approaches to optimization for speed or size.
+
+  * [[Speeding up and optimising demo routines]] - by conrad
+  * [[Speedcode]] by Cruzer/CML
+  * [[Loops vs unrolled]] by Bitbreaker/Performers
+  * [[Variable speedcode runlength]] - by Bitbreaker/Performers
+  * [[Advanced optimizing]] - Tricks to save cycles, including use of illegal opcodes - by Bitbreaker/Performers
+  * [[base:sizecoding|Sizecoding]] - Tricks to save bytes in your code - by Gordian
+
+====== General stuff ======
+
+  * [[CPU Clocking]] - precise MHz figures
+  * [[Detect CPU Type]] - by UZ (from CC65)
+  * [[Common Pitfalls]] - Several Tips&Tricks of the most used Coding Mistakes
+  * [[Using a byte as bitcounter and value container at the same time]] - useful when dealing with bit streams
+  * [[Launching long tasks from IRQ handler]] - by Bitbreaker/Performers
+  * [[Practical Memory Move Routines]] - by Bruce Clark  - taken from [[http://www.6502.org|www.6502.org]]
+  * [[Clearing a Section of Memory]] - from 6502 Software Gourmet Guide & Cookbook - taken from [[http://www.6502.org|www.6502.org]]
+  * [[Set a byte to non-zero]] - by White Flame
+  * [[Making a Counter]] - Example code of an increasing decimal counter - by Scout/Silicon Ltd.  
+  * [[Threads on the 6502]] - an example on how threads can be used efficiently on the 6502 processor.
+  * [[Swapping ZP data]] - small snippet to save/restore ZP data by enthusi
+  * [[Dispatch on a byte]] - Useful in interpreters and decompression, by White Flame
+  * [[Rotate byte and act on 1-bits]] - Invented by Hoogo, written by FTC
+  * [[Decoding bitstreams]] for fun and profit, by lft.
+  * [[Protecting against soft-resets]] - by Karmic/HF

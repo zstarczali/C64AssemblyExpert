@@ -1,0 +1,50 @@
+# PAGE: base:supercpu_stp
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:supercpu_stp
+
+====== STP ======
+
+<code>
+    /*-------------------------------------------------------------------------
+    OP CODE: STP (SToP the processor)
+    =================================
+    
+    Addressing Modes:
+        Implied                            ($db - 1 byte, 3 cycles¹)
+        ¹ - Uses 3 cycles to shut the processor down; additional cycles are
+        required by reset to restart it
+
+    Flags Affected:
+        N/A
+
+    Description:
+        During the processor’s next phase 2 clock cycle, stop the processor’s
+        oscillator input; the processor is effectively shut down until a reset
+        occurs (until the RES’ pin is pulled low).
+
+        STP is designed to put the processor to sleep while it’s not (actively)
+        in use in order to reduce power consumption. Since power consumption is
+        a function of frequency with CMOS circuits, stopping the clock cuts
+        power to almost nil.
+
+        Your reset handling routine (pointed to by the reset vector,
+        $00:FFFC-FD) should be designed to either reinitialize the system or
+        resume control through a previously-installed reset handler.
+
+        Remember that reset is an interrupt-like signal that causes the
+        emulation bit to be set to one. It also causes the direct page register
+        to be reset to zero; stack high to be set to one (forcing the stack
+        pointer to page one); and the mode select flags to be set to one
+        (eight-bit registers; a side effect is that the high bytes of the index
+        registers are zeroed). STP is useful only in hardware systems (such as
+        battery-powered systems) specifically designed to support a low-power
+        mode.
+
+    Notes:
+
+    -------------------------------------------------------------------------*/
+
+    .pseudocommand stp {
+        .byte $db
+    }
+
+</code>

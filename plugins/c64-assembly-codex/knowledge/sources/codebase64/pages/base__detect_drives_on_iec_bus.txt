@@ -1,0 +1,332 @@
+# PAGE: base:detect_drives_on_iec_bus
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:detect_drives_on_iec_bus
+
+====== Providing Multiple Drive Support via Machine Language ======
+
+By Todd S. Elliott (eyeth@erols.com)
+March 16, 1998
+
+[See also Commodore World #22 for a similar routine]
+
+First, many thanks to Maurice Randall for providing the addresses in drive 
+ROMs of various disk drives for the purposes of determining each drive. The
+info was largely adapted from the BASIC drive polling routines written by
+Doug Cotton. Many thanks also goes to Doug Cotton for writing a well written
+and comprehensive two-part article on serial bus programming appearing in
+Commodore World #10 and #11. It has taken a lot of pain and frustration out
+of serial bus programming.
+
+Before we go any further, Doug Cotton recently stated in a comp.sys.cbm
+article about Desterm v3.0's problems of serial device polling. Doug stated
+that Mark Fellows found out that sending a 'm-r' command to the Xetec
+SuperGrafix *Gold* on serial device #14 will lock up the serial bus. Thus,
+the routine would need to ignore polling of device #14, and allow the user
+of your program the option of forcing the polling of device #14 for any
+attached serial device. (Of course, warn the user of such dangers.)
+
+Now, with the thanks out of the way, let's get right into the bits and 
+nybbles of the program. First, it creates a drive buffer at the cassette 
+buffer beginning at $0334, and zeroes it out. The .Y register serves as a 
+device index; a value of 8 in .Y equals device 8, 9 in .Y equals device 9 and 
+so on, up to 30 for a permissible range of devices from 8 to 30.
+
+Next, it quickly determines whether a serial device is attached at devices 
+#8-#30. if there is a serial device, the program will then put in a value 
+equal to the serial device at the buffer indexed by an appropriate .Y device 
+index. This value will be changed later in the drive polling routine.
+
+The drive polling routine then checks the values within the buffer indexed by 
+.Y serving as a serial device number. If a non-zero value is found, then 
+there is a serial device present and the program then reads in the addresses 
+in drive ROMs. The program checks the drive ROMs for the appropriate 
+identifiers to correctly determine which drive it is.
+
+Once it has identified the drive, it inserts a byte representation of that 
+drive into the buffer, indexed by .Y serving as a device number. The program 
+repeats, until there are no more available drives for identification.
+
+At the end of the routine, the drive buffer, indexed by .Y as a device 
+number, should contain byte representations of various drives at various 
+device numbers. This serves as a 'snapshot' of such CBM power system. The 
+program then can freely use this information to offer multiple drive support
+with specific device support such as partitions, subdirectories, using more
+drive RAM for buffers, and more.
+
+Let's offer my system as an example:
+     dev #08- Internal 1571
+     dev #09- External 1571
+     dev #10- FD 4000
+     dev #11- CMD HD 85
+     dev #12- RAMLink
+
+After running the routine below, the drives buffer contains the following 
+values:
+     .Y as device index = value (decimal)
+                    08  =  71
+                    09  =  71
+                    10  =  224
+                    11  =  192
+                    12  =  128
+                    13  =   0
+                    ...[so on]
+                    30  =   0
+
+Read also the comments liberally sprinkled throughout the code to gain
+further insight into this routine. There is minimal error checking in the
+following routine, so it is good practice to implement such checking.
+
+Enjoy.
+<code>
+=============================================================================
+; polls all available drives
+; By Todd S. Elliott
+; Buddy assembler format
+; Feel free to use the routine without any attribution.
+
+; Compiler equates
+; zero page
+ldv    = $fb; last device number that LOADed the program
+status = $90; status register
+dv     = $ba; current device number- arbitrary location
+
+; equates
+drives = $032c; buffer for the drive poll routine- arbitrary location
+second = $ff93
+tksa   = $ff96
+acptr  = $ffa5
+ciout  = $ffa8
+untalk = $ffab
+unlstn = $ffae
+listen = $ffb1
+talk   = $ffb4
+readst = $ffb7
+setlfs = $ffba
+setnam = $ffbd
+open   = $ffc0
+close  = $ffc3
+chkin  = $ffc6
+chkout = $ffc9
+clrchn = $ffcc
+chrin  = $ffcf
+chrout = $ffd2
+load   = $ffd5
+save   = $ffd8
+getin  = $ffe4
+clall  = $ffe7
+
+; program code begins here
+
+*= $c000; arbitrary starting address
+
+  ldy #23
+  lda #$00
+- sta drives+8,y; zero out the drive buffer
+  dey
+  bpl -
+
+; this way, a zero indicates that a drive is not present in that address 
+; referenced by the .Y index. For example- .Y equals 10, and if that address 
+; in 'drives,y' contains a zero, then device #10 is unavailable and there is 
+; no drive attached.
+
+  lda dv; get current device and save it temporarily
+  sta ldv; device from which it was LOADed- Obviously will work if this
+         ; routine was called first before any disk activity. Use this
+         ; routine as part of the initalization sequence of your program.
+         ; Otherwise, it is not necessary to use it in this routine.
+  lda #$08; start with device #8 and finish at #30
+  sta dv; create a new device number
+- ldy #$00
+  sty status; clear the status register
+  jsr listen; opens the device for listening
+  lda #$ff; Secondary address - $0f OR'ed with $f0 to open
+  jsr second; opens the channel with sa of 15
+  lda status; check the status byte
+  bpl +; branch if there is a device present
+; obviously, some kind of error- restore original device
+- jsr unlstn; severs the serial bus control
+
+; The following sub-routine was 'commented' by the semi-colon. Either way, 
+; the drive polling with or without the commented sub-routine will work 
+; correctly. The reason why I left it there is because Commodore World #10-11 
+; articles on serial bus routines recommended such an anal-retentive 
+; sequence. I'm sure it is for a good reason though. If you can spare the 
+; room, feel free to use the commented routine by removing the semi-colons.
+
+; lda #$00
+; sta status; clear the status register
+; lda dv; get device number
+; jsr listen; opens the device for listening
+; lda #$ef; sa - $0f and OR'ed with $e0 to close file
+; jsr second; closes the channel with sa of 15
+; jsr unlstn; finally closes it
+  inc dv; increment device number
+  lda dv
+  cmp #31; is it device 31? if so, finish drive polling
+  bne --
+  beq ++; relative JMP
++ ldy dv
+  tya
+  sta drives,y; store in successful device number
+              ; remember, .Y is the device index
+  bne -; relative JMP
+
++ ldy #14
+  disable polling of serial device #14
+  lda #$00
+  sta drives,y
+
+  ldy #$08; get drive info (And if in 128 mode, delete the plus (+) sign.)
+l1 lda drives,y
+  bne +
+  iny
+  cpy #31; are we done? (acceptable range of 8 to 30)
+  bne l1
+  rts; exits the whole drive polling routine
++ sta dv; set device number
+  jsr open'cmd'channel
+  ldx #<cmdinfo; check to see if it is a CMD drive first
+  ldy #>cmdinfo
+  jsr open'cmd'two
+
+  jsr chrin
+  cmp #70; is it 'f' for FD series drives?
+  bne +
+  jsr chrin; get next character
+  cmp #68; is it 'd' for FD series drives?
+  bne l2
+  ldy dv; get device number
+  lda #$e0; indicates that it is a FD drive at device number
+  jmp get'next'drive
+
++ cmp #72; is it 'h' for HD series drives?
+  bne +
+  jsr chrin; get next character
+  cmp #68; is it 'd' for HD series drives?
+  bne l2
+  ldy dv; get device number
+  lda #$c0; indicates that it is a HD drive at device number
+  bne get'next'drive; relative JMP
+
++ cmp #82; is it 'r' for RL/RD series?
+  bne l2
+  jsr chrin; get next character
+  cmp #68; is it 'd' for RD series?
+  bne +
+  ldy dv; get device number
+  lda #$f0; indicates that it is a RD drive at device number
+  bne get'next'drive; relative JMP
++ cmp #76; is it 'l' for RL series?
+  bne l2
+  ldy dv; get device number
+  lda #$80; indicates that it is a RLdrive at device number
+  bne get'next'drive; relative JMP
+
+l2 =*; check for CBM devices
+  jsr close'cmd'channel; close command channel
+  jsr open'cmd'channel
+  ldx #<cbminfo; check to see if it is a 1541/1571 drive
+  ldy #>cbminfo
+  jsr open'cmd'two
+
+  jsr chrin; gets the drive info
+  cmp #53; is it '5' for the 15xx drives?
+  bne l3
+  jsr chrin; gets the next number
+  cmp #52; is it '4' for the 1541?
+  bne +
+  ldy dv; get device number
+  lda #41; indicates a 1541 at that device number
+  bne get'next'drive; relative JMP
++ cmp #55; is it '7' for the 1571?
+  bne l3
+  ldy dv; get device number
+  lda #71; indicates a 1571 at that device number
+  bne get'next'drive; relative JMP
+
+l3 =*; polls for a 1581 drive
+  jsr close'cmd'channel; closes the command channel
+  jsr open'cmd'channel
+  ldx #<info1581; check to see if it is a 1581 drive
+  ldy #>info1581
+  jsr open'cmd'two
+
+  jsr chrin; gets the drive info
+  cmp #53; is it a '5' for a 15xx drive?
+  bne l4
+  jsr chrin; gets the next drive number
+  cmp #56; is it a '8' for a 1581?
+  bne l4
+  ldy dv; gets device number
+  lda #81; indicates a 1581 at that device number
+  bne get'next'drive; relative JMP
+
+l4 =*; foreign drive- just mark it as foreign
+  ldy dv; get device number
+  lda #$01; indicates a foreign device number
+  bne get'next'drive; relative JMP
+
+close'cmd'channel =*
+  jsr clrchn
+  lda #$0f; lfn
+  jsr close; and closes it
+  rts
+
+; gets the next drive on the serial bus
+; First, it stores the byte representation of a drive into the 'drives' 
+; buffer indexed by .Y showing the device number.
+
+; Available byte representations-
+; 00 - No serial device available
+; 01 - foreign drive (MSD, Excelerator, Lt.Kernal, etc.)
+; 41 - 1541 drive
+; 71 - 1571 drive
+; 81 - 1581 drive
+; e0 -   FD drive
+; c0 -   HD drive
+; f0 -   RD drive
+; 80 - RAMLink
+
+; Note - the high bit set indicates a CMD drive, whereas the high bit cleared 
+; indicates a CBM drive.
+
+get'next'drive =*
+  sta drives,y
+  jsr close'cmd'channel
+  ldy dv
+  iny; increment table offset
+  jmp l1
+
+; opens the command channel and issues a command
+open'cmd'channel =*
+  lda #$0f; lfn
+  tay; sa for command channel
+  ldx dv
+  jsr setlfs; set up the open sequence
+  lda #$07; length of command (m-r command)
+  rts
+
+open'cmd'two =*
+  jsr setnam; sends the command
+  jsr open; opens the file
+  ldx #$0f; lfn
+  jsr chkin; redirect input
+  rts
+
+cmdinfo =*; gets CMD drive info
+          ; at $fea4 in drive ROM
+.asc "m-r"
+.byte $a4,$fe,$02,$0d
+
+cbminfo =*; gets CBM drive info
+          ; at $e5c5 in drive ROM
+.asc "m-r"
+.byte $c5,$e5,$02,$0d
+
+info1581 =*; gets 1581 drive info
+           ; at $a6e8 in drive ROM
+.asc "m-r"
+.byte $e8,$a6,$02,$0d
+
+; end file drivepoll
+</code>

@@ -1,0 +1,71 @@
+# PAGE: sid:simple_irq_music_player
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=sid:simple_irq_music_player
+
+===== Simple IRQ Music Player =====
+
+This routine plays music inside an IRQ raster interrupt. Just a basic step to interrupts. This routine is in ACME Cross assembler format.
+<code>
+;--------------------------------
+;JCH, DMC, Whatever IRQ music plr
+;================================
+
+             !to "irqmusplr.prg",cbm
+             * = $0810 ;Remember SYS 2064 to enable it
+             sei
+             lda #<irq
+             ldx #>irq
+             sta $314
+             stx $315
+             lda #$1b
+             ldx #$00
+             ldy #$7f 
+             sta $d011
+             stx $d012
+             sty $dc0d
+             lda #$01
+             sta $d01a
+             sta $d019 ; ACK any raster IRQs
+             lda #$00
+             jsr $1000 ;Initialize Richard's music
+             cli
+hold         jmp hold ;We don't want to do anything else here. :)
+                      ; we could also RTS here, when also changing $ea81 to $ea31
+irq
+             lda #$01
+             sta $d019 ; ACK any raster IRQs
+             jsr $1003 ;Play the music
+             jmp $ea31
+            
+
+             * = $1000-2
+             !binary "music.dat" ;Rip one of my tunes from the HVSC and save as music.dat if you like :)
+</code>
+
+Some additional notes by Frantic:
+
+.sid files have a header of length $7c bytes. You must remove this header from the sid files before you can place them on $1000 in c64 memory (for sids that should indeed be placed on $1000, which is something like a standard, but not every tune follow this).
+
+In some assemblers you can skip N number of bytes in the binary files directly, without having to do it with help of a hex editor or a tool such as "dd" or similar. An example for ACME follows:
+
+<code>
+   *=$1000
+   !bin "Raymond.sid",, $7c+2
+</code>
+
+The "+2" at the end also removes the load address (two bytes) from the original c64 file inside the .sid file.
+
+Also note that in order to make the example code above executable (by executing "RUN" instead of forcing the user/coder to manually enter "SYS xxxx" to start the program), you would either have to crunch the file (crunchers add startup code) or add a basic stub to the start, such as:
+
+<code>
+        * = $0801
+			
+sysline:	
+        !byte $0b,$08,$01,$00,$9e,$32,$30,$36,$31,$00,$00,$00 ;= SYS 2061
+
+        * = $080d ;=2061 (Instead of $0810 as in Richards example
+                  ;       not to waste unnecessary bytes)
+
+machine_code_entry: 
+        sei
+        ...etc
+</code>

@@ -1,0 +1,47 @@
+# PAGE: base:lzmpi_compression
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:lzmpi_compression
+
+====== LZMPi Compression ======
+
+
+
+
+===== The compression algorithm =====
+The compressor uses quite a lot of C++ and STL mostly because STL has well optimised sorted associative containers and it makes the core algorithm easier to understand because there is less code to read through. Even so, when compiled in release mode this algorithm uses less memory and executes a little quicker than some other comparable LZ based algorithms written in C. The algorithm inserts previous data that did not match into a std::multimap of value pairs (the dictionary) and scans these pairs for future matches. The most efficient matching runs are then encoded with offset and length pairs, hence LZ, which are themselves encoded using packed values. A one byte forward match check is used because the algorithm uses variable bit length packed values.
+
+For larger files old less frequently used matching pairs are expired from the dictionary which keeps the dictionary at a maximum size. Typically this expiration won't happen very often with small files for the C64 but does happen more often when compressing larger files of several hundred kilobytes in size.
+
+Three recent updates to the algorithm are:
+
+A sixteen entry history buffer of LZ length and match pairs is also maintained in a circular buffer (for better speed of decompression) and a shorter escape code (6 bits) is output instead of what would have been a longer match block sequence of bits. This change produced the biggest saving in terms of compressed file size.
+
+A one bit escape value is used when writing literals and the match block escape. The compression and decompression can use anything from zero to three bits of escape value but in C64 tests the one bit escape produces consistently better results so the decompressor has been optimised for this case. The best escape value is chosen by first scanning the file and for literals where the most significant bit does not match the escape value only eight bits is used to store the eight bits literal. This produced good results, but not quite as good as the history buffer.
+
+Offset values use a different bit encoding scheme compared to the length encoding scheme. This produces a method that more efficiently packs larger values with least 6 bit entropy.
+
+These updates mean old format compressed data will not work with the new decompression code so use the updated LZMPi.exe to re-compress any existing data.
+
+===== The decompression algorithm =====
+Unlike other comparable LZ algorithms the decompressor uses no extra memory for dictionaries. There are an extra 4*16 bytes used for the temporary history buffer which is typically located straight after the decompression code. Decompression is simply a case of storing a literal or copying memory from that data already decompressed. Since the data is compressed linearly the data can be moved to the end of memory and in-place decompression can be used.
+
+If the decompression code is included inline with other code then be sure to update the assembler PC with the result of CompressionEndOFHistoryBufferTables after including Decompression.a.
+
+===== Compiled binaries ====
+
+C64\bin\LZMPi.exe has been compiled with Microsoft Visual Studio 6.0 in release mode.
+It has been used to produce the compressed files in other examples related to this project. This tool has a maximum file size limit of 64K because larger programs won't fit into the C64's memory.
+
+
+
+===== Source code =====
+
+Source code for the compressor and decompressor is available from [[projects:resurrection|the large archive here]].
+
+The C++ compressor (C64\Compression\Compress.cpp) and decompressor (C64\Compression\Decompress.cpp) source can cope with lengths and offsets larger than 16 bits.
+
+The decompression code (C64\Decompression\Decompression.a) for the 6502 is a fairly literal translation of the decompression code in C64\Compression\Decompress.cpp however the 6502 version has been tweaked to use 16 bit quantities where possible.
+
+To create a compressed prg file that automatically decompresses use the TestDecompression2.a source file to link in the compressed output from LZMPi.exe by updating one the !bin include at the end of the source file. Update the execution address and assemble the file. The generated prg will self decompress and run.
+
+===== Comparison =====
+For example, the "Legion of the Damned" Scroller.prg (from the Scroller project) is usually about 48489 bytes long. The raw compressed output file Scroller.cmp is usually about 22697 bytes. When linked with TestDecompression2.a (with a border colour effect) the final file size is usually about 23268 bytes. Comparing this with Pucrunch the raw compressed file is about 23296 bytes and the final output file size is about 23643 bytes. A saving of 375 bytes with LZMPi.

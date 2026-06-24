@@ -1,0 +1,22 @@
+# PAGE: base:quick_vicii_screen_setup
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:quick_vicii_screen_setup
+
+====== Quick VIC-II Screen Setup ======
+
+This code snippet will set the both the bank and the screen address registers, given simple pointers to screenChars and screenPixels.
+
+<code>
+ screenChars  = $0400 ; the 40x25 buffer
+ screenPixels = $1000 ; the pixel data for font or bitmap ($1000 or $9000 are always charrom)
+
+; Select VIC bank
+ lda # ((screenChars ^ $ffff) >> 14)
+ sta $dd00
+
+; Set VIC screen and font pointers
+ lda # (((screenChars & $3fff) / $0400) << 4) + (((screenPixels & $3fff) / $0800) << 1)
+ sta $d018
+</code>
+
+by White Flame
+

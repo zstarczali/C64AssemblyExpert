@@ -1,0 +1,17 @@
+# PAGE: base:scpu_nativemode
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:scpu_nativemode
+
+====== NativeMode ======
+
+Sets the processor into 65C816 native mode.
+
+| SYNTAX:        | NativeMode |
+| EXAMPLE:       | NativeMode |
+| PARAMETERS:    | N/A        |
+
+<code>
+    .pseudocommand NativeMode {
+        clc
+        xce
+    }
+</code>

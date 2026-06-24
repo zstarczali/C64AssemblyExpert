@@ -1,0 +1,470 @@
+# PAGE: base:8x8-plasma-optimized-codegen
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:8x8-plasma-optimized-codegen
+
+====== 8x8 Plasma w/ Optimized Speedcode Generator ======
+
+<code>
+//--------------------------------------------------------------------------------------------------
+// 8x8 Plasma Crap w/ Optimized Speedcode Generator
+// For Codebase64
+// By Cruzer/CML 2009
+// Asm: KickAss 3.1
+//--------------------------------------------------------------------------------------------------
+// memory...
+.var plasmaCnt =	$02
+.var add =		$04
+.var codePnt =		$05
+.var xPos =		$07
+.var yPos =		$08
+.var pSine =		$09
+.var pSineY =		$0a
+.var lineSinePnt =	$0b
+.var colorSetoffs =	$10
+.var sineSetoffs =	$38
+.var screen =		$0400
+.var basic =		$0801
+.var sine64 =		$1000
+.var sine128 =		$1200
+.var colorTable =	$1400
+.var bitmap =		$2000
+.var code =		$4000
+.var plasmer =		$5000
+//--------------------------------------------------------------------------------------------------
+.pc = sine64 "sine64"
+.for (var i=0; i<$200; i++)
+	.by 32 + 32 * sin(i/[$100/2/PI])
+.pc = sine128 "sine128"
+.for (var i=0; i<$200; i++)
+	.by 64 + 64 * sin(i/[$100/2/PI])
+//--------------------------------------------------------------------------------------------------
+.pc = $0801 "basic"
+:BasicUpstart(code)
+//--------------------------------------------------------------------------------------------------
+.pc = code "code"
+	jmp start
+//--------------------------------------------------------------------------------------------------
+.var width = 40
+.var height = 25
+.var effectDuration = $a0
+//--------------------------------------------------------------------------------------------------
+plasmaParams:
+sineSpreadX:		.by $00
+sineSpreadY:		.by $00
+colorSpreadX:		.by $00
+colorSpreadY:		.by $00
+realtimeSpread0:	.by $00
+realtimeSpread1:	.by $00
+sineSpeeds:		.by $00,$00
+addSpeed:		.by $00
+colors:			.by $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+			.by $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+
+.var paramLen = * - plasmaParams
+
+//List of effects to switch between...
+paramList:
+
+!sineSpreadX:		.by $03
+!sineSpreadY:		.by $01
+!colorSpreadX:		.by $01
+!colorSpreadY:		.by $02
+!realtimeSpread0:	.by $07
+!realtimeSpread1:	.by $08
+!sineSpeeds:		.by $03,$fe
+!addSpeed:		.by $ff
+!colors:		.by $a7,$aa,$8a,$2a,$b8,$95,$b5,$c5,$55,$5f,$cd,$5d,$37,$dd,$d1,$11
+			.by $11,$d1,$dd,$37,$5d,$cd,$5f,$55,$c5,$b5,$95,$b8,$2a,$8a,$aa,$a7
+
+!sineSpreadX:		.by $07
+!sineSpreadY:		.by $04
+!colorSpreadX:		.by $01
+!colorSpreadY:		.by $02
+!realtimeSpread0:	.by $06
+!realtimeSpread1:	.by $08
+!sineSpeeds:		.by $03,$fe
+!addSpeed:		.by $fe
+!colors:		.by $00,$02,$9b,$2b,$24,$2c,$2a,$4a,$ca,$aa,$af,$a7,$f7,$f1,$71,$11
+			.by $11,$71,$f1,$f7,$a7,$af,$aa,$ac,$4a,$2a,$2c,$24,$2b,$9b,$02,$00
+
+!sineSpreadX:		.by $09
+!sineSpreadY:		.by $0a
+!colorSpreadX:		.by $04
+!colorSpreadY:		.by $03
+!realtimeSpread0:	.by $07
+!realtimeSpread1:	.by $09
+!sineSpeeds:		.by $03,$fe
+!addSpeed:		.by $01
+!colors:		.by $00,$06,$6b,$64,$6c,$be,$4e,$ce,$e5,$e3,$f3,$3d,$e1,$31,$d1,$11
+			.by $11,$71,$f1,$f7,$a7,$af,$aa,$aa,$8a,$2a,$2a,$28,$22,$92,$02,$00
+
+.var numFx = [* - paramList]  / paramLen
+//--------------------------------------------------------------------------------------------------
+start:
+	jsr init
+//--------------------------------------------------------------------------------------------------
+mainLoop:
+	lda #$00
+	sta $d020
+	lda #$44
+!:	cmp $d012
+	bne !-
+	
+	lda plasmaCnt+0
+	clc
+	adc sineSpeeds+0
+	sta plasmaCnt+0
+	lda plasmaCnt+1
+	clc
+	adc sineSpeeds+1
+	sta plasmaCnt+1
+	lda add
+	clc
+	adc addSpeed
+	anc #$3f
+	sta add
+
+	jsr plasmer
+	jsr fxControl
+
+	jmp mainLoop
+//--------------------------------------------------------------------------------------------------
+fxControl:
+	//count down to next effect
+	inc fxTimer
+	lda fxTimer
+	cmp #effectDuration
+	beq !next+
+	rts
+!next:
+	lda #$2b	//turn off screen while initing effect
+	sta $d011
+	lda #$00
+	sta fxTimer
+	lda paramPnt
+	clc
+	adc #paramLen
+	ldx effect
+	inx
+	cpx #numFx
+	bne !+
+	ldx #0
+	txa
+!:	stx effect
+	sta paramPnt
+
+	jsr fetchParams
+	jsr generateSpeedcode
+	jsr generateColorTable
+	
+	//wait for raster, turn screen on again
+	lda #$42
+!:	cmp $d012
+	bne !-
+	lda #$3b
+	sta $d011
+
+	rts
+fxTimer:
+	.by 0
+effect:
+	.by 0
+paramPnt:
+	.by 0
+
+//--------------------------------------------------------------------------------------------------
+fetchParams:
+	ldx #paramLen-1
+	txa
+	clc
+	adc paramPnt
+	tay
+!:	lda paramList,y
+	sta plasmaParams,x
+	dey
+	dex
+	bpl !-
+	rts
+//--------------------------------------------------------------------------------------------------
+init:
+	sei	
+	jsr fetchParams
+	jsr generateSpeedcode
+	jsr generateColorTable
+	jsr fillBitmap
+	jsr initVic
+	rts
+//--------------------------------------------------------------------------------------------------
+fillBitmap:
+	ldx #0
+	ldy #$1f
+	lda #%01010101
+!:	sta bitmap,x
+	eor #%11111111
+	inx
+	bne !-
+	inc !- +2
+	dey
+	bpl !-
+	rts
+//--------------------------------------------------------------------------------------------------
+initVic:
+	lda #$3b
+	sta $d011
+	lda #$18
+	sta $d018
+	rts
+//--------------------------------------------------------------------------------------------------
+generateColorTable:
+
+	ldx #$1f
+	ldy #0
+!loop:
+	lda colors,x
+.for (var i=0; i<$200; i=i+$40) {
+	sta colorTable + i,y
+	sta colorTable + i+1,y
+}
+	iny iny
+	dex
+	bpl !loop-
+	
+	rts
+//--------------------------------------------------------------------------------------------------
+// Generates the plasmer speedcode, which consists of an init chunk for every line, and a
+// plasmer chunk for every char.
+generateSpeedcode:
+{
+	//set destination pointer...
+	lda #<plasmer
+	sta codePnt+0
+	lda #>plasmer
+	sta codePnt+1
+
+	//init adrs etc...
+	lda #<screen
+	sta scrLo+1
+	lda #>screen
+	sta scrHi+1
+	lda #0
+	sta lineSinePnt+0
+	sta lineSinePnt+1
+	sta pSine+1
+	sta pColor+1
+
+	//generate lookup-tables...
+	ldx #width-1
+	lda #0
+!:	sta colorSetoffs,x
+	clc
+	adc colorSpreadX
+	dex
+	bpl !-
+	ldx #width-1
+	lda #0
+!:	sta sineSetoffs,x
+	clc
+	adc sineSpreadX
+	dex
+	bpl !-
+
+	//start looping through all char lines...
+	lda #height-1
+	sta yPos
+yLoop:
+	//generate the line-init chunk...
+	/*
+	ldx plasmaCnt+0
+	ldy plasmaCnt+1
+	clc
+	lda sine128,x
+	adc sine64,y
+	tax
+	*/
+	.var lineInitLen = 12
+	
+	ldy #0
+	
+	//"ldx plasmaCnt+0"
+	lda #LDX_ZP
+	sta (codePnt),y
+	iny
+	lda #plasmaCnt+0
+	sta (codePnt),y
+	iny
+
+	//"ldy plasmaCnt+1"
+	lda #LDY_ZP
+	sta (codePnt),y
+	iny
+	lda #plasmaCnt+1
+	sta (codePnt),y
+	iny
+
+	//"clc"
+	lda #CLC
+	sta (codePnt),y
+	iny
+
+	//"lda sine128,x"
+	lda #LDA_ABSX
+	sta (codePnt),y
+	iny
+	lda lineSinePnt+0
+	sta (codePnt),y
+	iny
+	lda #>sine128
+	sta (codePnt),y
+	iny
+
+	//"adc sine64,y"
+	lda #ADC_ABSY	
+	sta (codePnt),y
+	iny
+	lda lineSinePnt+1
+	sta (codePnt),y
+	iny
+	lda #>sine64
+	sta (codePnt),y
+	iny
+
+	//"tax"
+	lda #TAX
+	sta (codePnt),y
+
+	lda #lineInitLen
+	clc
+	adc codePnt+0
+	sta codePnt+0
+	bcc !+
+	inc codePnt+1
+!:
+	lda #RTS
+	sta uppRet
+	lda codePnt+1
+	jsr updatePps
+	lda #JMP_ABS
+	sta uppRet
+
+	//start looping through all chars at the current y-position...
+	ldx #width-1
+	ldy codePnt+0
+	clc
+xLoop:
+	//generate plasmer chunk for the current char...
+	/*
+	lda sine64,x
+	adc add
+	tay
+	lda colorTable,y
+	sta screen
+	*/
+	.var plasmerLength = 12
+
+	//"lda sine64,x"
+	lda #LDA_ABSX
+pp00:	sta plasmer+0,y
+pSine:	lda #0
+	adc sineSetoffs,x
+pp01:	sta plasmer+1,y
+	lda #>sine64
+pp02:	sta plasmer+2,y
+
+	//"adc add"
+	lda #ADC_ZP
+pp03:	sta plasmer+3,y
+	lda #add
+pp04:	sta plasmer+4,y
+
+	//"tay"
+	lda #TAY
+pp05:	sta plasmer+5,y
+	
+	//"lda colorTable,y"
+	lda #LDA_ABSY
+pp06:	sta plasmer+6,y
+pColor:	lda #0
+	clc
+	adc colorSetoffs,x
+pp07:	sta plasmer+7,y
+	lda #>colorTable
+pp08:	sta plasmer+8,y
+
+	//"sta screen"
+	lda #STA_ABS
+pp09:	sta plasmer+9,y
+	txa
+	clc
+scrLo:	adc #<screen
+pp10:	sta plasmer+10,y
+scrHi:	lda #>screen
+	adc #0
+pp11:	sta plasmer+11,y
+
+	tya
+	adc #plasmerLength
+	tay
+	bcs incPps
+!back:
+	//next char...
+	dex
+	bpl xLoop
+	
+	clc
+	lda #<[plasmerLength*width]
+	adc codePnt+0
+	sta codePnt+0
+	lda #>[plasmerLength*width]
+	adc codePnt+1
+	sta codePnt+1
+
+	//update line init routine for the next line...
+	lda lineSinePnt+0
+	clc
+	adc realtimeSpread0
+	sta lineSinePnt+0
+	lda lineSinePnt+1
+	clc
+	adc realtimeSpread1
+	sta lineSinePnt+1
+
+	//update plasmer params for the next line...
+	lda pSine+1
+	clc
+	adc sineSpreadY
+	sta pSine+1
+	lda pColor+1
+	clc
+	adc colorSpreadY
+	sta pColor+1
+
+	//update screen store adr..
+	clc
+	lda #40
+	adc scrLo+1
+	sta scrLo+1
+	lda #0
+	adc scrHi+1
+	sta scrHi+1
+
+	//next y-pos...
+	dec yPos
+	bmi !+
+	jmp yLoop
+!:
+	//add the final "rts" instruction
+	ldy #0
+	lda #RTS
+	sta (codePnt),y
+	
+	rts
+
+incPps:
+	lda pp00+2
+	adc #0
+updatePps:
+	.var pps = List().add(pp00,pp01,pp02,pp03,pp04,pp05,pp06,pp07,pp08,pp09,pp10,pp11)
+	.for (var i=0; i<pps.size(); i++)
+		sta pps.get(i)+2
+uppRet:	jmp !back-
+}
+</code>

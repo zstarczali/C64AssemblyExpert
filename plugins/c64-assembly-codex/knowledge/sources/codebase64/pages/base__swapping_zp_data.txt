@@ -1,0 +1,17 @@
+# PAGE: base:swapping_zp_data
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:swapping_zp_data
+
+====== Swapping ZeroPage data ======
+
+On some occasions you might want to save and restore ZP data. I.e. you have no time to patch a SID player, or the speedup you gain by giving several routines full ZP access is worth it. The small snippet below swaps 10 bytes from $00 on with memory in $10. It clutters X,Y and A though. Enjoy, enthusi.
+
+<code>
+   ldx #10 
+loop 
+   ldy $00,x 
+   lda $10,x 
+   sta $00,x 
+   sty $10,x 
+   dex 
+   bpl loop
+</code>

@@ -1,0 +1,431 @@
+# PAGE: base:c_pavloda_transfer_1.0a
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:c_pavloda_transfer_1.0a
+
+====== C= Pavloda Transfer 1.0a ======
+<code>
+;---------------------------------------
+;C= Pavloda Transfer 1.0a / Nostalgia
+;
+;Works on old Pavloda
+;
+;worked on Danger Mouse,
+;          Hungry Horace
+;---------------------------------------
+
+         *= $0801
+
+         .byte $0b,$08,$cf,$07,$9e
+         .byte $32,$30,$36,$31,$00
+         .byte $00,$00
+
+         ;basic start
+
+         lda #$0b     ;setup
+         sta $d011
+         lda #$c1
+         sta $0318
+         lda #$80
+         sta $0291
+         lda #$17
+         sta $d018
+         lda #$00
+         sta $9d
+         sta $d020
+         sta $d021
+         sta $c0
+         lda #$05
+         sta $0286
+         lda #$2f
+         sta $00
+         lda #$37
+         sta $01
+         lda #<msg1
+         ldx #>msg1
+         jsr print
+         lda #$1b
+         sta $d011
+         lda #$ef
+         cmp $dc01
+         bne *-3
+         lda #$00
+         sta $0289
+         jsr lod     ;load/save header
+         jsr namer   ;and file
+         jsr led
+         lda $00
+         pha
+         lda #$07
+         sta $00
+         jsr sav
+         pla
+         sta $00
+         inc file
+         jsr lod
+         jsr led
+         lda $01
+         ora #$20
+         sta $01
+         jsr sav
+         ldx #$00
+xl       lda loader,x
+         sta $0630,x
+         lda loader+$d0,x
+         sta $0700,x
+         lda #$00
+         sta $da30,x
+         sta $db00,x
+         inx
+         bne xl
+         ldx #$27
+         lda #$20
+cl       sta $0608,x
+         dex
+         bpl cl
+         ldx #$0f
+nl       lda name,x
+         sta $0340,x
+         dex
+         bpl nl
+         inc file
+         lda file
+         ora #$30
+         sta $034f
+         jmp $0630   ;begin real loader
+lod
+         lda #$01
+         tax
+         tay
+         jsr $ffba
+         lda #$00
+         jsr $ffbd
+         lda #$00
+         sta $c0
+         sta $93
+         jsr $f7d7
+         jmp $f84f
+
+led      lda file
+         ora #$30
+         sta name+$0f
+         sta $061f
+         lda #$00
+         sta $c3
+         lda #$18
+         sta $c4
+         lda $033f
+         sbc $033d
+         tax
+         lda $0340
+         sbc $033e
+         tay
+         clc
+         txa
+         adc $c3
+         sta $ae
+         tya
+         adc $c4
+         sta $af
+         lda $c3
+         sta $c1
+         lda $c4
+         sta $c2
+         lda $033d
+         sta ldal
+         lda $033e
+         sta ldah
+         ldx #$07
+p2       lda msg2,x
+         and #$3f
+         sta $0608,x
+         dex
+         bpl p2
+         lda #$1b
+         sta $d011
+         lda #$18
+         ldx #$00
+         ldy #$00
+g1       dex
+         bne g1
+         dey
+         bne g1
+         sec
+         sbc #$01
+         sta $02
+         lda #$df
+         cmp $dc01
+         beq ex
+         lda $02
+         bpl g1
+ex       jmp $f84f
+
+sav      ldx #$07
+p3       lda msg3,x
+         and #$3f
+         sta $0608,x
+         dex
+         bpl p3
+         lda #$1b
+         sta $d011
+         lda #$01
+         ldx #$08
+         ldy #$01
+         jsr $ffba
+         lda #$10
+         ldx #<name
+         ldy #>name
+         jsr $ffbd
+         jsr $ffc0
+         ldx #$01
+         jsr $ffc9
+         lda ldal
+         jsr $ffa8
+         lda ldah
+         jsr $ffa8
+         ldy #$00
+savea    lda ($c1),y
+         jsr $ffa8
+         inc $d020
+         dec $d020
+         inc $c1
+         bne s1
+         inc $c2
+s1       lda $c2
+         cmp $af
+         lda $c1
+         sbc $ae
+         bcc savea
+         jsr $ffcc
+         lda #$01
+         jmp $ffc3
+
+namer    ldy #$00
+dname    lda $0341,y
+         sta name,y
+         sta $0610,y
+         iny
+         cpy #$10
+         bne dname
+         rts
+
+print    sta $fb
+         stx $fc
+         ldy #$00
+ploop    lda ($fb),y
+         beq dprint
+         jsr $ffd2
+         inc $fb
+         bne ploop
+         inc $fc
+         bne ploop
+dprint   rts
+
+         ;messages,names,variables
+
+ldal     .byte $00
+ldah     .byte $00
+file     .byte $01
+name     .text "                "
+msg1
+         .byte $93
+         .text "ÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀ"
+         .text "ÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀ"
+         .text " Old Pavloda Transfe"
+         .text "r 1.0a / Nostalgia  "
+         .text "ÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀ"
+         .text "ÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀ"
+         .text "                    "
+         .text "                    "
+         .text "          Completely"
+         .text " Automatic          "
+         .text "                    "
+         .text "                    "
+         .text "      Put a fresh di"
+         .text "sk in drive 8.      "
+         .text "                    "
+         .text "                    "
+         .text "      Rewind tape, a"
+         .text "nd press PLAY.      "
+         .text "                    "
+         .text "                    "
+         .text "   Press SPACE to be"
+         .text "gin transfering.    "
+         .text "                    "
+         .text "                    "
+         .text "ÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀ"
+         .text "ÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀÀ"
+         .byte $00
+
+msg2     .text "found   "
+msg3     .text "saving  "
+
+loader   = *
+         *= $0630
+         .offs loader-*
+
+         ldx #$07     ;tape loader
+ll       lda lt,x
+         and #$3f
+         sta $0608,x
+         dex
+         bpl ll
+         ldx #$0f
+ln       lda $0340,x
+         sta $0610,x
+         dex
+         bpl ln
+         sei
+         lda #$07
+         sta $01
+         lda #$c1
+         sta $0318
+         lda #$fe
+         sta $0319
+         ldy #$00
+         sty $9e
+         lda #$81
+         sta $dd0e
+         lda #$01
+         sta $dd05
+         lda #$4a
+         sta $dd04
+header   lda #$64
+         sta $92
+sync1    jsr getbit
+         bcs header
+         dec $92
+         bne sync1
+sync2    jsr getbit
+         bcc sync2
+adset    jsr fetch
+         sta $fb
+         sta $ac
+         bit $ac
+         ldx #$01
+loopc    jsr getbit
+         txa
+         rol a
+         tax
+         inc $d020
+         bcc loopc
+         sta $fc
+         sta $ad
+         bit $ad
+         jsr fetch
+         sta $fd
+         jsr fetch
+         sta $fe
+main     jsr fetch
+         sta ($fb),y
+         sec
+         adc $9e
+         sta $9e
+         inc $fb
+         bne skip1
+         inc $fc
+skip1    lda $fb
+         cmp $fd
+         lda $fc
+         sbc $fe
+         bcc main
+         jsr fetch
+         pha
+         lda $01
+         ora #$20
+         sta $01
+         lda #$7f
+         sta $dd0e
+         lda $dd0d
+         pla
+         cmp $9e
+         beq ok
+         lda #$02
+         sta $d020
+         ldx #$14
+ep       lda et,x
+         sta $0608,x
+         dex
+         bpl ep
+         jmp *
+ok
+         lda #$00     ;save
+         sta $d020
+         ldx #$07
+dl       lda st,x
+         sta $0608,x
+         dex
+         bpl dl
+         lda #$01
+         ldx #$08
+         ldy #$01
+         jsr $ffba
+         lda #$10
+         ldx #$40
+         ldy #$03
+         jsr $ffbd
+         jsr $ffc0
+         ldx #$01
+         jsr $ffc9
+         lda $ac
+         jsr $ffa8
+         lda $ad
+         jsr $ffa8
+         ldy #$00
+saveb    sei
+         inc $01
+         lda ($ac),y
+         dec $01
+         jsr $ffa8
+         inc $d020
+         dec $d020
+         inc $ac
+         bne b1
+         inc $ad
+b1       lda $ac
+         cmp $fb
+         lda $ad
+         sbc $fc
+         bcc saveb
+         lda #$01
+         jsr $ffc3
+         sei
+         lda #$2f
+         sta $00
+         lda #$37
+         sta $01
+         jsr $ff81
+         jsr $ff84
+         jsr $ff8a
+         jsr $ffe7
+         cli
+         jmp ($a000)
+
+fetch    ldx #$01
+loopb    jsr getbit
+         txa
+         rol a
+         inc $d020
+         tax
+         bcc loopb
+         rts
+
+getbit   lda #$10
+sync3    bit $dc0d
+         beq sync3
+         lda #$00
+         sta $d020
+         lda #$99
+         sta $dd0e
+         lsr $dd0d
+sync4    lsr $dd0d
+         bcc sync4
+         lda $dc0d
+         and #$10
+         bne sync5
+         clc
+sync5    rts
+
+et       .text "load error, try "
+         .text "again"
+lt       .text "loading "
+st       .text "saving  "
+</code>

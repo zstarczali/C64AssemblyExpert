@@ -1,0 +1,18 @@
+# PAGE: projects:start
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=projects:start
+
+====== User Projects ======
+
+This part of the wiki hosts pages related to various coding projects, a little like Source Forge, but much simpler, and in Do It Yourself wiki form. If you have a project that you want to share, please add it here and feel free to add sources for download (use the button which looks like a framed painting when editing the page to upload files of various kinds). So, in case you're in search for a place to host your coding project: search no more!
+
+
+===== Projects =====
+
+  * [[Resurrection]] - by Martin Piper
+  * [[Fast RS-232]] - up 57.6 kbaud on a stock c64, by AgentFriday
+  * [[Sprite clock]] - by Marek Karcz
+  * [[Game of Life]] - by Marek Karcz
+  * [[Star Trek game]] - by Tomesz
+  * [[Space Simulator]] - by malcontent
+  * [[C64Amp - Music player]] - by Tomesz
+  * [[Basic game]] - by Tomesz

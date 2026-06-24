@@ -1,0 +1,88 @@
+# PAGE: base:16-bit_comparison
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:16-bit_comparison
+
+====== 16-Bit Comparison ======
+
+One would think that a compare and branch approach would suffice when comparing 16 bit numbers, but this is not the case if you want full compatibility (If you don't care about the NEGATIVE Flag, it is a lot easier). If we consider two U16 numbers (A and M), there are many fringe cases which messes up due to the special handling of the NEGATIVE flag which strictly is set according to BIT15 of the A - M subtraction result.
+
+For example:
+
+<code>
+    A = #$8000 & M = #$0001 => Subtraction result = #$7fff
+
+    A  > M          => CARRY    = SET
+    A != M          => ZERO     = CLEAR
+    A  - M < #$8000 => NEGATIVE = CLEAR
+</code>
+
+Branching your way out of that one isn't straight forwards. If you compare the Hi-bytes, the result is negative (#$80 - #00 = #$80). If you Compare the lo-bytes the result is also negative (#$00 - #$01 = #$ff) so one would have to carry out the subtraction and rely on the hibyte result (#$7f) while ensuring that CARRY and ZERO remins correct.
+
+===== TWW Method =====
+
+16 bit equivalent of the CMP OPC:
+
+<code>
+/*! «»«»«»«»{CMP16}«»«»«»«»
+    Does exactly the same as CMP of two values (effectively its a A - M) and sets the flags as follows:
+
+                 (BCC/BCS)     (BEQ/BNE)         (BMI/BPL)
+    If A = M : Carry =  SET   Zero =  SET   Negative = BIT15 of subtraction result
+    If A > M : Carry =  SET   Zero = CLEAR  Negative = BIT15 of subtraction result
+    If A < M : Carry = CLEAR  Zero = CLEAR  Negative = BIT15 of subtraction result
+*/
+    // sta SMC_ACC        // preserva A
+    lda A
+    cmp M
+    php
+    lda A + 1
+    sbc M + 1
+    php
+    pla
+    sta SMC
+    pla
+    ora #%11111101
+    and SMC: #$00
+    pha
+    // lda SMC_ACC: #$00  // Restore ACC
+    plp
+
+</code>
+
+You may optionally preserve ACC if you wish a "fully featured" CMP16.
+The above has been tested for all combinations and results and passes in the following setup.
+
+<code>
+    mov16 #$0000 : ZP.A
+    mov16 #$0000 : ZP.M
+!TestNext:
+    cmp16 ZP.A : ZP.M
+    jsr SUB_TestResult      // Tests the flag results and halts with apropriate error code
+    inc16 ZP.A
+    bne !TestNext-
+    inc16 ZP.M
+    bne !TestNext-
+</code>
+
+Yes it takes a while...
+
+===== Branching Approach ignoring NEGATIVE =====
+
+Different approach: instead of setting flags, goes to different destinations:
+
+<code>
+; Val1 ≥ Val2 ?
+  LDA Val1 +1    ; high bytes
+  CMP Val2+1
+  BCC LsThan     ; hiVal1 < hiVal2 --> Val1 < Val2
+  BNE GrtEqu     ; hiVal1 ≠ hiVal2 --> Val1 > Val2
+  LDA Val1       ; low bytes
+  CMP Val2
+  ;BEQ Equal     ; Val1 = Val2
+  BCS GrtEqu     ; loVal1 ≥ loVal2 --> Val1 ≥ Val2
+LsThan
+...
+GrtEqu
+...
+</code>
+
+Note! The above fails in handling the N flag. If for exampel A = #$0080 and M = #$0000, the BCS GrtEqu will branch since #$80 > #$00, but it will also set the N Flag which should not be set as #$0080 - #$0000 = #$0080 (Positive).

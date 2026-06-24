@@ -1,0 +1,56 @@
+# PAGE: base:draw_ram_to_screen_or_color_memory
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:draw_ram_to_screen_or_color_memory
+
+====== Draw RAM to screen or color memory ======
+
+This is a simple subroutine I wrote to draw graphics to the screen and to set the color memory. Set the zero page addresses with the source and the destination (screen or color memory) and set the registers to the width and height of the area you are filling in. Written for ACME assembler.
+
+<code>
+;Draw RAM to the screen memory or the color memory in a rectangular box
+;
+;drawaddlo = $fb address of data, set before entering draw memory
+;drawaddhi = $fc	
+;drawposhi = $fd where to draw to
+;drawposlo = $fe	
+
+
+drawwidth		!byte $00	;held in a, width of area to draw
+drawwidthhold		!byte $00
+drawheight		!byte $00	;held in x, height of area to draw
+
+drawmemory		sta drawwidth
+			sta drawwidthhold
+			stx drawheight
+nextspot		lda drawaddhi
+			sta drawjimmy + 2
+			lda drawposhi
+			sta posjimmy + 2
+			ldx drawaddlo			
+drawjimmy		lda $a000,x
+			ldx drawposlo
+posjimmy		sta $a000,x
+			inc drawaddlo
+			bne +
+			inc drawaddhi
++			dec drawwidth
+			beq nextline
+			inc drawposlo
+			bne +
+			inc drawposhi
++			bne nextspot
+
+nextline		lda drawwidthhold
+			sta drawwidth
+			lda #$29		;screenwidth
+			sec
+			sbc drawwidth
+			clc
+			adc drawposlo
+			sta drawposlo
+			lda drawposhi
+			adc #$00
+			sta drawposhi
+			dec drawheight
+			bne nextspot
+			rts
+</code>

@@ -1,0 +1,181 @@
+# PAGE: base:sprite_projectiles
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:sprite_projectiles
+
+====== Sprite projectiles ======
+by Achim
+
+Here's a small piece of code to make one sprite fly directly to another one.
+If the player is aiming at an enemy (or vice versa), this routine will make
+sure the projectile hits the target.
+
+It's using the bresenham line algorithm for all four quadrants. 
+It only works with deltaX < $ff. 
+
+  * Call "projecileslope" to prepare the line algorithm.
+  * Call "projectileflying" to move the projectile.
+
+
+
+  ; calculate slope
+  ; projectileY, -X and -MSB = sprite coordinates
+  ; targetY, -X  and -MSB = sprite coordinates
+  ; error, deltay, deltax, deltaxhi, tmp0, tmp1 =  variables, locate them wherever you want
+  :	
+  projectileslope	lda projectileY
+			sec
+			sbc targetY
+			sta deltay
+			lda projectileX		; figure out x-position
+			sec
+			sbc targetX
+			sta deltax
+			lda projectileMSB
+			sbc targetMSB
+			bcc skip3
+			sta deltaxhi
+			lda #0
+			sta xdirectionflag+1
+			jmp setupslope					
+  skip3	        lda targetX
+			sec
+			sbc projectileX
+			sta deltax
+			lda targetMSB
+			sbc projectileMSB
+			sta deltaxhi
+			lda #1					
+			sta xdirectionflag+1					
+  setupslope      lda deltaxhi		; quit if deltaX>$ff
+			beq skip4					
+			rts						
+  skip4           ldx #$fc		; y=y-4
+			lda projectileY		; figure out y-position
+			cmp targetY
+			bcc skip5
+			ldx #$04		; y=y+4
+  skip5           stx mirrory1+1		; set y direction (up or down)
+			stx mirrory2+1	
+			bpl skip6
+			lda deltay		; invert deltaY if moving up
+			eor #$ff				
+			clc
+			adc #1
+			sta deltay					
+  skip6           lda deltay				
+			cmp deltax
+		        bcs setyfast		; prepare y as fast direction if deltaY>deltaX
+			lda #1			; set flag for x=fast	
+			sta fastxoryflag+1
+			lda deltax		; x=fast -> error=deltaX/2
+			lsr
+			sta error						
+			lda projectileMSB	; fly the the left or to the right?	
+			lsr			; projectile(x+msb)/2 = tmp0
+			lda projectileX
+			ror
+			sta tmp0
+			lda targetMSB		; target(x+msb)/2 =  tmp1
+			lsr
+			lda targetX
+			ror
+			sta tmp1
+			lda tmp0		; tmp0<tmp1 -> projectile on the left -> fly to the right
+			cmp tmp1
+			bcc fastx2right1						
+			lda #$fc		; -> x=x-4
+			sta xsteps2+1
+			lda #$e9		; 'sbc' msb value
+			sta msbcorr2
+			rts					
+  fastx2right1    lda #$04		; -> x=x+4
+			sta xsteps2+1
+			lda #$69		; 'adc' msb value
+			sta msbcorr2						
+			rts							
+  setyfast        lda #0			; set flag for y=fast
+			sta fastxoryflag+1
+			lda deltay		; y=fast -> error=deltaY/2
+			lsr
+			sta error					
+  xdirectionflag  lda #0			; 0=fly to the left, 1=fly to the right
+			bne fastx2right2
+			lda #$fc		; -> x=x-4
+			sta xsteps1+1
+			lda #$e9		; 'sbc' msb value
+			sta msbcorr1
+			rts
+  fastx2right2    lda #$04		; -> x=x+4
+			sta xsteps1+1
+			lda #$69		; 'adc' msb value
+			sta msbcorr1	
+			rts
+  ;
+  ; 1) move projectile
+  ; 2) check if projectile hits or leaves the screen
+  ; 					
+  projectileflying  lda $d01e		; hardware hit detection
+			bne projectiledecomm	; target hit			
+  nocollision     lda projectileY			
+			cmp #$32		; if y<$32 -> decommission
+			bcc projectiledecom
+			cmp #$f8		; if y>$f8 -> decommission
+			bcs projectiledecom
+			lda projectileMSB
+			beq skip0
+			lda projectileX
+			cmp #$60		; if x>$0160 -> decommission
+			bcc fastxoryflag	; keep on moving projectile
+			bcs projectiledecom
+  skip0	        lda projectileX
+			cmp #$10		; if x<$0010 -> decommission
+			bcs fastxoryflag	; keep on moving sprite				
+  projectiledecom  lda #$00		; x=$0000
+			sta projectileX
+			sta projectileMSB
+			lda #$ff		; y=$ff or do whatever is necessary here 
+                  sta projectileY         ; to switch off sprite/projectile for your main program
+			rts					
+  fastxoryflag    lda #0	         	; selfmod: 0 -> y is fast, 1 -> x is fast
+			bne xfast							
+			lda projectileY
+			sec
+  mirrory1        sbc #4			; = px/frame, +$04 or +$fc (selfmodifying code)
+			sta projectileY
+			lda error
+			sec
+			sbc deltax
+			sta error
+			bcs skip1
+			lda projectileX
+			clc
+  xsteps1         adc #4			; =px/frame, +$04 or +$fc (selfmodifying code)
+			sta projectileX
+			lda projectileMSB
+  msbcorr1        adc #0
+			sta projectileMSB
+			lda error
+			clc
+			adc deltay
+			sta error
+  skip1           rts								
+  xfast           lda projectileX
+			clc
+  xsteps2         adc #4			; =px/frame, +$04 or +$fc (selfmodifying code)
+			sta projectileX
+			lda projectileMSB
+  msbcorr2        adc #0
+			sta projectileMSB				
+			lda error
+			sec
+			sbc deltay
+			sta error
+			bcs skip2				
+			lda projectileY
+			sec
+  mirrory2        sbc #4			; =px/frame, +$04 or +$fc (selfmodifying code)
+			sta projectileY
+			lda error
+			clc
+			adc deltax
+			sta error
+  skip2           rts		

@@ -1,0 +1,35 @@
+# PAGE: base:supercpu_txy
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:supercpu_txy
+
+====== TXY ======
+
+<code>
+    /*-------------------------------------------------------------------------
+    OP CODE: TXY (Transfer index register X to Y)
+    =============================================
+    
+    Addressing Modes:
+        Implied                            ($9b - 1 byte, 2 cycles)
+
+    Flags Affected:
+        n - Set if most significant bit of transferred value is set; else
+            cleared.
+        z - Set if value transferred is zero; else cleared.
+
+    Description:
+        Transfer the value in index register X to index register Y. The value
+        in index register X is not changed by the operation. Note that the two
+        registers are never different sizes.
+
+        8-bit index registers (x=1): Value transferred is eight-bit.
+        16-bit index registers (x=0): Value transferred is sixteen-bit.
+
+    Notes:
+
+    -------------------------------------------------------------------------*/
+
+    .pseudocommand txy {
+        .byte $9b
+    }
+
+</code>

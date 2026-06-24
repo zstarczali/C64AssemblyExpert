@@ -1,0 +1,623 @@
+# PAGE: base:wildload_tape_transfer_1.0
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:wildload_tape_transfer_1.0
+
+====== Wildload Tape Transfer 1.0 ======
+<code>
+;---------------------------------------
+;Wildload Tape Transfer 1.0
+;
+;(C) 2005 Nostalgia
+;
+;By Fungus / Nostalgia
+;---------------------------------------
+
+         *= $0801
+
+         .byte $08,$0b,$d5,$07,$9e
+         .byte $32,$30,$36,$31,$00
+         .byte $00,$00
+
+cd       = $02
+
+;---------------------------------------
+;header composition
+;
+;0c = load addy lo
+;0d = load addy hi
+;0e = length lo
+;0f = length hi
+;10 = control code
+
+         ldx #$ff
+         txs
+
+         lda $ba
+         sta cd       ;save current
+                      ;disk drive
+         lda #$0b     ;setup
+         sta $d011
+         lda #$c1     ;no nmi
+         sta $0318
+         lda #$80
+         sta $0291    ;no char shift
+         lda #$17
+         sta $d018    ;this set
+         lda #$00
+         sta $9d      ;no msgs
+         sta $d020
+         sta $d021
+         lda #$2f     ;i/o config
+         sta $00      ;bit 4 = input
+         lda $01
+         and #$07     ;mem config
+         ora #$20     ;motor off
+         sta $01
+         lda #$00
+         sta $0286    ;black
+
+         lda #$93
+         jsr $ffd2    ;clr screen
+
+         ldx #$00     ;print main msg
+pm1      lda $0d00,x
+         sta $0400,x
+         lda #$05
+         sta $d800,x
+         inx
+         cpx #$78
+         bne pm1
+                      ;print load side
+         ldx #$27     ;msg
+pm2      lda $0da0,x
+         sta $07c0,x
+         lda #$0f
+         sta $dbc0,x
+         dex
+         bpl pm2
+
+         lda #$1b     ;screen back on
+         sta $d011
+
+getside  jsr $ffe4    ;get side to xfer
+         cmp #$31
+         beq side1
+         cmp #$32
+         bne getside
+
+         jsr newname  ;get a new name
+         inc side     ;tell loader side
+                      ;2 mode
+side1
+         ldx #$00     ;kill input
+         stx $0289
+xl       lda loader,x
+         sta $0478,x
+         lda loader+$0100,x
+         sta $0578,x
+         lda loader+$0200,x
+         sta $0678,x
+         lda loader+$0248,x
+         sta $06c0,x
+         inx
+         bne xl
+
+         ldx #$67     ;copy msgs
+tm1      lda $0c80,x
+         sta $0100,x
+         dex
+         bpl tm1
+
+         ldx #$27     ;print rewind msg1
+prm1     lda $0d78,x
+         sta $07c0,x
+         dex
+         bpl prm1
+
+         jmp $0478    ;begin real loader
+
+newname
+         ldx #$0f     ;print enter name
+pnn      lda $0dc8,x
+         sta $0450,x
+         lda #$20     ;clear filename
+         sta $0341,x
+         dex
+         bpl pnn
+
+getchar  jsr $ffe4
+         cmp #$0d     ;return to end
+         beq done
+         cmp #$14     ;delete
+         bne nxtchk1
+del      ldx iidx     ;delete routine
+         beq getchar
+         dex
+         stx iidx
+         lda #$20
+         sta $0460,x
+         sta $0341,x
+         bne getchar
+nxtchk1  cmp #$20   ;space
+         beq gotchar
+         cmp #$30     ;30-39
+         bcc getchar
+         cmp #$3a
+         bcc gotchar
+         cmp #$41     ;a-z
+         bcc getchar
+         cmp #$5b
+         bcs getchar
+gotchar  ldx iidx
+         sta $0460,x
+         sta $0341,x
+         inx
+         cpx #$0e
+         beq done
+         stx iidx
+         jmp getchar
+
+done     ldx #$00
+chkname  lda $0460,x  ;letters to
+         cmp #$3a     ;uppercase
+         bcc noup
+         ora #$40
+         sta $0460,x
+noup     inx
+         cpx #$0e
+         bne chkname
+         rts
+
+
+iidx     .byte $00    ;input counter
+side     .byte $00    ;side switch
+
+;---------------------------------------
+;wildload tape routine
+
+loader   = *
+         *= $0478
+         .offs loader-*
+
+         lda side
+         beq edis1
+         lda #$2c    ;kill header/file
+         sta edis2   ;skip for side 2
+         lda #$20    ;get filename
+         sta edis3   ;(inputted)
+
+edis1    cli
+         jmp start
+
+reload   sei
+         lda #$7f
+         sta $dd0d
+         sta $dc0d
+         lda $dd0d
+         lda $dc0d
+         jsr setbuff
+         lda #$05    ;motor on/roms out
+         sta $01
+         lda #$e0    ;01e0 threshold
+         sta $dd04
+         lda #$01
+         sta $dd05
+         lda #$11    ;cnt cycles, 1 shot
+         sta $dd0e
+
+kill1    jmp frstfile
+
+         lda #$24
+         sta nstore
+         lda #$2c
+         sta nhead
+         inc skipsw+$01
+skip8
+         ldx #$0f    ;print skipping msg
+pkm      lda $0100,x
+         sta $0450,x
+         dex
+         bpl pkm
+         bmi resync
+frstfile
+         lda #$2c
+         sta kill1
+resync
+sync
+         lda #$0a    ;sync init
+         sta $04
+         lda #$00
+         sta $05     ;in byte
+         sta $03     ;chksum
+         sta $10     ;control code
+
+wsync    jsr getbit
+         cmp #$a0
+         bne wsync
+wpilot   jsr getbyte
+         cmp #$a0    ;wait pilot
+         beq wpilot
+         bne csync
+msync    jsr getbyte ;sync 0a-01
+csync    cmp $04
+         bne sync
+         dec $04
+         bne msync
+
+nhead    jsr plmsub  ;print loading msg
+gethead
+         ldy #$00    ;get header
+gheader  jsr getbyte
+         sta $0c,y
+         iny
+         cpy #$05
+         bne gheader
+
+         jsr setbuff
+         lda $10     ;control code
+         cmp #$ff
+         beq resync
+         lda $0c     ;skip stop file
+         ora $0d
+         beq resync
+
+         ldy #$00
+mload    jsr getbyte
+         eor $0c     ;decrypt
+         dec $01
+nstore   sta ($ae),y ;store #$91/#$24
+         inc $01
+         eor $03     ;calc chksum
+         sta $03
+         lda #$ff
+         .byte $c7,$ae ;dcm $ae
+         bne skip1
+         dec $af
+skip1    .byte $c7,$0c ;dcm $0c
+         bne skip2
+         dec $0d
+skip2    .byte $c7,$0e ;dcm $0e
+         bne skip3
+         dec $0f
+skip3    lda $0f
+         bne mload
+         lda $0e
+         bne mload   ;check eof
+
+         jsr getbyte
+         cmp $03
+         beq ok1
+         jmp loaderr
+ok1
+         lda #$00    ;reset chksum
+         sta $03
+
+skipsw   lda #$00    ;skip switch
+         beq ok2
+
+         dec tempidx
+         bne gethead
+
+         lda #$91    ;set to load
+         sta nstore
+         lda #$20
+         sta nhead
+         dec skipsw+$01
+         jmp nhead
+
+ok2      jsr toff    ;tape off
+
+         inc $ae
+         bne skip4   ;make addies
+         inc $af     ;correct
+skip4    inc $0c
+         bne skip5
+         inc $0d
+skip5
+         jsr save
+
+         ldx #$27    ;print rewind msg2
+prm2     lda $0130,x
+         sta $07c0,x
+         dex
+         bpl prm2
+
+start    jsr ton
+         lda #$ef    ;waitspc
+         cmp $dc01
+         bne *-3
+
+         ldx #$27    ;clear bottom msg
+         lda #$20
+cbm      sta $07c0,x
+         dex
+         bpl cbm
+
+edis2    jsr loadhead
+edis3    bit namestuf
+         sei
+         jmp reload
+
+namestuf jsr namefile
+         jsr putindex
+         jmp printname
+
+plmsub
+         ldx #$0f    ;print loading msg
+plm      lda $0110,x
+         sta $0450,x
+         dex
+         bpl plm
+         rts
+getbyte
+         lda #$80    ;fetch a byte
+         sta $05
+bitget   jsr getbit
+         bcc bitget
+         rts
+getbit
+         lda #$10
+         ldx #$11
+wbit     bit $dc0d   ;wait flag line
+         beq wbit
+         lsr $dd0d   ;get bit
+         stx $dd0e   ;restart cntdown
+         ror $05
+loadeff  lda #$06
+         sta $d020   ;load effect
+         lda #$00
+         sta $d020
+         lda $05
+         rts
+
+;---------------------------------------
+;load header
+
+loadhead
+         lda #$01     ;open tape file
+         tax
+         tay
+         jsr $ffba
+         lda #$00
+         jsr $ffbd
+         lda #$00
+         sta $c0
+         sta $93
+         jsr $f7d7    ;load header/file
+         jsr $f84f
+         jsr toff     ;motor off
+         jsr namestuf
+
+;---------------------------------------
+;skip 2 prg files
+
+skipcrap
+         jsr fileskip
+         lda #$01
+         sta $033e
+         sta $0340
+         lda #$00
+         sta $033d
+         lda #$d0
+         sta $033f
+         jsr fileskip
+         lda $080c
+         eor #$a2
+         sta loadeff+$01
+         rts
+
+fileskip lda #$00    ;relocate loader
+         sta $c3     ;to $0800
+         lda #$08
+         sta $c4
+         lda $033f   ;calc length
+         sbc $033d
+         tax
+         lda $0340
+         sbc $033e
+         tay
+         clc
+         txa
+         adc $c3     ;calc new end addy
+         sta $ae
+         tya
+         adc $c4
+         sta $af
+         lda $c3     ;set new load addy
+         sta $c1     ;after calcs
+         sta $ac
+         lda $c4
+         sta $c2
+         sta $ad
+         jsr ton     ;motor on
+         jsr $f84f   ;load file
+         jmp toff
+
+;---------------------------------------
+;save routine
+
+save
+         ldx #$0f
+psm      lda $0120,x
+         sta $0450,x
+         dex
+         bpl psm
+
+         lda $01
+         ora #$02
+         sta $01
+         lda #$00    ;save file
+         sta $d020   ;border  = black
+         sta resave+$01
+         lda #$1b
+         sta $d011   ;screen on
+         lda $ae
+         sta $fb     ;init save addy
+         lda $af
+         sta $fc
+
+         lda #$01    ;open file for
+         ldx cd      ;write
+         ldy #$01
+         jsr $ffba   ;setlfs
+         lda #$10
+         ldx #<filename
+         ldy #>filename
+         jsr $ffbd   ;setname
+         jsr $ffc0   ;open
+         ldx #$01
+         jsr $ffc9   ;chkout
+         lda $0c     ;start addy low
+         jsr $ffa8   ;send
+         lda $0d     ;start addy high
+         jsr $ffa8   ;send
+
+         ldy #$00    ;save the file
+saveb    sei
+         inc $01
+         lda ($fb),y
+         dec $01
+         jsr $ffa8
+         inc $d020
+         dec $d020
+
+         inc $fb     ;$ffff always
+         bne saveb   ;last byte
+         inc $fc
+         bne saveb
+
+         lda #$01
+         jsr $ffc3   ;close the file
+         jsr chkerr
+resave   lda #$00
+         bne save
+         rts
+
+chkerr
+         lda #$00
+         jsr $ffbd
+         lda #$0f
+         tay
+         ldx cd
+         jsr $ffba
+         jsr $ffc0
+         lda cd
+         jsr $ffb4   ;talk
+         lda #$6f
+         jsr $ff96   ;tlksa
+         jsr $ffa5
+         cmp #$30
+         beq noerr
+         inc resave+$01
+noerr
+         jsr $ffa5
+         cmp #$0d
+         bne noerr
+         jsr $ffab   ;untlk
+
+         lda #$0f
+         jsr $ffc3
+         lda resave+$01
+         bne waitsave
+         rts
+waitsave
+         ldx #$0f
+pfl      lda $0158,x
+         sta $0450,x
+         dex
+         bpl pfl
+
+         lda $d020
+         eor #$05
+         sta $d020
+         lda #$ef
+         cmp $dc01
+         bne waitsave
+         lda #$00
+         sta $d020
+         rts
+
+;---------------------------------------
+;utility subroutines
+
+ton
+         lda $01
+         and #$d7
+         sta $01
+         rts
+
+toff     lda $01
+         ora #$20
+         sta $01
+         rts
+
+
+setbuff  lda #$ff
+         sta $ae
+         lda #$ff    ;buffer = $ffff
+         sta $af
+         rts
+loaderr
+         lda $d020
+endloop  eor #$02
+         sta $d020
+         jmp endloop   ;endless loop
+
+printname
+         ldx #$0f      ;print name
+ln       lda filename,x
+         and #$3f
+         sta $0460,x
+         dex
+         bpl ln
+         rts
+putindex
+         lda fileidx
+         inc fileidx
+         pha
+         lsr a
+         lsr a
+         lsr a
+         lsr a
+         jsr convert1
+         sta filename+$0e
+         pla
+         and #$0f
+         jsr convert1
+         sta filename+$0f
+         lda fileidx
+         sta tempidx
+         rts
+
+convert1 ora #$30
+         cmp #$3a
+         bcc convert2
+         adc #$06
+convert2 rts
+
+namefile
+namer    ldy #$00     ;name file
+         ldx #$00
+dname    lda $0341,y
+         beq skip
+         cmp #$20
+         beq putname
+         cmp #$41     ;less than A
+         bcc check2
+         cmp #$5b     ;more than Z
+         bcs skip
+         bcc putname
+check2   cmp #$30     ;less than 0
+         bcc skip
+         cmp #$3a     ;more than 9
+         bcs skip
+putname  sta filename,x
+         inx
+skip     iny
+         cpy #$10
+         bne dname
+         rts
+
+fileidx  .byte $00
+tempidx  .byte $00
+filename .text "                "
+</code>

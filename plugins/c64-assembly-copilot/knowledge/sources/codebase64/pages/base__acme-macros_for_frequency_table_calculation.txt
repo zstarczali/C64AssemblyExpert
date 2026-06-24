@@ -1,0 +1,62 @@
+# PAGE: base:acme-macros_for_frequency_table_calculation
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:acme-macros_for_frequency_table_calculation
+
+====== ACME-macros for frequency table calculation ======
+
+As a multiple-time convict of music player coding on the C64 I wanted to be able to optimize the position of the frequency table in memory, so that no page boundary crossings emerge from accessing the tables.
+
+Then I heard about the (440 vs. 432) Hz mystery, tried it out and had a better feeling in my guts running on 432Hz.  Thus I started to make sure in all my code such a reference frequency may be tuned to the user's likings.
+
+I'm not actually sorry for the comments being written in German - just have fun with the code:
+
+<code>
+;
+;	Frequenztabelle: wie war die nochmal zu berechnen?
+;	==================================================
+;	- zuerst werden die Noten-Nummern definiert => linear von 0 bis ..; C0 = 0
+;	- dann die Notenfrequenz anhand der Rechenformel festlegen:
+;		"die Frequenz verdoppelt sich jede Oktave"
+;	   ...
+;   NotenNummer: C0 = 0, A4 = 57	=>		(	( 57 - 9 ) / 12 ) - 4 = 0
+;	NotenFrequenz = BasisFrequenz_von_A4_in_Hz * 2^( ( ( NotenNummer - 9 ) / 12 ) - 4 )
+;	- schlussendlich sollte die NotenFrequenz mit der Taktfrequenz, mit der ja der SID seine Werte
+;	  fortschreibt, synchronisiert werden
+;		SIDfreq = NotenFrequenz * 256^3 / ClockFreq
+;		SIDfreq = (BasisFrequenz_von_A4_in_Hz * 256^3 / ClockFreq )
+;				  * 2^( ( ( NotenNummer - 9 ) / 12 ) - 4 )
+;
+!set FreqTablesCount = 0	;Bei jedem ACME-Durchlauf zurücksetzen,
+!set FreqTableCache = []	;auch den Cache!
+!macro SID_A4_Freq @A4_in_Hertz, @pal_ntsc {
+	!if @pal_ntsc == "PAL" { !set @clk = 985248.0 } else {!set @clk = 1022727.0 }
+	!set SIDfreq = @A4_in_Hertz * 256^3 / @clk
+	; Fülle den Cache von C-0 bis der SID gesprengt wird.  Die erste Sprengung wird als $ffff ge-
+	; speichert und damit eine Abbruchbedingung geschaffen (Und etwas, was ein Player nutzen kann).
+	!set @note = float( 0 )
+	!set @SID_Note_Frequency = @note
+	!do {
+		!set @SID_Note_Frequency = SIDfreq * 2.0^( ( (@note - 9.0) / 12.0 ) - 4.0 )
+		!if @SID_Note_Frequency > 65535 { !set @SID_Note_Frequency = 65535
+		} else { !set @note = @note + 1.0 }
+		!set FreqTableCache = FreqTableCache + [ @SID_Note_Frequency ]
+	} until @SID_Note_Frequency >= 65535.0
+	!warn "SID frequency table calculation: created ", len( FreqTableCache ), " entries."
+}
+!macro InsertFreqTable_maybe {
+	!set @m = *
+	!set @l = len( FreqTableCache )
+	!if @l > 0 AND FreqTablesCount < 2 AND ( <@m < <(-@l) ) {
+		!warn "inserting SID frequency table ", ["low","high"][FreqTablesCount], " bytes @", @m
+		!if FreqTablesCount	{
+			!addr _frq_tb_hi = *
+			!for @i, 0, @l-1 { !byte >int( FreqTableCache[ @i ] ) }
+		} else {
+			!addr _frq_tb_lo = *
+			!for @i, 0, @l-1 { !byte <int( FreqTableCache[ @i ] ) }
+		}
+		!set FreqTablesCount = FreqTablesCount+1
+	}
+}
+</code>
+
+/ St0fF/Neoplasia^the0bsessedManiacs

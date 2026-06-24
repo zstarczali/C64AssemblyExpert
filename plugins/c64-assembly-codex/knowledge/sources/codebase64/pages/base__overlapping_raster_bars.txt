@@ -1,0 +1,112 @@
+# PAGE: base:overlapping_raster_bars
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:overlapping_raster_bars
+
+**Overlapping Raster Bars**
+
+You've seen them all in demos, intros and possibly games. Overlapping raster (or rasters that scroll or bounce over existing raster bars) may look and sound difficult, but apparently after making a complete raster bar. They are actually quite easy to make and learn. These also make pretty nice effects.
+
+//An example of an overlapping raster bar in WOD intro designer 2 //
+
+{{:base:overlappingrasters2.png?400|}}
+
+//An example of an overlapping raster I made//
+
+{{:base:overlappingrasters.png?400|}}
+
+So then how does this trick occur? We have three tables. One of which stores the actual colour table to the raster at the start. Then there is a second table which creates the bars that should scroll over the existing raster. Finally, there is a third table, which should backup the colours of the first table, before the second raster is stored.
+
+What about performing the trick? First of all, an IRQ with a raster bar should be created, like as usual. Then a subroutine which calls the raster control code. Here's the code for the actual raster overlap routine. This version will only scroll the overlapping raster (it doesn't do the cool bounce tricks):
+
+<code>overlapping_raster:
+  lda rspeed         ;Control speed for scrolling/overlap
+  cmp #2             ;before calling routine.
+  beq waitend
+  inc rspeed
+  rts
+waitend
+  lda #0               
+  sta rspeed
+  jsr movesilver     ;Subroutine to move silver bars
+  jsr backup         ;Subroutine to backup still raster colours
+  rts
+  
+;This subroutine performs the main movement of the black + grey raster bars
+  
+movesilver
+   lda ras2end-1          ;Grab last byte of the silver bar raster table
+   sta rtemp1             ;put to a temp byte.
+   ldx #ras2end-ras2start 
+loop2   
+   lda ras2start,x        ;Shift the raster forward to the next
+   sta ras2start+1,x      ;byte
+   dex
+   bpl loop2
+   lda rtemp1
+   sta ras2start
+   rts
+   
+   ;This routine does a backup of the main static raster bar
+   
+backup
+   ldx #ras1backupend-ras1backup 
+loop3   
+   lda ras1backup,x 
+   sta ras1start,x 
+   dex
+   bpl loop3
+   
+   ;This routine reads the silver raster bars. If the zero byte (colour BLACK)
+   ;is detected on the table, it skips that byte and will read 
+   ;the next byte. Any colour other than the zero byte will be stored
+   ;to the main raster's table.
+   
+copysilver
+   ldx #ras2end-ras2start 
+loop4   
+   lda ras2start,x
+   cmp #0
+   beq next 
+   sta ras1start,x
+next
+   dex
+   bpl loop4
+   rts
+   
+; ... Some pointers and tables:
+
+rtemp1 !byte 0
+rtemp2 !byte 0
+rspeed !byte 0
+
+
+ras1start
+  !byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+  !byte $00,$06,$00,$06,$06,$00,$06,$06,$0e,$06,$0e,$0e,$06,$0e,$0e,$03
+  !byte $0e,$03,$03,$0e,$03,$03,$01,$03,$01,$0e,$01,$03,$0e,$03,$03,$0e
+  !byte $03,$0e,$0e,$06,$0e,$0e,$06,$0e,$06,$06,$00,$06,$06,$00,$06,$00
+  !byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+ras1end
+  !byte 0
+  
+ras2start
+  !byte $0b,$0c,$0f,$01,$0f,$0c,$0b,$00,$00,$00,$00,$00,$00,$00,$00,$00
+  !byte $0b,$0c,$0d,$01,$0f,$0c,$0b,$00,$00,$00,$00,$00,$00,$00,$00,$00
+  !byte $0b,$0c,$0d,$01,$0f,$0c,$0b,$00,$00,$00,$00,$00,$00,$00,$00,$00
+  !byte $0b,$0c,$0d,$01,$0f,$0c,$0b,$00,$00,$00,$00,$00,$00,$00,$00,$00
+  !byte $0b,$0c,$0d,$01,$0f,$0c,$0b,$00,$00,$00,$00,$00,$00,$00,$00,$00
+ras2end 
+  !byte 0
+  
+ras1backup
+  !byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+  !byte $00,$06,$00,$06,$06,$00,$06,$06,$0e,$06,$0e,$0e,$06,$0e,$0e,$03
+  !byte $0e,$03,$03,$0e,$03,$03,$01,$01,$01,$01,$01,$03,$0e,$03,$03,$0e
+  !byte $03,$0e,$0e,$06,$0e,$0e,$06,$0e,$06,$06,$00,$06,$06,$00,$06,$00
+  !byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+ras1backupend
+  !byte 0 
+  
+ </code>
+
+
+

@@ -1,0 +1,397 @@
+# PAGE: base:a_faster_radix_sort
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:a_faster_radix_sort
+
+====== A Faster Radix Sort ======
+
+by lft
+
+This article describes an implementation of //radix sort// optimized for sprite
+multiplexers. The input is a set of actors numbered 0 to //N//-1, where each actor
+has a Y-position in the range 0–223 stored in an array (called ''ypos'') on the
+zero-page. The routine will push the //N// actor numbers on the stack, in order of
+increasing Y-coordinates.
+
+For a real multiplexer, it is actually preferable to either:
+
+  * Push them in order of decreasing Y-coordinates, so they can be popped in top-to-bottom order, or
+
+  * Not push them at all, but instead let the multiplexer traverse a linked list.
+
+It is straightforward to modify the presented algorithm to meet the above
+requirements, and this will be discussed at the end. But the code is easier to
+understand if everything is kept in forward order during the sort.
+
+The complete implementation is included at the end of the article, but the code
+is probably difficult to follow unless you read the text first.
+
+===== Performance =====
+
+The total execution time for 32 actors is 1970 cycles, which is 61.6 cycles per
+actor. Every additional actor adds 51 cycles to the execution time. The
+execution time is predictable, i.e. jitter-free.
+
+The size of the code is about 2 kB, and it needs 60 bytes of zero-page storage
+in addition to the Y-positions. It is possible to reduce this to 32 bytes at
+the cost of a few extra cycles; doing so is left as an exercise for the reader.
+
+===== Theory =====
+
+We will perform a two-pass radix sort based on hexadecimal digits.
+
+In the first pass, we place each actor in one of sixteen bins, based on the low
+nybble of their Y-position. We use linked lists to represent the bins, but the
+order of elements in each list is unimportant at this stage.
+
+In the second pass, we take the actors out of the bins, starting with bin 0,                                                                                                                       
+then bin 1, etc., and place each actor at the end of one of fourteen lists,                                                                                                                        
+based on the high nybble. In this way, we end up with fourteen sorted lists:                                                                                                                       
+The first list contains every actor with a Y-position in the range $00–$0f, in
+order. The second list has all the actors with positions $10–$1f, in order. The
+fourteenth list has all the actors with positions $d0–$df, in order.
+
+Finally, we traverse each of the fourteen lists in order, pushing the elements
+on the stack as we go. This completes the radix sort.
+
+===== The linked lists =====
+
+A linked list is typically represented by a global variable, indicating the
+first element of the list, and a next-pointer for each actor. End-of-list can
+be indicated by an invalid actor number, such as $ff.
+
+Now, a common way of adding an element to a linked list is the following (in
+pseudo-code):
+
+<code>
+        next[i] = first
+        first = i
+</code>
+
+This inserts the new element at the beginning of the list. If //i// is already in
+a register, this can be implemented with one load instruction and two store
+instructions.
+
+But we will do something else: We introduce a //tail-pointer//, a variable to
+keep track of the address of the current end of the list. This variable might
+point to the variable called //first//, or it might point to one of the cells
+of the array called //next//. Now we can add an element to the end of the list like
+this:
+
+<code>
+        *tail = i
+        tail = &next[i]
+</code>
+
+If we make sure that the //next// array and the //first// variable are
+located on the same page in memory, then we only need to update the LSB of the
+pointer. Furthermore, if we place the //next// array at the very beginning of a
+page, the pointer to element //i// becomes equal to //i//. Thus:
+
+<code>
+        *tail = i
+        tail.lsb = i
+</code>
+
+If //i// is already in a register, this can be implemented with just two store
+instructions—eliminating the need for a load.
+
+In our algorithm, the actors are never located in more than one list at the
+same time, so in principle we only need a single global array of next-pointers. But it turns out
+that we can save a couple of cycles if we use two arrays, one for each pass of
+the radix sort.
+
+In the first pass, we need sixteen first-pointers and sixteen tail-pointers (one for each bin). In the
+second pass, we need fourteen first-pointers and fourteen tail-pointers.
+
+===== Chaining lists together =====
+
+After the first stage, we have sixteen lists. In the second stage, we traverse
+the elements of each of these lists in order. Observe that this is essentially
+the same as if we first concatenate the sixteen lists into one, and then
+traverse all the elements of that combined list.
+
+Thanks to the tail-pointer representation, concatenating two lists is easy:
+
+<code>
+        *tail_A = first_B
+</code>
+
+To concatenate several lists, we have to start at the end and move towards the
+beginning of the final list:
+
+<code>
+        *tail_C = first_D
+        *tail_B = first_C
+        *tail_A = first_B
+</code>
+
+This is because some of the lists might be empty, in which case their //first//
+values would be uninitialized. Concatenating in the correct order ensures that
+each //first// value is valid just before we need it.
+
+Afterwards, //first_A// indicates the first actor of the concatenated list, and
+we know that the list must contain exactly //N// elements (since all actors are
+present). We can traverse the list using an unrolled loop, stopping after the
+//N//th element. Thus, we don't need to bother with an end-of-list marker at all.
+The final next-pointer can contain garbage.
+
+===== The algorithm =====
+
+The complete algorithm, in pseude-code, is as follows:
+
+=== Stage 1: Reset the tail-pointers ===
+
+<code>
+        for j = 0 to 15:
+                tail[j] = &first[j]
+</code>
+
+=== Stage 2: Collect actors by low-nybble ===
+
+<code>
+        for each actor i:
+                j = ypos[i] & $0f
+                *tail[j] = i
+                tail[j] = &next[i]      // i.e. tail[j].lsb = i
+</code>
+
+=== Stage 3: Concatenate the lists ===
+
+<code>
+        for j = 14 down to 0:
+                *tail[j] = first[j + 1]
+
+        i = first[0]    // Prepare a list iterator for Stage 5
+</code>
+
+=== Stage 4: Reset the tail-pointers ===
+
+<code>
+        for j = 0 to 13:
+                tail[j] = &first[j]
+</code>
+
+=== Stage 5: Traverse intermediate list, collect actors by high-nybble ===
+
+<code>
+        repeat as many times as there are actors:
+                j = ypos[i] >> 4
+                *tail[j] = i
+                tail[j] = &next[i]      // i.e. tail[j].lsb = i
+                i = next[i]
+</code>
+
+=== Stage 6: Concatenate the lists ===
+
+<code>
+        for j = 12 down to 0:
+                *tail[j] = first[j + 1]
+
+        i = first[0]    // Prepare a list iterator for Stage 7
+</code>
+
+=== Stage 7: Push the elements in order ===
+
+<code>
+        repeat as many times as there are actors:
+                push i on stack
+                i = next[i]
+</code>
+
+===== Indexed indirect mode =====
+
+We need one more puzzle piece to see why this is efficient on the 6502. The
+//indexed indirect addressing mode// is rarely useful, but here it suddenly
+shines!
+
+We keep the sixteen tail-pointers on the zero-page. Suppose we have the current
+actor number (//i//) in the accumulator, and the desired list index (//j//) times
+two in the X register. Then:
+
+<code>
+        sta     (tail_pointers,x)       ; *tail[j] = i
+        sta     tail_pointers,x         ; tail[j].lsb = i
+</code>
+
+As discussed previously, the next-pointers have to be located at the beginning
+of a page, and the first-pointers have to be located somewhere on the same
+page. But the first-pointers don't have to be consecutive. They will be
+immediate-operands in the code of Stages 3 and 6 (list concatenation).
+
+===== 6502 implementation =====
+
+In order to truly minimize execution time, we will use separate memory areas
+for the two passes. This allows us to initialize both areas at once.
+
+<code>
+.var N_ACTOR = 32               // Must be even.
+        
+        // Zero-page variables:
+
+ypos:   .fill   N_ACTOR, 0      // External input.
+
+loptr:  .fill   32, 0
+hiptr:  .fill   28, 0
+</code>
+
+<code>
+one_time_init:
+        lda     #>lonext
+.for(var i = 0; i < 16; i++) {
+        sta     loptr+i*2+1
+}
+        lda     #>hinext
+.for(var i = 0; i < 14; i++) {
+        sta     hiptr+i*2+1
+}
+        rts
+</code>
+
+<code>
+sort_actors:
+        // Stages 1 and 4:
+
+        // The clean version:
+
+        // .for(i = 0; i < 16; i++) {
+        //      lda     #<join_lo+1+i*4
+        //      sta     loptr+(15-i)*2
+        // }
+        // .for(i = 0; i < 14; i++) {
+        //      lda     #<join_hi+1+i*4
+        //      sta     hiptr+(13-i)*2
+        // }
+
+        // But instead we do the following:
+
+        ldx     #$fb
+.for(var i = 0; i < 8; i++) {
+        lda     #<join_lo+1+i*8+4
+        sax     loptr+(15-i*2)*2
+        sta     loptr+(14-i*2)*2
+        .if(i != 7) {
+        sax     hiptr+(13-i*2)*2
+        sta     hiptr+(12-i*2)*2
+        }
+}
+        // 2 + 8 * 14 - 6 = 108
+
+        // Stage 2:
+
+.for(var i = 0; i < N_ACTOR; i++) {
+        ldy     ypos+i
+        ldx     lobits,y
+        lda     #i
+        sta     (loptr,x)
+        sta     loptr,x
+}
+        ldy     #0
+        jmp     join_lo
+
+        // 32 * 19 + 5 = 613
+
+        .align  $100
+lobits:
+        .fill   $100, (i & 15) * 2
+lonext:
+        .fill   N_ACTOR, 0
+
+        // Stage 3:
+
+        .align  8
+join_lo:
+.for(var i = 14; i >= 0; i--) {
+        lda     #0      // operand is first[i+1]
+        sta     (loptr+2*i),y
+}
+        lda     #0      // operand is first[0]
+
+        // 15 * 8 + 2 = 122
+
+        // Stage 5:
+
+        tax
+.for(var i = 0; i < N_ACTOR; i++) {
+        ldy     ypos,x
+        ldx     hibits,y
+        sta     (hiptr,x)
+        sta     hiptr,x
+        .if(i != N_ACTOR - 1) {
+        tay
+        lax     lonext,y
+        }
+}
+        ldy     #0
+        jmp     join_hi
+
+        // 2 + 32 * 24 - 6 + 5 = 769
+
+        .align  $100
+hibits:
+        .fill   $100, (i >> 4) * 2
+hinext:
+        .fill   N_ACTOR, 0
+
+        // Stage 6:
+
+        .align  8
+join_hi:
+.for(var i = 12; i >= 0; i--) {
+        lda     #0      // operand is first[i+1]
+        sta     (hiptr+2*i),y
+}
+        lda     #0      // operand is first[0]
+
+        // 13 * 8 + 2 = 106
+
+        // Stage 7:
+.for(var i = 0; i < N_ACTOR; i += 2) {
+        pha
+        tay
+        lax     hinext,y
+        pha
+        .if(i != N_ACTOR - 2) {
+        lda     hinext,x
+        }
+}
+        // 16 * 16 - 4 = 252
+
+        // Total cycle count:
+        // 108 + 613 + 122 + 769 + 106 + 252 = 1970
+
+        // Note: Don't rts here, since there is data on the stack.
+</code>
+
+===== Variants =====
+
+Having the actor numbers on the stack isn't all that useful. If you'd rather
+traverse the list during the visible portion of the display, as part of the
+multiplexer, simply replace all of Stage 7 by:
+
+<code>
+        sta     next_actor
+</code>
+
+And then, to obtain each successive actor:
+
+<code>
+        ldx     next_actor
+        lda     hinext,x
+        sta     next_actor
+
+        // Do something with actor number X ...
+</code>
+
+Sometimes you do want the actor numbers on the stack, but you want them pushed
+in bottom-to-top order so the multiplexer can pick them up in top-to-bottom
+order. This can be achieved by modifying the look-up tables. Remember that the
+Y-coordinate is in the range $00–$df. Flip the range to reverse the sort:
+
+<code>
+lobits:
+        .fill   $100, (($df - i) & 15) * 2
+</code>
+
+<code>
+hibits:
+        .fill   $100, (($df - i) >> 4) * 2
+</code>

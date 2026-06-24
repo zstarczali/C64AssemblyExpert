@@ -1,0 +1,35 @@
+# PAGE: base:supercpu_tyx
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:supercpu_tyx
+
+====== TYX ======
+
+<code>
+    /*-------------------------------------------------------------------------
+    OP CODE: TYX (Transfer index register Y to X)
+    =============================================
+    
+    Addressing Modes:
+        Implied                            ($bb - 1 byte, 2 cycles)
+
+    Flags Affected:
+        n - Set if most significant bit of transferred value is set; else
+            cleared.
+        z - Set if value transferred is zero; else cleared.
+
+    Description:
+        Transfer the value in index register Y to index register X. The value
+        in index register Y is not changed by the operation. Note that the two
+        registers are never different sizes.
+
+        8-bit index registers (x=1): Value transferred is eight-bit.
+        16-bit index registers (x=0): Value transferred is sixteen-bit.
+
+    Notes:
+
+    -------------------------------------------------------------------------*/
+
+    .pseudocommand tyx {
+        .byte $bb
+    }
+
+</code>

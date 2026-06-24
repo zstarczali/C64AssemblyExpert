@@ -1,0 +1,57 @@
+# PAGE: projects:resurrection
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=projects:resurrection
+
+====== What is this? ======
+Many years ago, almost twenty years ago now, I did a lot of C64 coding. Many projects were started and only some got to a stage where they were completed. After discovering the C64 scene, on this and other websites, was very much still alive I decided to find my trusty old C64 and development disks to resurrect their contents. I remember some of these projects taking fifteen minutes to assemble and link on the C64 with 6510+ and a 1541 drive. With the advent of home PCs being quite common and readily available cross assemblers/compilers it has been possible to take old code from decades past and port it to these new development platforms. Hence the title of this page being Resurrection. [[http://www.metacritic.com/games/platforms/psx/alienresurrection|Alien Resurrection]] for the PSX was also one of my favourite projects I had the pleasure to code on, so Resurrection is a word that has a special place in my silicon heart. :)
+
+As time permits this archive will grow as more of these old software projects are extracted from the 5.25" floppy disks and persuaded to start working. Most of these projects had no documentation, no build notes and some were lost due to the disks becoming partially unreadable. Forgive me for the sloppy development standards, I was very much younger at the time. :) Some things might be useful to some people, other things may be interesting from a purely historical point of view. Some code is even recently written in an enthusiastic burst of energy sparked by digging through my old code.
+
+I've gone through most of the projects and removed old copyright notices but if there are some hanging around then please ignore them. All of this code is now free for anyone to use however they wish.
+
+===== The source code archive =====
+
+Updated source code is available at [[https://github.com/martinpiper/C64Public|Github C64Public]]
+
+Updated source code is available at [[https://github.com/martinpiper/ACME|Github ACME]]
+
+Updated source code is available at [[https://github.com/martinpiper/Electronics|Github Electronics]]
+
+
+Older source is here:
+The archive is available from here {{:sourcecode:resurrectionforcodebase64-10.zip|}}
+
+Decompress the files in this patch over the top of the main archive. {{:sourcecode:scrollerpatch10-1.zip|}}
+===== Building =====
+
+The C64 source mostly uses ACME with a couple of tweaks, it will assemble cleanly with an untweaked version of ACME. As can be seen from the archive I use Microsoft Visual Studio 6.0 workspace and project files to manage the assets and build tules for each project. This allows me to use a tweak I applied to ACME (source available on this site) so that when there is an assembler warning or error the Visual Studio IDE will take me to that warning or error by pressing F4. A useful feature to have. :) This version of ACME will also output a label file suitable for VICE to load in the monitor, which allows easier debugging of large projects with symbols.
+The projects in the archive use source from different projects organised into common libraries, whic his why uploading the whole archive makes sense rather than updating lots of separate project archives.
+
+
+
+
+
+
+
+
+
+
+===== Directory tree =====
+  * [[base:Berzerk Redux|C64\BerzerkRedux]] : Full source for [[http://noname.c64.org/csdb/release/index.php?id=80567|Berzerk Redux]]. The file "HowToBuildRelease.txt" contains instructions for building the source and the D64.
+  * [[base:CharPack|C64\CharPack]] : Full source for a character conversion tool that accepts a 24 bit BMP and converts it to a charset, colour RAM and screen RAM.
+  * [[base:LZMPi compression|C64\Compression]] : A compression algorithm used by other examples in this archive.
+  * C64\Decompression : Decompression code for the [[base:LZMPi compression|LZMPi algorithm]]. This also contains an example of how to create a self extracting executable.
+  * C64\DiskBootLoader : An example of how to create a short disk boot loader. This uses a method of filling the stack with a repeating value so the execution eventually slides into a known address when an rts is used in the kernal loading code.
+  * [[base:IRQ Disk loader|C64\IRQDisk]] : An IRQ disk loader.
+  * [[base:Autoboot tape turbo loader|C64\IRQTape]] : The most up to date code for an IRQ tape turbo save/load.
+  * [[base:Element 114 Music editor|C64\MusicEditor]] : A music editor used for a lot of the projects from years ago. Updated to include stability fixes, filters and volume control.
+  * [[base:Element 114 Music editor|C64\MusicEditorHelp]] : The help files for the music editor which run as a note viewer.
+  * C64\FreeDirRant : Some graphics borrowed from the free directional scrolling rant, also on this site.
+  * C64\PictureLink : An example of how to link an already compressed main program with a Koala Paint picture file that also uses compressed data.
+  * [[base:Scrolling and SEUCK file player|C64\Scroller]] : A demonstration of free directional scrolling, but also linked with the music player from the music editor and the sprite multiplexor. Also demonstrates single directional scrolling with SEUCK data file compatibility.
+  * C64\SEUCK : SEUCK Data files in VICE file format for the three demonstration games.
+  * C64\SFX : A sound effect player that uses the SEUCK data format.
+  * [[base:Flexible 48 Sprite Multiplexer|C64\SpriteMultiplexor]] : A highly tweaked and commented version of the multiplexor code found on this site. This code is follows my habit of putting common code in common libraries ready to be included into larger projects.
+  * C64\stdlib : A collection of standard library includes that are used by other projects in this archive. I like common libraries, something I didn't really think of using twenty years ago. :)
+  * Electronics : A while ago I designed a TTL processor that runs 6502 op-codes, as an experiment to see if I could make a processor out of individual ICs. The whole project including schematics and documentation is at this [[http://www.wellytop.com/Fnagaton/DIYComputer.html|External Link]]. The 6502 sources have been included in this archive because the prototyping (and sanity checking of my code) was done using VICE and CCS64.
+  * Electronics\C64Boot : An example of a multi-threading kernel ROM replacement for use with the TTL processor example or C64 hardware/emulation. This started life as old code from years ago using a NMI to handle thread switches in an old Windows style GUI project.  (To be included at a later date.)
+  * Electronics\Microcode : ROM replacements designed to test the implemented 6502 op-codes, useful for testing the TTL processor. It also includes the code used to drive an LCD module based around the HD44780 controller chip.

@@ -1,0 +1,26 @@
+# PAGE: base:short_8bit_multiplication_16bit_product
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:short_8bit_multiplication_16bit_product
+
+====== Short 8bit * 8bit = 16bit multiply ======
+
+A small multiplication routine using the ancient egyptian multiplication algorithm. Factors should be stored in the FAC1 and FAC2 variables, the product can be found in Akku (high byte) and the X-Register (low byte). FAC1 will be destroyed. No tables required.
+
+<code>
+FAC1     = $58
+FAC2     = $59
+
+        ; A*256 + X = FAC1 * FAC2
+MUL8
+        lda #$00
+        ldx #$08
+        clc
+m0      bcc m1
+        clc
+        adc FAC2
+m1      ror
+        ror FAC1
+        dex
+        bpl m0
+        ldx FAC1
+        rts
+</code>

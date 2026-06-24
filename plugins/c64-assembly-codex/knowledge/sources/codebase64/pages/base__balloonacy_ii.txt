@@ -1,0 +1,2025 @@
+# PAGE: base:balloonacy_ii
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:balloonacy_ii
+
+Here is the whole source code to the game Balloonacy 2. Please note, you will need to extract the source objects from the original game. :) 
+<code>
+===================================================
+;			ballonacy 2 - by tnd projects
+;the gamecode
+;===================================================
+
+;declare variables
+
+sync = $02			;Synchronize the area
+charpointer = $03	;The timer for the animation
+delaypointer = $04	;Delay of the balloon rising
+animcounter1 = $05	;Animation counter value
+animdelay1 = $06		;Animation delay counter value
+p1dead = $22		;Player death/alive switch
+failsafe = $08		;Failsafe switch
+gotkey = $09		;Key collect switch
+dooropen = $0b		;Door open switch
+animcounter2 = $0c
+animdelay2 = $0d
+animdelay3 = $18
+animcounter3 = $19
+enemydir1 = $0e
+enemydir2 = $0f
+enemydir3 = $10
+enemydir4 = $11
+level = $12
+lives = $13
+defaultxpos = $14
+defaultypos = $15
+halfspeed1 = $16
+halfspeed2 = $17
+xpause = $18
+objpos = $0340		;Virtual sprite positions
+keycollision = $0350	;Software collision routine for key
+doorcollision = $03f0
+lockcollision = $0370
+badcollision = $0380
+message = $5000
+flashdelays = $19
+keydefaultx = $1a
+keydefaulty = $1b
+gamepause = $1c
+
+initmusic = $7000
+playmusic = $7003
+
+
+;initialize everything
+			
+			
+					
+			processor 6502
+			org $3000
+			
+			lda #$08
+			jsr $ffd2
+			lda #$fc
+			sta $0328 ;Disable RUN+RESTORE keys
+
+;Code here represents the title screen
+
+title:                  sei
+			lda #$08
+			lda #$00
+			sta $d015
+                        
+                        lda #$00
+			sta xpause
+                        
+			lda #$81
+			sta $dc0d
+			
+			lda #$00
+			sta flashdelays
+			sta $d418
+			sta $d019
+			sta $d01a
+			lda #$08
+			sta $d016
+			lda #$31
+			sta $0314
+			lda #$ea
+			sta $0315
+			lda #$81
+			sta $dc0d
+			ldx #$00
+clr:		        lda #$20
+			sta $0400,x
+			sta $0500,x
+			sta $0600,x
+			sta $06e8,x
+			inx
+			bne clr
+			lda #<message
+			sta read+1
+			lda #>message
+			sta read+2
+			ldx #$00
+loopwaiting:	        ldy #$00
+loopwaiting2:	        iny
+			bne loopwaiting2
+			inx
+			bne loopwaiting
+			lda #$0b
+			sta $d011
+			;display msck screen
+			
+			jsr $c6dc ;transfer charset to $0800-$0fff
+			jsr $c708 ;setup charset and defined msck colours
+			
+;clear screen	
+			ldx #$00
+			stx $cd6c
+			stx $cd6d
+			stx $cd6e
+			stx $cd6f
+			
+			jsr $cd40 ;clear screen area
+			
+			lda #$00
+			jsr $ce02
+			sei
+			ldx #$00
+paintbitmap:	        lda $5800,x
+			sta $d800,x
+			lda #$20
+			sta $5800+9*40,x		
+		
+			sta $5800+9*40,x		
+			
+			lda $5800+1*40,x
+			sta $d800+1*40,x			
+			lda $5800+2*40,x
+			sta $d800+2*40,x			
+			lda $5800+3*40,x
+			sta $d800+3*40,x
+			lda $5800+4*40,x
+			sta $d800+4*40,x			
+			lda $5800+5*40,x
+			sta $d800+5*40,x			
+			lda $5800+6*40,x
+			sta $d800+6*40,x
+			lda $5800+7*40,x
+			sta $d800+7*40,x	
+			
+			inx
+			cpx #$28
+			bne paintbitmap			
+			lda #<irq01
+			sta $0314
+			lda #>irq01
+			sta $0315
+			lda #$1b
+			sta $d011
+			lda #$7f
+			sta $dc0d
+			lda #$01
+			sta $d01a
+			lda #$00
+			sta gamepause
+			lda #$00
+			jsr initmusic
+			lda #$00
+			sta $8300
+			sta $8301
+			sta $8302
+			sta $8303
+			sta $8304
+	
+			
+			
+			cli
+
+
+holdhere1:		lda #$00
+			sta sync
+			lda sync
+syncwait2:		cmp sync
+			beq syncwait2
+			jsr checkcheat
+			jsr doscroll
+			jsr rolltit
+			lda $dc00
+			lsr
+			lsr
+			lsr
+			lsr
+			lsr
+			bcs holdhere1
+			jmp game		
+			
+checkcheat:             jsr $ffe4
+			 cmp #$53
+			 beq unlock1
+			   cmp #$45
+			   beq unlock2
+			   cmp #$55
+			   beq unlock3
+			   cmp #$43
+			   beq unlock4
+			   cmp #$4b
+			   beq unlock5
+			   jmp checkv2
+				
+unlock1		lda #$01
+				sta $8300
+				rts
+unlock2		lda #$01
+				sta $8301
+				rts
+unlock3		lda #$01
+				sta $8302
+				rts
+unlock4		lda #$01
+				sta $8303
+				rts
+unlock5		lda #$01
+				sta $8304
+				rts
+				
+checkv2		lda $8300
+				cmp #$01
+				beq open1
+				rts
+open1			lda $8301
+				cmp #$01
+				beq open2
+				rts
+open2 		lda $8302
+				cmp #$01
+				beq open3
+				rts
+open3			lda $8303
+				cmp #$01
+				beq open4
+				rts
+open4			lda $8304
+				cmp #$01
+				beq cheaton
+				rts
+				
+cheaton		
+				lda #$2c
+				sta livesleft
+				sta time
+				ldx #$00
+cmess			lda cheatmessage,x
+				sec
+				sbc #$40
+nowayman		sta $0568,x
+				inx
+				cpx #$28
+				bne cmess
+				rts
+			
+;Do the scrolling message
+
+doscroll:		lda xpause
+			sec
+			sbc #$01
+			and #$07
+			sta xpause
+			bcs endscroll
+			ldx #$00
+wrapscroll:	lda $0799,x
+			sta $0798,x
+			inx
+			cpx #$28
+			bne wrapscroll
+read:		lda $0798+$27
+			cmp #$00
+			bne endpoint
+			lda #<message
+			sta read+1
+			lda #>message
+			sta read+2
+			jmp read
+endpoint:		sta $0798+$27
+			inc read+1
+			lda read+1
+			cmp #$00
+			bne endscroll
+			inc read+2
+endscroll:		rts
+
+rolltit:		inc flashdelays
+			lda flashdelays
+			cmp #$03
+			beq fok
+			rts
+fok:			lda #$00
+			sta flashdelays
+			lda titlecolours+0
+			sta titlecolours+23
+			ldx #$00
+wrapcolours:	lda titlecolours+1,x
+			sta titlecolours+0,x
+			inx
+			cpx #24
+			bne wrapcolours
+			ldx #$00
+pastetochar:	lda titlecolours+0
+			sta $d968,x
+			lda titlecolours+4
+			sta $d9e0,x
+			lda titlecolours+8
+			sta $da58,x
+			lda titlecolours+12
+			sta $dad0,x
+			lda titlecolours+14
+			sta $db20,x
+			lda titlecolours+16
+			sta $db98,x
+			lda #$00
+			sta $d968-$28,x
+			inx
+			cpx #40
+			bne pastetochar
+			rts
+			
+			
+irq01:		inc $d019
+			lda #$00
+			sta $d012
+				
+			lda #$03
+			sta $dd00
+			lda #$1b
+			sta $d011
+			lda xpause
+			sta $d016
+			lda #$12
+			sta $d018
+			
+			lda #<irq2
+			sta $0314
+			lda #>irq2
+			sta $0315
+			jmp $ea31
+			
+irq2:		inc $d019
+			lda #$78
+			sta $d012
+			lda #$02
+			sta $dd00
+			lda #$3b
+			sta $d011
+			lda #$18
+			sta $d016
+			lda #$78
+			sta $d018
+			lda #<irq03
+			sta $0314
+			lda #>irq03
+			sta $0315
+			jmp $ea31
+irq03:		inc $d019
+			lda #$e0
+			sta $d012
+			nop
+			nop
+			nop
+			nop
+			nop
+			nop
+			nop
+			lda #$03
+			sta $dd00
+			lda #$1b
+			sta $d011
+			lda #$08
+			sta $d016
+			lda #$12
+			sta $d018
+			lda #<irq01
+			sta $0314
+			lda #>irq01
+			sta $0315
+			lda #$00
+			jsr playmusic
+			lda #$01
+			sta sync
+irqcont:                jmp $ea31
+
+			
+titlecolours:	dc.b $06,$06,$04,$04,$0e,$0e,$05,$05,$0d,$0d,$01,$01
+			dc.b $07,$07,$0a,$0a,$08,$08,$02,$02,$09,$09,$00,$00			
+			
+			
+			
+			
+			
+			
+			
+game:			
+default:		sei
+							
+			lda #$81
+			sta $dc0d
+			
+			lda #$00
+			sta $d418
+			sta $d019
+			sta $d01a
+			lda #$31
+			sta $0314
+			lda #$ea
+			sta $0315
+			lda #$81
+			sta $dc0d
+			lda #$0b
+			sta $d011
+			;display msck screen
+			
+			jsr $c6dc ;transfer charset to $0800-$0fff
+			jsr $c708 ;setup charset and defined msck colours
+			
+;clear screen	
+			ldx #$00
+			stx $cd6c
+			stx $cd6d
+			stx $cd6e
+			stx $cd6f
+			
+			jsr $cd40 ;clear screen area
+			lda #$1b
+			sta $d011
+						
+			lda #$01
+			sta level
+			lda #$03
+			sta lives
+			ldx #$00
+defaultcopy:	lda status,x
+			sta statuscopy,x
+			inx
+			cpx #$28
+			bne defaultcopy
+			
+			
+maingameloop:	sei
+			cld
+			lda #$81
+			sta $dc0d
+			
+			lda #$00
+			sta $d418
+			sta $d019
+			sta $d01a
+			lda #$31
+			sta $0314
+			lda #$ea
+			sta $0315
+			lda #$81
+			sta $dc0d
+			lda #$0b
+			sta $d011
+			ldx #$00
+clearfunction:	lda #$20
+			sta $c800,x
+			sta $c900,x
+			sta $ca00,x
+			sta $cae8,x
+			sta $0400,x
+			sta $0500,x
+			sta $0600,x
+			sta $06e8,x
+			inx
+			bne clearfunction		
+			lda #$8f
+			sta $07fc
+			sta $07fd
+			sta $07fe
+			sta $07ff
+						
+;Check the level the player is at	
+			lda level
+			cmp #$01
+			bne chkl2
+			jmp drawlev1
+chkl2:		cmp #$02
+			bne chkl3
+			jmp drawlev2
+chkl3:		cmp #$03
+			bne chkl4
+			jmp drawlev3
+chkl4:		cmp #$04
+			bne chkl5
+			jmp drawlev4
+chkl5:		cmp #$05
+			bne chkl6
+			jmp drawlev5		
+chkl6:		cmp #$06
+			bne chkl7
+			jmp drawlev6
+chkl7:		cmp #$07
+			bne chkl8
+			jmp drawlev7
+chkl8:		cmp #$08
+			bne chkl9
+			jmp drawlev8
+chkl9:		cmp #$09
+			bne chkl10
+			jmp drawlev9
+chkl10:		cmp #$0a
+			bne chkl11
+			jmp drawlev10
+chkl11:		cmp #$0b
+			bne chkl12
+			jmp drawlev11
+chkl12:		cmp #$0c
+			bne chkl13
+			jmp drawlev12
+chkl13:		cmp #$0d
+			bne chkl14
+			jmp drawlev13
+chkl14:		cmp #$0e
+			bne chkl15
+			jmp drawlev14
+chkl15:		cmp #$0f
+			bne chkl16
+			jmp drawlev15
+chkl16:		cmp #$10
+			bne endofgame
+			jmp drawlev16
+endofgame		lda #$00
+			sta $d020
+			sta $d021
+			lda #$0b
+			sta $d011
+			ldx #$00
+waitmain1:		ldy #$00
+waitmain2:		iny
+			bne waitmain2
+			inx
+			bne waitmain1
+			lda #$00
+			sta $d015
+			ldx #$00
+copyscreens:	lda $6c00,x
+			sta $0400,x
+			lda $6d00,x
+			sta $0500,x
+			lda $6e00,x
+			sta $0600,x
+			lda $6f00,x
+			sta $0700,x
+			lda #$07
+			sta $d800,x
+			sta $d900,x
+			sta $da00,x
+			sta $dae8,x
+			inx
+			bne copyscreens
+			lda #$1b
+			sta $d011
+			
+			lda #$03
+			jsr initmusic
+hitfireend:	lda #$80
+ras1:		cmp $d012
+			bne ras1
+			jsr colroll
+			jsr playmusic
+			ldx #$00
+loopcolors:	lda $d800
+			sta $d8f0,x
+			lda $d808
+			sta $d968,x
+			lda $d80c
+			sta $d9b8,x
+			lda $d810
+			sta $da30,x
+			lda $d814
+			sta $daa8,x
+			inx
+			cpx #$28
+			bne loopcolors
+			lda $dc00
+			lsr
+			lsr
+			lsr
+			lsr
+			lsr
+			bcs hitfireend
+			jmp title
+			
+			
+			
+			
+
+drawlev1:		ldx #$01
+			jsr $ce02
+			lda #$06
+			sta $d022
+			lda #$0e
+			sta $d023					
+			lda #<l1postable
+			sta readleveltable+1
+			lda #>l1postable
+			sta readleveltable+2
+			lda #<l1coltable
+			sta readcolourtable+1
+			lda #>l1coltable
+			sta readcolourtable+2
+			jmp carryon
+
+l1postable:	dc.b $16,$d0	;Balloon
+			dc.b $76,$4c	;Key
+			dc.b $96,$d0	;lock
+			dc.b $16,$4c	;Door
+			dc.b $84,$4c	;Enemy1 x dir
+			dc.b $00,$00	;Enemy2 y dir
+			dc.b $00,$00	;Enemy3 x dir
+			dc.b $00,$00	;Enemy4 y dir
+l1coltable:	dc.b $0a,$07,$0f,$0a,$0e,$00,$00,$00
+			
+drawlev2:		ldx #$02
+			jsr $ce02
+			lda #$0b
+			sta $d022
+			lda #$0c
+			sta $d023
+			lda #$d0
+			sta objpos+$01
+			sta defaultypos
+			lda #$16
+			sta defaultxpos
+			sta objpos+$00 
+			lda #$96	   ;Key
+			sta objpos+$02 ;
+			lda #$a8       ; 
+			sta objpos+$03 ;
+			lda #$7c       ;
+			sta objpos+$04 ;Lock
+			lda #$c8       ;
+			sta objpos+$05 ;
+			lda #$78
+			sta objpos+$06
+			lda #$48
+			sta objpos+$07		
+			lda #<l2postable
+			sta readleveltable+1
+			lda #>l2postable
+			sta readleveltable+2
+			lda #<l2coltable
+			sta readcolourtable+1
+			lda #>l2coltable
+			sta readcolourtable+2
+			jmp carryon
+
+l2postable:	dc.b $16,$d0	;Balloon
+			dc.b $94,$a8	;Key
+			dc.b $7c,$c8	;lock
+			dc.b $16,$54	;Door
+			dc.b $00,$00	;Enemy1 x dir
+			dc.b $00,$00	;Enemy2 y dir
+			dc.b $00,$00	;Enemy3 x dir
+			dc.b $00,$00	;Enemy4 y dir
+l2coltable:	dc.b $0a,$07,$0f,$0a,$0d,$0e,$00,$00
+
+drawlev3:		ldx #$03
+			jsr $ce02
+			lda #$02
+			sta $d022
+			lda #$0a
+			sta $d023
+			lda #<l3postable
+			sta readleveltable+1
+			lda #>l3postable
+			sta readleveltable+2
+			lda #<l3coltable
+			sta readcolourtable+1
+			lda #>l3coltable
+			sta readcolourtable+2
+			jmp carryon
+			
+l3postable:	dc.b $16,$d0	;Balloon
+			dc.b $58,$d4	;Key
+			dc.b $1a,$5c	;lock
+			dc.b $94,$4c	;Door
+			dc.b $78,$58	;Enemy1 x dir
+			dc.b $00,$00	;Enemy2 y dir
+			dc.b $32,$80	;Enemy3 x dir
+			dc.b $00,$00	;Enemy4 y dir
+l3coltable:	dc.b $0a,$07,$0f,$0a,$0d,$0a,$07,$00
+			
+drawlev4:		ldx #$04
+			jsr $ce02
+			lda #$04
+			sta $d022
+			lda #$0e
+			sta $d023
+			
+			lda #<l4postable
+			sta readleveltable+1
+			lda #>l4postable
+			sta readleveltable+2
+			lda #<l4coltable
+			sta readcolourtable+1
+			lda #>l4coltable
+			sta readcolourtable+2
+			jmp carryon
+			
+l4postable:	dc.b $16,$d0	;Balloon
+			dc.b $94,$a4	;Key
+			dc.b $1a,$64	;lock
+			dc.b $94,$4c	;Door
+			dc.b $88,$58	;Enemy1 x dir
+			dc.b $00,$00	;Enemy2 y dir
+			dc.b $94,$c8	;Enemy3 x dir
+			dc.b $00,$00	;Enemy4 y dir
+l4coltable:	dc.b $0a,$07,$0f,$0a,$0d,$0e,$03,$00
+
+			
+			
+drawlev5:		ldx #$05
+			jsr $ce02
+			lda #$06
+			sta $d022
+			lda #$0e
+			sta $d023
+			lda #<l5postable
+			sta readleveltable+1
+			lda #>l5postable
+			sta readleveltable+2
+			lda #<l5coltable
+			sta readcolourtable+1
+			lda #>l5coltable
+			sta readcolourtable+2
+			jmp carryon
+			
+l5postable:	dc.b $16,$d0	;Balloon
+			dc.b $94,$c4	;Key
+			dc.b $94,$64	;lock
+			dc.b $16,$4c	;Door
+			dc.b $80,$58	;Enemy1 x dir
+			dc.b $00,$00	;Enemy2 y dir
+			dc.b $28,$c8	;Enemy3 x dir
+			dc.b $00,$00	;Enemy4 y dir
+l5coltable:	dc.b $0a,$07,$0f,$0a,$0e,$0d,$0a,$00
+
+drawlev6:		ldx #$06
+			jsr $ce02
+			lda #$0b
+			sta $d022
+			lda #$0c
+			sta $d023
+			lda #<l6postable
+			sta readleveltable+1
+			lda #>l6postable
+			sta readleveltable+2
+			lda #<l6coltable
+			sta readcolourtable+1
+			lda #>l6coltable
+			sta readcolourtable+2
+			jmp carryon
+			
+l6postable:	dc.b $16,$d0	;Balloon
+			dc.b $16,$4c	;Key
+			dc.b $16,$d0	;lock
+			dc.b $94,$4c	;Door
+			dc.b $88,$58	;Enemy1 y dir
+			dc.b $90,$9c	;Enemy2 x dir
+			dc.b $26,$c8	;Enemy3 y dir
+			dc.b $00,$00	;Enemy4 x dir
+l6coltable:	dc.b $0a,$07,$0f,$0a,$0d,$0a,$03,$00
+
+drawlev7:		ldx #$07
+			jsr $ce02
+			lda #$02
+			sta $d022
+			lda #$0a
+			sta $d023
+			lda #<l7postable
+			sta readleveltable+1
+			lda #>l7postable
+			sta readleveltable+2
+			lda #<l7coltable
+			sta readcolourtable+1
+			lda #>l7coltable
+			sta readcolourtable+2
+			jmp carryon
+			
+l7postable:	dc.b $16,$d0	;Balloon
+			dc.b $8c,$c4	;Key
+			dc.b $16,$4c	;lock
+			dc.b $94,$8c	;Door
+			dc.b $78,$58	;Enemy1 y dir
+			dc.b $00,$00	;Enemy2 x dir
+			dc.b $38,$4c	;Enemy3 y dir
+			dc.b $00,$00	;Enemy4 x dir
+l7coltable:	dc.b $0a,$07,$0f,$0a,$0d,$0a,$03,$00
+
+drawlev8:		ldx #$08
+			jsr $ce02
+			lda #$04
+			sta $d022
+			lda #$0e
+			sta $d023
+			 
+			lda #<l8postable
+			sta readleveltable+1
+			lda #>l8postable
+			sta readleveltable+2
+			lda #<l8coltable
+			sta readcolourtable+1
+			lda #>l8coltable
+			sta readcolourtable+2
+			jmp carryon
+			
+l8postable:	dc.b $28,$c0	;Balloon
+			dc.b $26,$58	;Key
+			dc.b $64,$4c	;lock
+			dc.b $16,$58	;Door
+			dc.b $00,$00	;Enemy1 y dir
+			dc.b $8c,$b0	;Enemy2 x dir
+			dc.b $00,$00	;Enemy3 y dir
+			dc.b $00,$00	;Enemy4 x dir
+l8coltable:	dc.b $0a,$07,$0f,$0a,$0d,$0a,$03,$00
+drawlev9:		ldx #$09
+			jsr $ce02
+			lda #$06
+			sta $d022
+			lda #$0e
+			sta $d023
+			lda #<l9postable
+			sta readleveltable+1
+			lda #>l9postable
+			sta readleveltable+2
+			lda #<l9coltable
+			sta readcolourtable+1
+			lda #>l9coltable
+			sta readcolourtable+2
+			jmp carryon
+			
+l9postable:	dc.b $90,$d0	;Balloon
+			dc.b $18,$c0	;Key
+			dc.b $90,$c0	;lock
+			dc.b $16,$58	;Door
+			dc.b $40,$90	;Enemy1 y dir
+			dc.b $00,$00	;Enemy2 x dir
+			dc.b $68,$c0	;Enemy3 y dir
+			dc.b $00,$00	;Enemy4 x dir
+l9coltable:	dc.b $0a,$07,$0f,$0a,$0d,$0a,$03,$00
+
+			jmp carryon
+drawlev10:		ldx #$0a
+			jsr $ce02
+			lda #$0b
+			sta $d022
+			lda #$0c
+			sta $d023
+			lda #<l10postable
+			sta readleveltable+1
+			lda #>l10postable
+			sta readleveltable+2
+			lda #<l10coltable
+			sta readcolourtable+1
+			lda #>l10coltable
+			sta readcolourtable+2
+			jmp carryon
+			
+l10postable:	dc.b $78,$c0	;Balloon
+			dc.b $94,$94	;Key
+			dc.b $1c,$d0	;lock
+			dc.b $98,$c8	;Door
+			dc.b $38,$b0	;Enemy1 y dir
+			dc.b $00,$00	;Enemy2 x dir
+			dc.b $50,$50	;Enemy3 y dir
+			dc.b $00,$00	;Enemy4 x dir
+l10coltable:	dc.b $0a,$07,$0f,$0a,$0e,$0a,$0d,$00
+
+drawlev11:		ldx #$0b
+			jsr $ce02
+			lda #$02
+			sta $d022
+			lda #$0a
+			sta $d023
+			lda #<l11postable
+			sta readleveltable+1
+			lda #>l11postable
+			sta readleveltable+2
+			lda #<l11coltable
+			sta readcolourtable+1
+			lda #>l11coltable
+			sta readcolourtable+2
+			jmp carryon
+			
+l11postable:	dc.b $60,$c0	;Balloon
+			dc.b $74,$54	;Key
+			dc.b $1c,$d0	;lock
+			dc.b $96,$50	;Door
+			dc.b $38,$b0	;Enemy1 y dir
+			dc.b $94,$60	;Enemy2 x dir
+			dc.b $70,$50	;Enemy3 y dir
+			dc.b $00,$00	;Enemy4 x dir
+l11coltable:	dc.b $0a,$07,$0f,$0a,$0a,$03,$07,$00
+
+
+			
+drawlev12:		ldx #$0c
+			jsr $ce02
+			lda #$04
+			sta $d022
+			lda #$0e
+			sta $d023
+			lda #<l12postable
+			sta readleveltable+1
+			lda #>l12postable
+			sta readleveltable+2
+			lda #<l12coltable
+			sta readcolourtable+1
+			lda #>l12coltable
+			sta readcolourtable+2
+			jmp carryon
+			
+l12postable:	dc.b $96,$c0	;Balloon
+			dc.b $1c,$d0	;Key
+			dc.b $64,$a4	;lock
+			dc.b $96,$50	;Door
+			dc.b $00,$00	;Enemy1 y dir
+			dc.b $94,$60	;Enemy2 x dir
+			dc.b $70,$50	;Enemy3 y dir
+			dc.b $00,$00	;Enemy4 x dir
+l12coltable:	dc.b $0a,$07,$0f,$0a,$0e,$0d,$0a,$00
+			jmp carryon
+drawlev13:		ldx #$0d
+			jsr $ce02
+			lda #$06
+			sta $d022
+			lda #$0e
+			sta $d023
+			lda #<l13postable
+			sta readleveltable+1
+			lda #>l13postable
+			sta readleveltable+2
+			lda #<l13coltable
+			sta readcolourtable+1
+			lda #>l13coltable
+			sta readcolourtable+2
+			jmp carryon
+			
+l13postable:	dc.b $16,$d0	;Balloon
+			dc.b $96,$80	;Key
+			dc.b $58,$d0	;lock
+			dc.b $58,$4c	;Door
+			dc.b $38,$80	;Enemy1 y dir
+			dc.b $00,$00	;Enemy2 x dir
+			dc.b $70,$50	;Enemy3 y dir
+			dc.b $00,$00	;Enemy4 x dir
+l13coltable:	dc.b $0a,$07,$0f,$0e,$0d,$07,$0a,$00
+
+			jmp carryon
+drawlev14:		ldx #$0e
+			jsr $ce02
+			lda #$0b
+			sta $d022
+			lda #$0c
+			sta $d023
+			lda #<l14postable
+			sta readleveltable+1
+			lda #>l14postable
+			sta readleveltable+2
+			lda #<l14coltable
+			sta readcolourtable+1
+			lda #>l14coltable
+			sta readcolourtable+2
+			jmp carryon
+			
+l14postable:	dc.b $16,$d0	;Balloon
+			dc.b $90,$c8	;Key
+			dc.b $4c,$9a	;lock
+			dc.b $16,$4c	;Door
+			dc.b $96,$c8	;Enemy1 y dir
+			dc.b $66,$88	;Enemy2 x dir
+			dc.b $20,$c8	;Enemy3 y dir
+			dc.b $00,$00	;Enemy4 x dir
+l14coltable:	dc.b $0a,$07,$0f,$0e,$03,$0a,$0e,$00
+
+			jmp carryon
+drawlev15:		ldx #$0f
+			jsr $ce02
+			lda #$02
+			sta $d022
+			lda #$0a
+			sta $d023
+			lda #<l15postable
+			sta readleveltable+1
+			lda #>l15postable
+			sta readleveltable+2
+			lda #<l15coltable
+			sta readcolourtable+1
+			lda #>l15coltable
+			sta readcolourtable+2
+			jmp carryon
+			
+l15postable:	dc.b $16,$d0	;Balloon
+			dc.b $90,$50	;Key
+			dc.b $54,$a0	;lock
+			dc.b $16,$4c	;Door
+			dc.b $96,$c8	;Enemy1 y dir
+			dc.b $00,$00	;Enemy2 x dir
+			dc.b $20,$c8	;Enemy3 y dir
+			dc.b $00,$00	;Enemy4 x dir
+l15coltable:	dc.b $0a,$07,$0f,$0a,$0e,$0d,$03,$00
+
+			jmp carryon
+drawlev16:		ldx #$10
+			jsr $ce02
+			lda #$04
+			sta $d022
+			lda #$0e
+			sta $d023
+			lda #<l16postable
+			sta readleveltable+1
+			lda #>l16postable
+			sta readleveltable+2
+			lda #<l16coltable
+			sta readcolourtable+1
+			lda #>l16coltable
+			sta readcolourtable+2
+			jmp carryon
+			
+l16postable:	dc.b $96,$d0	;Balloon
+			dc.b $16,$50	;Key
+			dc.b $96,$d0	;lock
+			dc.b $54,$4c	;Door
+			dc.b $96,$c8	;Enemy1 y dir
+			dc.b $00,$00	;Enemy2 x dir
+			dc.b $20,$c8	;Enemy3 y dir
+			dc.b $00,$00	;Enemy4 x dir
+l16coltable:	dc.b $0a,$07,$0f,$0a,$0d,$0d,$0a,$00
+			jmp carryon		
+						
+;Display the status objects
+
+carryon:		ldx #$00
+readleveltable:	lda l1postable,x
+			sta objpos+$00,x
+			inx
+			cpx #$10
+			bne readleveltable
+			ldx #$00
+readcolourtable:	lda l1coltable,x
+			sta $d027,x
+			inx
+			cpx #$08
+			bne readcolourtable
+					
+			ldx #$00
+showstatus:	lda statuscopy,x
+			sta $0400,x
+			lda #$01
+			sta $d800,x
+			inx
+			cpx #$28
+			bne showstatus
+			
+			lda objpos+$02
+			sta keydefaultx
+			lda objpos+$03
+			sta keydefaulty
+			
+			
+			lda #$00
+			sta enemydir1
+			sta enemydir2
+			sta enemydir3
+			sta enemydir4
+			sta halfspeed1
+			sta halfspeed2
+			sta animdelay3
+			sta animcounter3
+			
+			lda #$39
+			sta $0424
+			sta $0425
+			sta $0426
+			sta $0427
+			lda #$1b 
+			sta $d011
+			
+			
+;Now set up the sprites.
+
+			lda #$ff
+			sta $d015
+			sta $d01c
+			lda #$00
+			sta $d01b
+			lda #$0b
+			sta $d025
+			lda #$01
+			sta $d026
+			
+			
+			lda objpos+$01
+			sta defaultypos
+			lda objpos+$00
+			sta defaultxpos
+			
+			;lda #$16
+			;sta objpos+$00
+			;lda #$d0
+			;sta objpos+$01
+			;lda #$d0
+			;sta objpos+$03
+			;lda #$94
+			;sta objpos+$02
+			;lda #$58
+			;sta objpos+$04
+			;lda #$90
+			;sta objpos+$05
+			lda #$80
+			sta $07f8
+			lda #$89
+			sta $07f9
+			lda #$8a
+			sta $07fa
+			lda #$97
+			sta $07fb
+			lda #$0a
+			sta $d02a
+			lda #$09
+			sta lives
+						
+			lda #$00
+			sta charpointer			
+			sta delaypointer
+			sta animcounter1
+			sta animdelay1
+			sta p1dead
+			sta gotkey
+			sta dooropen
+			sta animcounter2
+			sta animdelay2
+			sta enemydir1
+			lda #$02
+			sta failsafe
+			sei			
+			cld
+			lda #<irq1
+			ldx #>irq1
+			ldy #$00
+			sta $0314
+			stx $0315
+			sty $d012
+			lda #$1b		
+			sta $d011
+			lda #$7f
+			sta $dc0d
+			lda #$01
+			sta $d01a
+			lda #$01
+			jsr initmusic
+					
+			cli
+gameloop:		;clear the screen memory at $c800
+
+			;jsr $c069
+			;jsr $c76b		
+
+main:		lda #$00
+			sta sync
+syncwait:		cmp sync
+			beq syncwait
+			jsr checkkeys
+			jsr animenemies
+			jsr moveenemy1
+			jsr movenemy2
+			jsr moveenemy3
+			jsr movenemy4
+			jsr dolazer
+			jsr expand
+			jsr moveballoon
+			jsr animate
+			jsr checkplayer
+			jsr checkdoor
+			jsr time
+			jmp main
+			
+;Check keys for pause mode
+checkkeys
+			lda $dc01
+			lsr
+			lsr
+			bcs other
+			jmp paused
+other     rts
+paused   lda $dc01
+			lsr
+			lsr
+			lsr
+			bcs morekey
+			jmp title
+morekey	lsr
+			lsr
+			bcs paused
+			rts
+			
+noquit	lda $dc00
+			lsr
+			lsr
+			lsr
+			lsr
+			lsr
+			bcs paused
+			rts
+			
+
+
+		
+;This is the part which checks for the player. To see whether
+;or not alive. If dead, ignore joystick and collisions. 
+;If alive then player can continue controlling the player
+			
+checkplayer:	lda p1dead
+			cmp #$01
+			beq playerisdead
+			
+			jsr readjoy		
+			jsr backgroundcol	
+			jsr readkeycollision
+			jsr checkkey
+			jsr readlockcollision
+			jsr readdoorcollision
+			jsr readbadcollision
+			
+			
+			lda p1aliveframe
+			sta $07f8 
+			rts
+playerisdead:	jsr burstballoon
+			rts
+			
+		
+;Our funny balloon bursting animation routine.
+			
+burstballoon	inc animdelay1
+			lda animdelay1
+			cmp #$0c
+			beq okdoit0
+			rts
+okdoit0:		lda #$00
+			sta animdelay1
+			ldx animcounter1
+			lda p1deadtable,x
+			sta $07f8
+			inx
+			cpx #5
+			beq resetframe0
+			inc animcounter1
+			rts
+resetframe0:	ldx #0
+			stx animcounter1
+livesleft:		dec $041e
+			lda $041e
+			
+			cmp #$30
+			beq gameover
+			
+			lda defaultypos
+			sta objpos+$01
+			lda defaultxpos
+			sta objpos+$00	
+			lda dooropen
+			cmp #$01
+			beq noneed
+			lda keydefaultx
+			sta objpos+$02
+			lda keydefaulty
+			sta objpos+$03
+			
+noneed	lda #$02
+			sta failsafe
+			lda #$00
+			sta gotkey
+			lda #$00
+			sta p1dead			
+			rts
+			
+gameover:		lda #$00
+			sta $d015
+			
+			lda #$03
+			jsr initmusic
+pressfire		ldx #$00
+showloser:		lda gameovermessage,x
+			sta $05ef,x
+			lda $d800
+			sta $d9ef,x
+			inx
+			cpx #$09
+			bne showloser
+			lda $dc00
+			lsr
+			lsr
+			lsr
+			lsr
+			lsr
+			bcs pressfire
+			jmp $3000
+holdhere:		jmp holdhere
+
+			
+irq1:		inc $d019
+			jsr colroll
+			lda #$1b
+			sta $d011
+			lda #$03
+			sta $dd00
+			lda #$01
+			sta sync
+			jsr playmusic		
+			jmp $ea31									
+
+;=================================================================
+;Animate the deadly background lazers, using charpointer
+
+dolazer:		inc charpointer
+			lda charpointer
+			cmp #$0e
+			bne endcharpointer
+			lda #$00
+			sta charpointer
+			jsr animatechar
+endcharpointer:	rts
+animatechar:	ldx #$00
+wrapchar:		lda $09f8,x
+			sta $09f8+$40,x
+			inx
+			cpx #$08
+			bne wrapchar
+			ldx #$00
+wrapchar2:		lda $09f8+8,x
+			sta $09f8,x
+			inx
+			cpx #$40
+			bne wrapchar2
+			rts
+			
+;Roll those colours across the score bar, just like the original Balloonacy did
+
+colroll:		lda statuscolors+$00
+			sta statuscolors+$28
+			ldx #$00
+wrapcolors:	lda statuscolors+$01,x
+			sta statuscolors+$00,x
+			lda statuscolors+$00,x
+			sta $d800,x
+			inx
+			cpx #$28
+			bne wrapcolors	
+			rts
+			
+;Expand the size of the sprite areas 
+
+expand:		ldx #$00
+expandloop:	lda objpos+$01,x
+			sta $d001,x
+			lda objpos+$00,x
+			asl 
+			ror $d010
+			sta $d000,x
+			inx
+			inx
+			cpx #$10
+			bne expandloop
+			rts
+			
+;Move the player ship, according to joystick direction
+
+readjoy:	      lda $dc00
+			lsr
+			bcs down
+			ldx objpos+$01
+			dex
+			dex
+			cpx #$48
+			bcs setup
+			ldx #$48
+setup:		stx objpos+$01
+down:		lsr
+			bcs left
+			ldx objpos+$01
+			inx
+			inx
+			cpx #$e8
+			bcc setdown
+			ldx #$e8
+setdown:		stx objpos+$01
+left:		lsr
+			bcs right
+			ldx objpos+$00
+			dex
+			cpx #$0c
+			bcs setleft
+			ldx #$0c
+setleft:		stx objpos+$00
+right:		lsr
+			bcs nojoy
+			ldx objpos+$00
+			inx
+			cpx #$a2
+			bcc setright
+			ldx #$a2
+setright:		stx objpos+$00
+nojoy:		rts
+			
+			
+			
+;Move the balloon up slowly
+
+moveballoon:	inc delaypointer
+			lda delaypointer
+			cmp #$08
+			beq resetdelay
+			rts
+resetdelay:	lda #$00
+			sta delaypointer
+			lda objpos+$01
+			sec
+			sbc #$01
+			sta objpos+$01
+			rts
+			
+;Out multipurpose animation thingy
+		
+animate:		jsr animplayeralive
+			rts
+			
+;Animation sequence for the player alive
+
+animplayeralive: inc animdelay1
+			lda animdelay1
+			cmp #$0c
+			beq okdoit1
+			rts
+okdoit1:		lda #$00
+			sta animdelay1
+			ldx animcounter1
+			lda p1alivetable,x
+			sta p1aliveframe
+			inx
+			cpx #4
+			beq resetframe1
+			inc animcounter1
+			rts
+resetframe1:	ldx #0
+			stx animcounter1
+			rts
+			
+;Player sprite to background collision.
+
+backgroundcol:	lda $d01f
+			lsr
+			bcc alive
+			lda #$00
+			sta animdelay1
+			sta animcounter1
+			dec failsafe
+			bne alive
+			ldx #$00
+			lda #$00
+			stx animcounter1
+			sta animdelay1
+			lda #$01
+			sta p1dead	
+			lda #$01
+			sta p1dead
+			rts
+alive:		rts	
+
+;Read routines for the player to key collision. 
+
+readkeycollision:
+			lda objpos+$00
+			sec
+			sbc #$06
+			sta keycollision+0
+			clc
+			adc #$0c
+			sta keycollision+1
+			lda objpos+$01
+			sec
+			sbc #$0c
+			sta keycollision+2
+			clc
+			adc #$18
+			sta keycollision+3
+			
+			lda objpos+$02
+			cmp keycollision+0
+			bcc nokeycol
+			cmp keycollision+1
+			bcs nokeycol
+			lda objpos+$03
+			cmp keycollision+2
+			bcc nokeycol
+			cmp keycollision+3
+			bcs nokeycol
+			lda #$01
+			sta gotkey
+nokeycol:		rts
+
+;Check whether or not the play has got the key if so, then tie the
+;key to the balloon
+
+checkkey:		lda gotkey
+			cmp #$01
+			beq ihavethekey
+			rts
+ihavethekey:	lda objpos+$00
+			sta objpos+$02
+			lda objpos+$01
+			clc 
+			adc #$08
+			sta objpos+$03			
+			rts
+			
+;Collision routine, where the key touches the lock.
+
+readlockcollision:
+			lda objpos+2
+			sec
+			sbc #$06
+			sta lockcollision+0
+			clc
+			adc #$0c
+			sta lockcollision+1
+			lda objpos+3
+			sec
+			sbc #$0c
+			sta lockcollision+2
+			clc
+			adc #$18
+			sta lockcollision+3
+			lda objpos+4
+			cmp lockcollision+0
+			bcc nolockcol
+			cmp lockcollision+1
+			bcs nolockcol
+			lda objpos+5
+			cmp lockcollision+2
+			bcc nolockcol
+			cmp lockcollision+3
+			bcs nolockcol
+			lda #$01
+			sta dooropen
+			lda #$00
+			sta objpos+2
+			sta objpos+3
+			sta gotkey
+nolockcol:		rts
+
+;Check the door. If the door has a lazer	switched on or
+;whether the lazer is turned off.
+
+checkdoor:		lda dooropen
+			cmp #$01
+			beq doorisopen
+			jsr animatelazerdoor
+			rts
+doorisopen:	jsr animateopendoor
+			rts
+			
+animatelazerdoor:
+			inc animdelay2
+			lda animdelay2
+			cmp #$05
+			beq activelazer
+			rts
+activelazer:	lda #$00
+			sta animdelay2
+			ldx animcounter2
+			lda lazerdoortable,x
+			sta $07fb
+			inx
+			cpx #$02
+			beq resetanimpointer2
+			inc animcounter2
+			rts
+resetanimpointer2:
+			ldx #$00
+			stx animcounter2
+			rts
+			
+;The door is open so, animate the opened door
+
+animateopendoor:
+			inc animdelay2
+			lda animdelay2
+			cmp #$05
+			beq activeexit
+			rts
+activeexit:	lda #$00
+			sta animdelay2
+			ldx animcounter2
+			lda doorexittable,x
+			sta $07fb
+			inx
+			cpx #$02
+			beq resetanimpointer2
+			inc animcounter2
+			rts
+			
+
+			
+time:		dec $0427
+			ldx #$03
+timeloop:		lda $0427-2,x
+			cmp #$2f
+			bne time1
+			lda #$39
+			sta $0427-2,x
+			dec $0427-3,x
+time1:		dex
+			cpx #$28
+			bne timeloop
+			lda $0424
+			cmp #$2f
+			beq outoftime
+			rts
+outoftime:		lda #$39
+			sta $0427
+			sta $0426
+			sta $0425
+			sta $0424
+			ldx #$00
+			lda #$00
+			stx animcounter1
+			sta animdelay1
+			lda #$01
+			sta p1dead	
+			rts
+			
+;The player colliding into the door. 
+
+readdoorcollision: lda p1dead
+			cmp #$01
+			beq ignore
+			lda objpos+$06
+			sec
+			sbc #$06
+			sta doorcollision+0
+			clc
+			adc #$0c
+			sta doorcollision+1
+			lda objpos+$07
+			sec
+			sbc #$0c
+			sta doorcollision+2
+			clc
+			adc #$18
+			sta doorcollision+3
+			lda objpos+$00
+			cmp doorcollision+0
+			bcc ignore
+			cmp doorcollision+1
+			bcs ignore
+			lda objpos+$01
+			cmp doorcollision+2
+			bcc ignore
+			cmp doorcollision+3
+			bcs ignore
+			lda dooropen
+			cmp #$01
+			beq exitlevel
+			ldx #$00
+			lda #$00
+			stx animcounter1
+			sta animdelay1
+			lda #$01
+			sta p1dead	
+			
+ignore:		rts
+exitlevel:		lda #$00
+			sta $d015
+			lda #$00
+			sta objpos+$01
+			sta objpos+$00
+			sta $d000
+			sta $d001
+;Because the level is complete. Award the player bonus points
+;according to the amount of time that remains
+
+loopbonus:		
+			dec $0427
+			
+			ldx #$03
+loopclock:		lda $0424,x
+			cmp #$2f
+			bne loopclock2
+			lda #$39
+			sta $0424,x
+			
+			dec $0423,x
+loopclock2:	dex
+			bne loopclock
+			jsr addtoscore
+			lda $0424
+			cmp #$2f
+			bne loopbonus
+			inc $0418
+			lda $0418
+			cmp #$3a
+			bne carryonnext
+			lda #$30
+			sta $0418
+			inc $0417
+carryonnext:	lda #$30
+			sta $0424
+			sta $0425
+			sta $0426
+			sta $0427	
+			ldx #$00
+copytocopy:	lda $0400,x
+			sta statuscopy,x
+			inx
+			cpx #$28
+			bne copytocopy
+			lda #$02
+			jsr initmusic
+waitfire:		ldx #$00
+loopflsh:		lda welldonemessage,x
+			sta $05ef,x
+			lda $d800
+			sta $d9ef,x
+			inx
+			cpx #$09
+			bne loopflsh
+			lda $d812
+			sta $d022
+			lda $d824
+			sta $d023
+			lda $dc00
+			lsr
+			lsr
+			lsr
+			lsr
+			lsr
+			bcs waitfire
+			inc level
+hold:		jmp maingameloop
+nodoorcol:		rts		
+
+addtoscore:	inc $040c
+			ldx #$05
+scloop:		lda $0407,x
+			cmp #$39
+			bne sc1
+			lda #$30
+			sta $0407,x
+			inc $0406,x
+sc1:			dex
+			bne scloop
+			rts
+			
+;Move the y-pos enemy
+
+moveenemy1:	lda enemydir1
+			cmp #$00
+			beq movedown1
+			cmp #$01
+			beq moveup1
+			rts
+				
+movedown1:		lda objpos+$09
+			clc
+			adc #$01
+			sta objpos+$09
+			lda objpos+$09
+			cmp #$d8
+			beq changedir1a
+			rts
+changedir1a:	lda #$01
+			sta enemydir1
+			rts
+			
+moveup1:		lda objpos+$09
+			sec
+			sbc #$01
+			sta objpos+$09
+			lda objpos+$09
+			cmp #$46
+			beq changepos1b
+			rts
+changepos1b:	lda #$00
+			sta enemydir1
+			rts
+		
+;Move the x-pos enemy
+	
+movenemy2:		inc halfspeed1
+			lda halfspeed1
+			cmp #$01
+			beq resetspeed1
+			rts
+resetspeed1:	lda #$00
+			sta halfspeed1
+			lda enemydir2
+			cmp #$00
+			beq moveleft1
+			cmp #$01
+			beq moveright1
+			rts
+moveleft1:		lda objpos+$0a
+			sec
+			sbc #$01
+			sta objpos+$0a
+			lda objpos+$0a
+			cmp #$12
+			beq changedir2a
+			rts
+changedir2a:	lda #$01
+			sta enemydir2
+			rts
+			
+moveright1:	lda objpos+$0a
+			clc
+			adc #$01
+			sta objpos+$0a
+			lda objpos+$0a
+			cmp #$9c
+			beq changedir2b
+			rts
+changedir2b:	lda #$00
+			sta enemydir2
+			rts
+			
+;Move second ypos enemy (this time reverse the direction)
+
+
+moveenemy3:	lda enemydir3
+			cmp #$00
+			beq moveup3
+			cmp #$01
+			beq movedown3
+			rts
+				
+movedown3:		lda objpos+$0d
+			clc
+			adc #$01
+			sta objpos+$0d
+			lda objpos+$0d
+			cmp #$d8
+			beq changedir3a
+			rts
+changedir3a:	lda #$00
+			sta enemydir3
+			rts
+			
+moveup3:		lda objpos+$0d
+			sec
+			sbc #$01
+			sta objpos+$0d
+			lda objpos+$0d
+			cmp #$46
+			beq changepos3b
+			rts
+changepos3b:	lda #$01
+			sta enemydir3
+			rts
+
+;Move second xpos enemy (reverse direction)
+
+		
+;Move the x-pos enemy
+	
+movenemy4:		inc halfspeed2
+			lda halfspeed2
+			cmp #$01
+			beq resetspeed2
+			rts
+resetspeed2:	lda #$00
+			sta halfspeed2
+			lda enemydir2
+			cmp #$01
+			beq moveleft2
+			cmp #$00
+			beq moveright2
+			rts
+moveleft2:		lda objpos+$0e
+			sec
+			sbc #$01
+			sta objpos+$0e
+			lda objpos+$0e
+			cmp #$12
+			beq changedir4a
+			rts
+changedir4a:	lda #$00
+			sta enemydir4
+			rts
+			
+moveright2:	lda objpos+$0e
+			clc
+			adc #$01
+			sta objpos+$0e
+			lda objpos+$0e
+			cmp #$a8
+			beq changedir2b
+			rts
+changedir4b:	lda #$01
+			sta enemydir4
+			rts
+			
+;Animate those enemies
+
+animenemies:	inc animdelay3
+			lda animdelay3
+			cmp #$08
+			beq resetan3
+			rts
+resetan3:		lda #$00
+			sta animdelay3
+			ldx animcounter3
+			lda enemy1frame,x
+			sta $07fc
+			sta $07fe
+			lda enemy2frame,x
+			sta $07fd
+			inx
+			cpx #$04
+			beq resetct3
+			inc animcounter3
+			rts
+resetct3:		lda #$00
+			sta animcounter3
+			rts
+			
+;Read the player to enemy sprite/sprite collision
+
+readbadcollision:	lda p1dead
+				cmp #$01
+				beq ignoredeath
+			lda objpos+$00
+			sec
+			sbc #$06
+			sta badcollision+0
+			clc
+			adc #$0c
+			sta badcollision+1
+			lda objpos+$01
+			sec
+			sbc #$0c
+			sta badcollision+2
+			clc
+			adc #$18
+			sta badcollision+3
+			ldx #$00
+dobadcolloop:	lda objpos+$08,x
+			cmp badcollision+0
+			bcc nobadcol
+			cmp badcollision+1
+			bcs nobadcol
+			lda objpos+$09,x
+			cmp badcollision+2
+			bcc nobadcol
+			cmp badcollision+3
+			bcs nobadcol
+			lda #$00
+			sta animcounter1
+			sta animdelay1
+			lda #$01
+			sta p1dead
+			rts
+nobadcol:		inx
+			inx
+			cpx #$08
+			bne dobadcolloop
+ignoredeath:	rts
+			 
+			
+			
+			
+
+	
+			
+			
+
+;Sprite animation frames
+
+p1aliveframe:		dc.b $80
+
+p1alivetable:		dc.b $80,$81,$82,$83
+p1deadtable:		dc.b $84,$85,$86,$87,$88
+lazerdoortable:		dc.b $97,$98
+doorexittable:			dc.b $99,$9a
+enemy1frame:		dc.b $8b,$8c,$8d,$8e
+enemy2frame:		dc.b $93,$94,$95,$96
+;The Status bar:
+
+
+
+status:		DC.B $13,$03,$0f,$12,$05,$3a,$20,$30,$30,$30,$30,$30,$30
+			DC.B $30,$20,$20,$0c,$05,$16,$05,$0c,$3a,$20,$30,$31,$20
+			DC.B $20,$1e,$3a,$20,$39,$20,$20,$2a,$3a,$20,$39,$39,$39
+			dc.b $39,$20,$20,$20,$20,$20,$20
+;============================================================================			
+statuscopy:	DC.B $13,$03,$0f,$12,$05,$3a,$20,$30,$30,$30,$30,$30,$30
+			DC.B $20,$20,$20,$0c,$05,$16,$05,$0c,$3a,$20,$30,$31,$20
+			DC.B $20,$1e,$3a,$20,$39,$20,$20,$2a,$3a,$20,$39,$39,$39
+			dc.b $39,$20,$20,$20,$20,$20,$20
+			
+;The colour-cycling for the status bar
+
+statuscolors:	dc.b $06,$06,$02,$02,$04,$04,$05,$05,$07,$07
+			dc.b $01,$01,$01,$01,$01,$01,$01,$01,$01,$01
+			dc.b $01,$01,$01,$01,$01,$01,$01,$01,$01,$01
+			dc.b $01,$01,$07,$07,$05,$05,$04,$04,$02,$02
+			dc.b $00,$00,$00,$00
+gameovermessage:	dc.b $07,$01,$0d,$05,$20,$0f,$16,$05,$12,$20
+welldonemessage:	dc.v $17,$05,$0c,$0c,$20,$04,$0f,$0e,$05,$20
+			
+;==================================================================
+cheatmessage:	dc.b "        CHEAT MODE ACTIVATED                   "
+
+			
+                                   
+</code>

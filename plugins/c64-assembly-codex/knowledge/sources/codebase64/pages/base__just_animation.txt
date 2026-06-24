@@ -1,0 +1,108 @@
+# PAGE: base:just_animation
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:just_animation
+
+==== 'just' animation (w) by groepaz/hitmen ====
+
+yo dear scener.... coolhand keeps on begging, i couldn't resist ;) 
+
+So here it is... All the facts about the 'reanim8ed' demo, what was the idea and what hard work had to be done to make it possible, even if it was 'just animation' ...
+
+=== how it all begun ===
+
+Well, the initial idea to code a frame packer was born when i made a little mandelbrot routine in that 4x4 textmode (using a charset to get 4x4 resolution in 4 colors) just for fun. As you may know i am not really good at making fast math routines, so that one was really dog-slow (i was using kernal floating point shit at this time-go figure ;=) I thought it would be nice to calculate a zoom overnight with that and play it back from memory later on. And because in a fractal zoom generally large areas do not change compared to the previous frame, i though a packer that skips these unchanged bytes would perform well on it, so i sat down and made some 'brainstorming' on paper...
+
+=== the DEpacker ===
+
+This was the first i thought about... to work well for my purposes, the depacking routine had to
+
+  * be able to depack about 1kb per frame, so one could get a decent update speed
+  * get the packed data off a sequential stream of data (i indeed thought of a playing back from a file on disc at this time)
+
+Well, in order to make it FAST, i choosed a byte-based algorithm rather than a bit based (which would perform better in compression result, but would take much more time for decrunching).
+
+So, the rest of the depacker is rather simple, there are two control bytes, one used for packing equal bytes, the other to skip the bytes which were the same on the previous screen. (this way we will get a
+pretty good compression w/o the need of *slow* sequence based routines).
+
+note: actually my final implementation just used one control byte and has some other minor optimisations, but this way its easier to understand i guess ;)
+
+=== the Packer ===
+
+Ok, second thing to do was the packer which basically worx like this pseudo-code:
+
+<code>
+begin 
+
+	scan_all_frames (get 2 least used bytes to use them as control bytes)
+
+	load_frame1_to_buffer1
+
+	for_all_following_frames_do {
+
+		load_next_frame_to_buffer2
+
+		pack_frame (scan for equal chars in buffer2, and compare buffer2 to buffer1, store
+ 			    the result in the output file, using the 2 control bytes calculated
+			    before)
+
+		store_frame-end_mark_to_outputfile
+
+		move_buffer2_to_buffer1
+	
+	}
+
+	store_EOF_to_outputfile
+
+end.
+</code>
+
+note: this packing-scheme basically worx for any kind of data (not only pictures, but a set of vector-koordinates for example would do fine as well)
+
+I wrote a first more or less working version of this on the c64 for testing purposes, before it was later re-done on the pc.
+
+=== a first test ===
+
+A first little test of this can be seen in our X97-demo 'Eierfeile'... (The running man there actually was made based on the impossible-mission sprites 8). It is played with a quad-speed tune running and still worx one-framed... enough of a reason for me to go on working on this.... 
+
+=== the demo project ===
+
+seeing more and more of these really slow and after all not to original 4x4 based effects we thought it is about time to make something 'bigger' with this packer, to show what's actually possible with animation as well as to nag those a bit who try to fool their audience with simelar stuff.
+
+=== converting the animations ===
+
+After doing some tests with a pre-calculated mandelbrot zoom that was generated with the routine mentioned before i realized, that there was no reason why i shouldnt try to convert the one or other .gif or .avi animation from the pc. 
+
+First thing was to get a program to split these animations into single frames, what we found was 'display.exe' which is a rather old DOS tool that allows that, besides a lot of nice options for pre-processing. (like reducing to a reasonable greyscale, scaling the images down to 80x50 etc.) Animations which didnt work well with display's dithering were rescaled using 'pv.exe' which is a real old picture viewer. (at this point, 'image alchemy' SUX, its dithering and especially the rescaling algorithm pretty much fucked up everything...).
+
+note: the programs mentioned before prolly do a good job with preparing pictures for convertion to other gfx-modes as well... that is, if you really think you have to convert some shit to ifli or sth, PLEASE do me a favour and use decent pre-processing so the outcome looks nice at the end at least 8)
+
+So, now i had a series of frames as 80x50, 256 cols (greyscale) .raw image files which had to be converted into suitable c64 data. For this i made a convertor on the PC which allows to preview the animation with the 4-color palette used for the c64 data. At this place no more dithering was done, so converting was rather simple. (HELL, i coded LOGO>FutureComposer converter long ago, so virtually everything is possible ;=) hehehehe 8)
+
+Now i had a series of c64 files containing the frames, last thing to do was...
+
+=== porting the packer ===
+
+Due to the fact my packer worked kinda slow on the c64 and contained some bugs as well, i decided not to continue that one, but rather recode it from scratch on the PC. The outcome is naturally pretty fast and contains some optimisations as well. (Automatically scans for best control-bytes, decides if its better to either pack skip- or repeated bytes were both is possible in certain situations)
+
+=== reanim8ed ===
+
+Well, the rest was a matter of linking, packing and some additional code, music and gfx ofcoz... i should also mention that some of the animations were entirely created by either me or peacemaker using Maxon-Cinema4d-XL on the PC, the rest were taken from the internet (for eg, go to the INC pages, guess what looks familiar there? :).... 
+
+At this point i would like to thank Syndrom and Zyron again for their excellent work with the soundtrack, you made a great job really!
+
+=== wild ideas ===
+
+So far so good... although i think my system turned out pretty nice that doesnt mean one could not think about improvements, like
+
+  * make a charset-builder to calculate a custom char for each animation rather than using the 4x4 one like i did. This way it should be possible to generate short animations which look very simelar to .mpeg coded movies-and they would still play back real fast!
+  * streaming the movie from a file using a real fast loader. It should be possible to get a decent (fast and continous) screen update even this way. (Not to mention CMD-devices which would make it
+possible to store HUGE movies as well), SCPU optimisation should make it possible to pull 20kb/frame from an hd, so hires-playback could be done as well....
+  * include some type of timecode inside the frame data, so one could sync it to music (or other shit ofcoz)
+  * maybe include audio-streaming as well
+
+=== last but not least ===
+
+so well... last thing to be said is that i, although i prefer 'real, oldschool' code as well, still think it is the OUTCOME what counts! read: "Keep away these SLOW updating shit from me, no matter its realtime or not-who carez anyway if it looks ugly?"
+
+groepaz/hitmen	28.05.98	
+
+ps: if you haven't seen 'reanim8ed' yet because you have a NTSC setup only, or it didnt work for you for whatever reason, watchout for the file 'spideranim_hit.prg' which is one of these animations packed into a standalone executeable file that worx fine on ntsc as well. (To be found on the Driven homepage for eg).

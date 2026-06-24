@@ -1,0 +1,101 @@
+# PAGE: base:supercpu_sta
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:supercpu_sta
+
+====== STA ======
+
+<code>
+    /*-------------------------------------------------------------------------
+    OP CODE: STA (STore Accumulator to memory)
+    ==========================================
+    
+    Addressing Modes:
+        Absolute                         ($8d - 3 bytes, 4 cycles¹)
+        Absolute Long                    ($8f - 4 bytes, 5 cycles¹)
+        Direct Page (also DP)            ($85 - 2 bytes, 3 cycles¹²)
+        DP Indirect                      ($92 - 2 bytes, 5 cycles¹²)
+        DP Indirect Long                 ($87 - 2 bytes, 6 cycles¹²) Uses sta_l
+        Absolute Indexed, X              ($9d - 3 bytes, 5 cycles¹)
+        Absolute Long Indexed, X         ($9f - 4 bytes, 5 cycles¹)
+        Absolute Indexed, Y              ($99 - 3 bytes, 5 cycles¹)
+        DP Indexed, X                    ($95 - 2 bytes, 4 cycles¹²)
+        DP Indexed Indirect, X           ($81 - 2 bytes, 6 cycles¹²)
+        DP Indirect Indexed, Y           ($91 - 2 bytes, 6 cycles¹²)
+        DP Indirect Long Indexed, Y      ($97 - 2 bytes, 6 cycles¹²) Uses sta_l
+        Stack Relative (also SR)         ($83 - 2 bytes, 4 cycles¹)  Uses sta_s
+        SR Indirect Indexed, Y           ($93 - 2 bytes, 7 cycles¹)  Uses sta_s
+        ¹ - Add 1 cycle if m=0 (16-bit memory/accumulator)
+        ² - Add 1 cycle if low byte of Direct Page register is other than zero
+            (DL< >0)
+
+    Flags Affected:
+        N/A
+
+    Description:
+        Store the value in the accumulator to the effective address specified
+        by the operand.
+        8-bit accumulator (all processors): Value is eight-bit.
+        16-bit accumulator (65802/65816 only, m=0): Value is sixteen-bit:
+        the low-order eight bits are stored to the effective address;
+        the high-order eight bits are stored to the effective address plus one.
+        The 65x flags are unaffected by store instructions.
+    Notes:
+    -------------------------------------------------------------------------*/
+
+    .pseudocommand sta val {
+        .if (val.getType()==AT_ABSOLUTE) {
+            .if (val.getValue()<256) {
+                .byte $85, <val.getValue()  // Direct Page
+            } else {
+                .if (val.getValue()<65536) {
+                    .byte $8d, <val.getValue(), >val.getValue()
+                } else {
+                    .byte $8f, <val.getValue(), >val.getValue(), val.getValue() >> 16
+                }
+            }
+        }
+        .if (val.getType()==AT_ABSOLUTEX) {
+            .if (val.getValue()<256) {
+                .byte $95, <val.getValue()  // Direct Page
+            } else {
+                .if (val.getValue()<65536) {
+                    .byte $9d, <val.getValue(), >val.getValue()
+                } else {
+                    .byte $9f, <val.getValue(), >val.getValue(), val.getValue() >> 16
+                }
+            }
+        }
+        .if (val.getType()==AT_ABSOLUTEY) {
+            .byte $99, <val.getValue(), >val.getValue()
+        }
+        .if (val.getType()==AT_IZEROPAGEX) {
+            sta (val.getValue(),x)
+        }
+        .if (val.getType()==AT_IZEROPAGEY) {
+            sta (val.getValue()),y
+        }
+        .if (val.getType()==AT_INDIRECT) {
+            .byte $92, val.getValue()
+        }
+    }
+    // Handle long addressing modes for Indirect and Indirect,y:
+    .pseudocommand sta_l val {
+        .if (val.getType()==AT_INDIRECT) {
+            .byte $87, val.getValue()
+        }
+        .if (val.getType()==AT_IZEROPAGEY) {
+            .byte $97, val.getValue()
+        }
+    }
+
+    // Handle stack addressing modes for Stack Relative and Stack Indirect Indexed,y:
+    .pseudocommand sta_s val {
+        .if (val.getType()==AT_INDIRECT) {
+            .byte $83, val.getValue()
+        }
+        .if (val.getType()==AT_IZEROPAGEY) {
+            .byte $93, val.getValue()
+        }
+    }
+
+
+</code>

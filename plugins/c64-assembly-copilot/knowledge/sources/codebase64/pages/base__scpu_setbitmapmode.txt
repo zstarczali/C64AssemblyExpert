@@ -1,0 +1,17 @@
+# PAGE: base:scpu_setbitmapmode
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:scpu_setbitmapmode
+
+====== SetBitmapMode ======
+
+Set Bitmap Mode (set bit #5 of $d011).
+
+| SYNTAX:     | :SetBitmapMode |
+| EXAMPLE:    | :SetBitmapMode |
+| PARAMETERS: |  N/A           |
+
+<code>
+    .pseudocommand SetBitmapMode {
+        lda #%0010000000000000
+        tsb $d010
+    }
+</code>

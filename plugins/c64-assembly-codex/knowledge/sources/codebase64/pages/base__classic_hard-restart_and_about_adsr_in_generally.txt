@@ -1,0 +1,51 @@
+# PAGE: base:classic_hard-restart_and_about_adsr_in_generally
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:classic_hard-restart_and_about_adsr_in_generally
+
+====== ADSR Discussion Notes======
+
+By mixer with contributions from many.
+
+Few notes about what has been discussed about SID envelopes lately at CSDB and at IRC. Errors are all mine, and this being a Wiki, you can fix them. :) This text could use some generic bits about ADSR and code-examples.
+
+====== What is ADSR-Bug? ======
+SID volume-envelope aka. ADSR has a 15-bit LFSR that acts as a prescaler to ENV counter. This LFSR determines the rate at which ENV counter is advanced. The register value of A,D or R corresponds to a number in a hardcoded table within SID chip. Number in the table is the LFSR comparison value to which LFSR state is compared. LFSR advances every clock cycle. When LFSR state equals to the comparison value, LFSR is set to its start value and ENV counter is advanced. ADSR bug occurs, when A,D or R values are changed when the LFSR has already passed the corresponding new comparison value. The LFSR must then run a full cycle before the new comparison value can be reached. Full cycle takes 32768 cycles. That is 1.7 frames in terms of 1/50 fps frames 
+
+Another way to think of the LFSR is that it is the inner loop within another loop and the problem is that inner loop comparison value can be changed at any moment. If the inner loop comparison value is 60 and loop has already done 50 repeats and someone sets new comparison value to 30, the inner loop will run through its repeat counter until it restarts. EDITED: it was pointed out to me that the analogue of inner loop is wrong. However, the analogue of a loop comparison value being changed, so that the comparison value is not met, is still apt.
+
+All cases where one puts lower than previous value to A,D or R registers can cause the bug conditon. Also gate on/gate off can switch between ADSR states A,DS->R or R->A so that the change takes place from larger value to smaller value. Equal or larger values for A,D or R are safe.
+
+====== Classical Hard-Restart ======
+Classical approach to deal with the bug is to make sure that it does not occur in the beginning of the sound. Sound-routines are often called once per frame. One frame is is 1/50 second interval. The HR is started 2 full frames before next note to make sure that the 1.7 frames long bug-condition takes place before the next note and to make sure that the bug has been passed before next note starts. 
+
+The classical hard-restart stops the oscillator so that no sound is heard, then sets ADSR to some value and gate off in preparation to next note. This is a bit vague, but without hard knowledge this is the level at which hard restart has been previously described.
+
+The ADSR value for the 2 frame period is important based on what we now know about the LFSR and the bug-condition. The A,D,R values determine what the LFSR comparison value is when the next note is started. 
+
+Example 1: HR ADSR value 00 00 has high chance of triggering the bug, but afterwards one can write any value safely in the beginning of the next note without causing bug.
+^fr ^ad ^sr ^gate ^state
+|-2|00|00|gate off| likely bug condition|
+|-1|--|--|--|--|
+|0|77|c7|gate on| safe start|
+
+Example 2: HR ADSR values where A,D,R have equal or smaller value than the next note Attack value may trigger the bug, but after the bug the LFSR should be in safe period for the next Attack.
+
+^fr ^ad ^sr ^gate ^state
+|-2|77|07|gate off| likely bug condition|
+|-1|--|--|--|--|
+|0|77|c7|gate on| safe start |
+
+Example 3: HR ADSR values where A,D,R have larger value than the next note Attack value have chance of triggering the bug again at next note start.
+
+^fr ^ad ^sr ^gate ^state
+|-2|ff|0f|gate off| no bug|
+|-1|--|--|--|--|
+|0|00|f7|gate on| likely bug |
+
+It is composers choice what to do with the waveforms and oscillator, whether to hide the HR artefacts or not. Note that the oscillator can be silenced with waveform 0 or with a silent combiwaveform. This may be desired so that oscillator can run freely and sync and ring still work for other channels.
+
+====== Register Write Order ======
+Each Envelope register write and gate-bit change can trigger the bug depending on what the previous A,D,R value was and new values are or what kind of state-change is.
+
+Often registers are written in the order: AD, SR, Control register. Each of the writes can trigger the bug, there is no way around it, but, now we know which ADSR writes or state changes have chance of causing the bug.
+
+

@@ -1,0 +1,210 @@
+# PAGE: base:more_hexadecimal_to_decimal_conversion
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:more_hexadecimal_to_decimal_conversion
+
+====== More Hexadecimal to Decimal Conversion ======
+These are equivalent routines to Garth Wilson's [[Hexadecimal to Decimal Conversion|Hexadecimal to Decimal routines]], eliminating the lookup tables in exchange for a little slower execution speed. A discussion of hexadecimal-to-decimal routines can be found in [[http://forum.6502.org/viewtopic.php?t=205|this thread]] on the [[http://forum.6502.org/|6502.org Forum]].
+
+First is the 8-bit version. Start with the input number in accumulator:
+<code>
+; Convert an 8 bit binary value to BCD
+;
+; This function converts an 8 bit binary value into a 16 bit BCD. It
+; works by transferring one bit a time from the source and adding it
+; into a BCD value that is being doubled on each iteration. As all the
+; arithmetic is being done in BCD the result is a binary to decimal
+; conversion.  All conversions take 311 clock cycles.
+;
+; For example the conversion of a $96 would look like this:
+;
+; BIN = $96 -> BIN' = $2C C = 1 | BCD $0000 x2 + C -> BCD' $0001
+; BIN = $2C -> BIN' = $58 C = 0 | BCD $0001 x2 + C -> BCD' $0002
+; BIN = $58 -> BIN' = $B0 C = 0 | BCD $0002 x2 + C -> BCD' $0004
+; BIN = $B0 -> BIN' = $60 C = 1 | BCD $0004 x2 + C -> BCD' $0009
+; BIN = $60 -> BIN' = $C0 C = 0 | BCD $0009 x2 + C -> BCD' $0018
+; BIN = $C0 -> BIN' = $80 C = 1 | BCD $0018 x2 + C -> BCD' $0037
+; BIN = $80 -> BIN' = $00 C = 1 | BCD $0037 x2 + C -> BCD' $0075
+; BIN = $00 -> BIN' = $00 C = 0 | BCD $0075 x2 + C -> BCD' $0150
+;
+; This technique is very similar to Garth Wilsons, but does away with
+; the look up table for powers of two and much simpler than the approach
+; used by Lance Leventhal in his books (e.g. subtracting out 1000s, 100s,
+; 10s and 1s).
+;
+; Andrew Jacobs, 28-Feb-2004
+
+		.ORG $0200
+
+BINBCD8:	SED		; Switch to decimal mode
+		LDA #0		; Ensure the result is clear
+		STA BCD+0
+		STA BCD+1
+		LDX #8		; The number of source bits
+		
+CNVBIT:		ASL BIN		; Shift out one bit
+		LDA BCD+0	; And add into result
+		ADC BCD+0
+		STA BCD+0
+		LDA BCD+1	; propagating any carry
+		ADC BCD+1
+		STA BCD+1
+		DEX		; And repeat for next bit
+		BNE CNVBIT
+		CLD		; Back to binary
+		
+		BRK		; All Done.
+		
+; A test value to be converted
+
+		.ORG $0300
+		
+BIN		.DB  234
+BCD		.DS  2
+</code>
+
+Here a stripped down version to compute a BCD number not larger than 99 (single byte). You send and receive the value in A. The intermediate variables are in page zero.
+<code>
+; Convert a 7 bit binary value to BCD
+;
+; This routine converts a binary value to BCD; the value cannot be larger than 99.
+; Same working principle of the other routines.
+; The value to convert is sent in A, and the result will be in A. X value is destroyed.
+; The routine executes in 124 cycles (+rts). 
+;
+; Verz!!! 18-Mar-2017
+
+BinBcd_sb	ldx #$7		; The number of source bits     2c
+		asl 		;				2c
+;		ldx #$6	; you can replace the  LDX#$7/ASL with LDX#$6/ASL/ASL
+;		asl	; to compute values up to 63 (as for a clock)
+;		asl
+		sta <bin	;				3c
+		lda #$0		; Ensure the result is clear    2c
+		sed		; Switch to decimal mode	2c
+CnvBit_sb	asl <BIN	; Shift out one bit		5c |
+		sta <BCD0	;				3c |
+		adc <BCD0	;				3c | 16c
+		dex		; And repeat for next bit	2c |
+		bne CnvBit_sb	;				3c |
+		cld		; Back to binary		2c
+		rts  		; All Done.
+
+BIN	.equ  $fc
+BCD0	.equ  $fb
+</code>
+
+Here is an equivalent routine for converting 16-bit numbers:
+<code>
+; Convert an 16 bit binary value to BCD
+;
+; This function converts a 16 bit binary value into a 24 bit BCD. It
+; works by transferring one bit a time from the source and adding it
+; into a BCD value that is being doubled on each iteration. As all the
+; arithmetic is being done in BCD the result is a binary to decimal
+; conversion. All conversions take 915 clock cycles.
+;
+; See BINBCD8 for more details of its operation.
+;
+; Andrew Jacobs, 28-Feb-2004
+
+		.ORG $0200
+
+BINBCD16:	SED		; Switch to decimal mode
+		LDA #0		; Ensure the result is clear
+		STA BCD+0
+		STA BCD+1
+		STA BCD+2
+		LDX #16		; The number of source bits
+		
+CNVBIT:		ASL BIN+0	; Shift out one bit
+		ROL BIN+1
+		LDA BCD+0	; And add into result
+		ADC BCD+0
+		STA BCD+0
+		LDA BCD+1	; propagating any carry
+		ADC BCD+1
+		STA BCD+1
+		LDA BCD+2	; ... thru whole result
+		ADC BCD+2
+		STA BCD+2
+		DEX		; And repeat for next bit
+		BNE CNVBIT
+		CLD		; Back to binary
+		
+		BRK		; All Done.
+		
+; A test value to be converted
+
+		.ORG $0300
+		
+BIN		.DW  12345
+BCD		.DS  3
+</code>
+
+This is the same routine, just unrolled. It gains 250 cycles for that (30%).
+Using zero page variables the gain is of 116 cycles more.
+<code>
+;-------------------------------
+; Converts a 16bit number in BCD
+;-------------------------------
+;
+;  call it with the value in bin
+;-------------------------------
+BINBCD16
+        SED             ; Switch to decimal mode        2
+        LDA #0          ; Ensure the result is clear    2
+        STA bcd+0;                                      4
+        STA bcd+1;                                      4
+        STA bcd+2;                                      4       16
+ 
+        LDX #6;                                         2       2
+CNVBIT1          
+        ASL bin+0       ; Shift out one bit             6
+        ROL bin+1       ;                               6
+;        LDA bcd+0      ; And add into result          
+        ADC bcd+0       ;                               4
+        STA bcd+0       ;                               4
+;        LDA bcd+1      ; propagating any carry
+;        ADC bcd+1
+;        STA bcd+1
+;        LDA bcd+2      ; ... thru whole result
+;        ADC bcd+2
+;        STA bcd+2
+        DEX             ; And repeat for next bit       2
+        BNE CNVBIT1     ;                               3       25*6-1=149
+ 
+        LDX #7;                                         2       2
+CNVBIT2
+        ASL bin+0      ; Shift out one bit              6
+        ROL bin+1       ;                               6
+        LDA bcd+0      ; And add into result            4
+        ADC bcd+0       ;                               4
+        STA bcd+0       ;                               4
+        LDA bcd+1      ; propagating any carry          4
+        ADC bcd+1       ;                               4
+        STA bcd+1       ;                               4
+;        LDA bcd+2      ; ... thru whole result
+;        ADC bcd+2
+;        STA bcd+2
+        DEX             ; And repeat for next bit       2
+        BNE CNVBIT2     ;                               3       41*7-1=286
+ 
+        LDX #3;                                         2       2
+CNVBIT3
+        ASL bin+0       ; Shift out one bit             6
+        ROL bin+1       ;                               6
+        LDA bcd+0      ; And add into result            4
+        ADC bcd+0       ;                               4
+        STA bcd+0       ;                               4
+        LDA bcd+1      ; propagating any carry          4
+        ADC bcd+1       ;                               4
+        STA bcd+1       ;                               4
+        LDA bcd+2      ; ... thru whole result          4
+        ADC bcd+2       ;                               4
+        STA bcd+2       ;                               4
+        DEX             ; And repeat for next bit       2
+        BNE CNVBIT3     ;                               3       53*3-1=158
+ 
+        CLD             ; Back to binary                2       2; tot 615
+       
+        rts             ; All Done.                            
+</code>

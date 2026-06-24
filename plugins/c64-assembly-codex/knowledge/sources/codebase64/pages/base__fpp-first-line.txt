@@ -1,0 +1,175 @@
+# PAGE: base:fpp-first-line
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:fpp-first-line
+
+====== FPP - by repeating the first line ======
+
+Here follows a code example of FPP by repeating the first line of a char. The advantage of this FPP is bigger amount of graphic lines, up to 128 lines per video-bank. The drawback is a rather short timing loop with no possibilities to open the sideborders or hardly even have sprites over it.
+
+<code>
+        ; Constants
+ySize   = 150
+        ; Variables
+zEnd    = $04
+YPos    = $05
+AddVal  = $06
+
+        *= $0900
+        sei
+
+        ldx #0 ; Put some crap data to make empty graphic banks visible
+b_1
+        lda #$f3
+        sta $2000,x
+        lda #$28
+        sta $2100,x
+        lda #$ad
+        sta $2800,x
+        lda #$99
+        sta $2900,x
+        lda #$71
+        sta $3000,x
+        lda #$ed
+        sta $3100,x
+        lda #$3b
+        sta $3800,x
+        lda #$cc
+        sta $3900,x
+        inx
+        bne b_1
+
+        lda #ySize ; Set size to zero-page variable
+        sta zEnd
+
+loop1
+        bit $d011 ; Wait for new frame
+        bpl *-3
+        bit $d011
+        bmi *-3
+
+        lda #$1b ; Set y-scroll to normal position
+        sta $d011
+        lda #$17 ; Set normal d018
+        sta $d018
+
+        lda #$3f ; Wait for position high up on the screen
+        cmp $d012
+        bne *-3
+
+        and #7 ; Uggly way to get stable raster
+        ora #$18
+        sta $d011
+
+        ldx #0
+loop2
+        lda d018Tab,x ; Fetch d018-values from table
+        sta $d018
+        lda #$18
+        sta $d011  ; trigger badline..
+        nop        ; 20-cycle timing loop. There should be 20 cycles between each 'sta $d011'
+        nop
+        inx
+        lda d018Tab,x
+        sta $d018
+        lda #$19
+        sta $d011
+        nop
+        nop
+        inx
+        lda d018Tab,x
+        sta $d018
+        lda #$1a
+        sta $d011
+        nop
+        nop
+        inx
+        lda d018Tab,x
+        sta $d018
+        lda #$1b
+        sta $d011
+        nop
+        nop
+        inx
+        lda d018Tab,x
+        sta $d018
+        lda #$1c
+        sta $d011
+        nop
+        nop
+        inx
+        lda d018Tab,x
+        sta $d018
+        lda #$1d
+        sta $d011
+        nop
+        nop
+        inx
+        lda d018Tab,x
+        sta $d018
+        lda #$1e
+        sta $d011
+        nop
+        inx
+        lda d018Tab,x
+        inx             ; Put inx here already to be able to keep 20 cycles to the next d011..
+        sta $d018
+        lda #$1f
+        sta $d011
+        cpx zEnd
+        bcc loop2 ; Loop if not end
+
+        lda #$1b
+        sta $d011
+        lda #$17 ; Set normal d018 again
+        sta $d018
+
+        jsr SetupD018Table ; Nice FPD effect.. Yes we has FPP, but the effect would be possible with FPD also.
+
+        jmp loop1 ; Next frame
+
+
+SetupD018Table
+        ldy #0 ; First clear the table
+        sty YPos
+        lda #0
+        sta d018Tab,y
+        iny
+        cpy #ySize
+        bcc *-6
+
+        lda #0 ; Increase the starting value
+        inc *-1
+        asl
+        sta AddVal
+
+        ldy #0 ; This loop will insert different d018-values into the table..
+               ; Exit loop when we reach y-size
+SDT_1
+        lda AddVal
+        clc
+        adc #4
+        sta AddVal
+        bpl *+4
+        eor #$ff
+        lsr
+        lsr
+        lsr
+        lsr
+        lsr
+        sec
+        adc YPos
+        sta YPos
+        cmp #ySize
+        bcs SDT_end
+        tax
+        tya
+        sta d018Tab,x
+        iny
+        iny
+        jmp SDT_1
+SDT_end
+        rts
+
+        .align $100 ; Align the table to a new page, this way lda FPDTable,x always takes 4 cycles.
+d018Tab
+        .dsb ySize,0 ; Reserve bytes for the table
+</code>

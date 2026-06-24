@@ -1,0 +1,123 @@
+# PAGE: base:logo_swing
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:logo_swing
+
+=== Logo Swing ===
+
+Many classic C64 intros or demos in the demo scene in the 1980's and early 1990's, onwards used to use an effect known as the swinging logo. Many demo coders today would be pretty familiar with swinging logos in their intros. 
+
+So then, how does this work? Well, it is really hard for me to explain it properly but I can vaguely know what happens. Well, if you remember the smooth scroll method that triggers $D016 then you should hopefully be familiar with that. Actually the logo swing sort of works a similar kind of way, except that instead of reading a scroll text, you're actually reading the logo data instead. This data is called the MATRIX. 
+
+The source for the logo swing will be coming up shortly, but first a logo will need to be drawn. A logo can only be 3 colours. So I recommend that you download a painting program, and then use [[http://noname.c64.org/csdb/release/?id=36681|Charwandler]] by Johnnie Walker to convert your hires picture into logo format. Logo format is of course 2 separate files: Char + Screen.
+
+Secondly before you can actually swing your logo, it is recommended that you use the [[http://noname.c64.org/csdb/release/?id=47808|SHAKE IT]] logo swing converter utility by Paramount. This program will convert your original logo matrix into a swinging logo matrix. It should hopefully do the trick :) A very good program.
+
+Now then, you'll want to do some logo swinging, so below is the ACME source. What this does is calculate the value of the sinus (movement) of the logo and also the position of the matrix, so that you can see the logo swinging forwards and backwards.
+
+Source:
+<code>
+;Logo swing routine
+
+swingpointer = $02
+swingstore = $03
+                       !to "logoswing.prg"
+                       * = $0810
+                       sei
+                       jsr $ff81 ;Init screen
+                       lda #$18
+                       sta $d018 ;Logo font at $2000
+                       lda #$00
+                       sta $d020
+                       sta $d021
+
+;Fill the whole screen colours to cyan multicolour as we are using
+;the most popular blue scheme. 
+
+                       ldx #$00
+shadeitcyan            lda #$0b
+                       sta $d800,x
+                       sta $d900,x
+                       sta $da00,x
+                       sta $dae8,x
+                       inx
+                       bne shadeitcyan
+                       lda #$06
+                       ldx #$0e
+                       sta $d022
+                       stx $d023
+
+;Now for the IRQ init routine
+
+
+                       lda #<irq
+                       ldx #>irq
+                       sta $0314
+                       stx $0315
+		       lda #$31
+                       ldx #$7f
+                       sta $d012
+                       stx $dc0d
+                       lda #$1b
+                       sta $d011
+                       lda #$01
+                       sta $d01a
+                       cli
+loop                   lda #$00
+                       sta $06
+synchronize            cmp $06
+                       beq synchronize
+                       jsr logoswing
+                       jmp loop
+
+;Main IRQ routine for the logo swing
+
+irq                    inc $d019
+                       lda #$32
+                       sta $d012
+                       lda swingstore
+                       sta $d016
+                       jmp $ea7e
+swinglogo	lda #$ff
+			sec
+			ldx swingpointer
+			sbc $3800,x ;Value of sinus (Which I made in Bonzai's sinus calculator)
+			lsr
+			lsr
+			lsr
+			tax
+			ldy #$00
+screen		        lda $3000+0 ;Matrix to read from
+			sta $0400,y ;Screen loc. to write to
+			lda $3000+64,x
+			sta $0400+40,y
+			lda $3000+64*2,x
+			sta $0400+80,y
+			lda $3000+64*3,x
+			sta $0400+120,y
+			lda $3000+64*4,x
+			sta $0400+160,y
+			lda $3000+64*5,x
+			sta $0400+200,y
+			lda $3000+64*6,x
+			sta $0400+240,y
+			inx           ;Read X 256 times
+			iny
+			cpy #$27      ;Read y 39 times
+			bne screen
+			ldx swingpointer 
+			lda $3800,x
+			and #$07
+			ora #$d0 ;Kill this if your logo is not multicolour
+			sta swingstore ;The value to put into $D016
+			inc swingpointer ;Add 1 to the swing pointer
+			rts
+
+;Binaries for the source.
+
+                        * = $2000-2 
+                        !binary "logochar.prg"
+                        * = $3000-2
+                        !binary "logomatrix.prg"
+                        * = $3800-2
+                        !binary "sinusdata.prg"
+</code>
+

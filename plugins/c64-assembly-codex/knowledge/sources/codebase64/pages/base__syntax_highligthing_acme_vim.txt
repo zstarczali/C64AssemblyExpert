@@ -1,0 +1,13 @@
+# PAGE: base:syntax_highligthing_acme_vim
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:syntax_highligthing_acme_vim
+
+==== Syntax highlighting for ACME in vim ====
+
+by Bitbreaker/Nuance^Metalvotze
+
+first, you need some rules that do the highlighting for you, that will be placed in ~./vim/syntax/acme.vim -> {{:base:acme_vim.tar.gz|}}
+
+in .vimrc you need then to append the following line to automatically highlight .asm files:
+<code>
+autocmd BufNewFile,BufRead *.asm set syntax=acme.vim
+</code>

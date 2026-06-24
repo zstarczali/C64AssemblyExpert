@@ -1,0 +1,117 @@
+# PAGE: base:supercpu_lda
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:supercpu_lda
+
+====== LDA ======
+
+<code>
+    /*-------------------------------------------------------------------------
+    OP CODE: LDA (LoaD Accumulator from memory)
+    ===========================================
+    
+    Addressing Modes:
+        Immediate                        ($a9 - 2 bytes*, 2 cycles¹)
+        Absolute                         ($ad - 3 bytes, 4 cycles¹)
+        Absolute Long                    ($af - 4 bytes, 5 cycles¹)
+        Direct Page (also DP)            ($a5 - 2 bytes, 3 cycles¹²)
+        DP Indirect                      ($b2 - 2 bytes, 5 cycles¹²)
+        DP Indirect Long                 ($a7 - 2 bytes, 6 cycles¹²)
+        Absolute Indexed, X              ($bd - 3 bytes, 4 cycles¹³)
+        Absolute Long Indexed, X         ($bf - 4 bytes, 5 cycles¹)
+        Absolute Indexed, Y              ($b9 - 3 bytes, 4 cycles¹³)
+        DP Indexed, X                    ($b5 - 2 bytes, 4 cycles¹²)
+        DP Indexed Indirect, X           ($a1 - 2 bytes, 6 cycles¹²)
+        DP Indirect Indexed, Y           ($b1 - 2 bytes, 5 cycles¹²³)
+        DP Indirect Long Indexed, Y      ($b7 - 2 bytes, 6 cycles¹²)
+        Stack Relative (also SR)         ($a3 - 2 bytes, 4 cycles¹)
+        SR Indirect Indexed, Y           ($b3 - 2 bytes, 7 cycles¹)
+        * - Add 1 byte if m = 0 (16-bit memory/accumulator)
+        ¹ - Add 1 cycle if m = 0 (16-bit memory/accumulator)
+        ² - Add 1 cycle if low byte of Direct Page register is other than zero
+            (DL< >0)
+        ³ - Add 1 cycle if adding index crosses a page boundary
+
+    Flags Affected:
+        n - Set if most significant bit of loaded value is set; else cleared.
+        z - Set if value loaded is zero; else cleared.
+
+    Description:
+        Load the accumulator with the data located at the effective address
+        specified by the operand.
+
+        8-bit accumulator (all processors): Data is eight-bit
+
+        16-bit accumulator (65802/65816 only, m = 0): Data is sixteen-bit; the
+        low-order eight bits are located at the effective address; the high-
+        order eight bits are located at the effective address plus one.
+
+    Notes:
+
+    -------------------------------------------------------------------------*/
+
+    .pseudocommand lda val {
+        
+        .if (val.getType()==AT_IMMEDIATE) {
+            .byte $a9, <val.getValue(), >val.getValue()
+        }
+        
+        .if (val.getType()==AT_ABSOLUTE) {
+            .if (val.getValue()<256) {
+                .byte $a5, <val.getValue()  // Direct Page
+            } else {
+                .if (val.getValue()<$10000) {
+                    lda val.getValue()
+                } else {
+                    .byte $af, <val.getValue(), >val.getValue(), val.getValue() >> 16
+                }
+            }
+        }
+        
+        .if (val.getType()==AT_ABSOLUTEX) {
+            .if (val.getValue()<256) {
+                .byte $b5, <val.getValue()  // Direct Page
+            } else {
+                .if (val.getValue()<65536) {
+                    .byte $bd, <val.getValue(), >val.getValue()
+                } else {
+                    .byte $bf, <val.getValue(), >val.getValue(), val.getValue() >> 16
+                }
+            }
+        }
+
+        .if (val.getType()==AT_ABSOLUTEY) {
+            .byte $b9, <val.getValue(), >val.getValue()
+        }
+
+        .if (val.getType()==AT_IZEROPAGEX) {
+            lda (val.getValue(),x)
+        }
+
+        .if (val.getType()==AT_IZEROPAGEY) {
+            lda (val.getValue()),y
+        }
+
+        .if (val.getType()==AT_INDIRECT) {
+            .byte $b2, val.getValue()
+        }
+    }
+
+    // Handle long addressing modes for Indirect and Indirect,y:
+    .pseudocommand lda_l val {
+        .if (val.getType()==AT_INDIRECT) {
+            .byte $a7, val.getValue()
+        }
+        .if (val.getType()==AT_IZEROPAGEY) {
+            .byte $b7, val.getValue()
+        }
+    }
+
+    // Handle stack addressing modes for Stack Relative and Stack Indirect Indexed,y:
+    .pseudocommand lda_s val {
+        .if (val.getType()==AT_INDIRECT) {
+            .byte $a3, val.getValue()
+        }
+        .if (val.getType()==AT_IZEROPAGEY) {
+            .byte $b3, val.getValue()
+        }
+    }
+</code>

@@ -1,0 +1,68 @@
+# PAGE: base:reduce_noise
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:reduce_noise
+
+====== Reduce noise in SID ======
+
+This little article concerns reduction of the noise coming from the SID. It is based on the following CSDb thread:
+
+   * [[http://noname.c64.org/csdb/forums/?roomid=7&topicid=36766#47202|CSDb thread on reducing SID noise]]
+
+Feel free to improve/correct it! No responsibility taken whatsoever for anything at all. It might very well be erroneous. :)
+
+Also check the following page, on the topic of noise reduction:
+
+  * [[https://web.archive.org/web/20170331180042/http://www.bigmech.com/misc/c64mods/noisereduction.html|SID Noise Reduction]]
+
+
+====== Hardware modifications ======
+Be careful when you do things like this and keep in mind that this information might not be accurate. The methods described here comes in no special order.
+
+===== Method 1: Grounding pins on the Video Port Connector =====
+
+On your average C64 the SID input is unconnected and floating, and basically acting as an antenna. That is not good. Grounding the SID input line, preferably via a 100 Ohm resistor or so, makes a the SID a lot less susceptible to picking up noise. (See the link to the CSDb discussion on this topic above, since people seem to have different opinions on how to perform this grounding. Some ways may damage your hardware. Be careful!)
+
+What you need to do is to connect the two pins shown in the image below. The image shows the connector on the computer (and not the connector on the cable) but in fact, you can also connect the pins on the connector instead if you don't want to touch your computer and if you want a cable that solves this problem on the C64 it is currently attached to:
+
+{{base:iec60130-9_8pin.png|}}
+
+(Image supplied by Devia. Note that pin 6, 7 and 8 does not exist on the very first version of the C64.)
+
+^ Pin ^ Name ^ Direction ^ Description ^
+| 1 | LUM | OUT | Luminance / Sync |
+| 2 | GND | ------ | Ground |
+| 3 | AOUT | OUT | Audio Out |
+| 4 | VOUT | OUT | Composite Video Out |
+| 5 | AIN | IN | Audio In |
+| 6 | COL | OUT | Chrominance |
+| 7 | NC |  | No Connection |
+| 8 | NC |  | No Connection* |
+
+(Table composed from various sources, mainly C128 Programmes Reference Guide and http://ftp.giga.or.at/pub/c64/library/repair_pinouts.txt)
+
+*) Some sources report that pin 8 might be connected to +5V on some systems.
+
+===== Method 2: Bending a leg on the SID chip =====
+
+Another way to reduce noise is to bend one of the legs on the SID chip, so it is not connected to the socket. Be VERY CAREFUL if you decide to do this, since the leg might break. Alankila provides the following instruction for this procedure on his [[http://www.bel.fi/~alankila/c64-sw/yourchip.html|homepage]]:
+
+//"Modify your C64. Take out the SID chip and locate the third pin from top right (number 26, I think). It is the AIN (audio in) pin, and it sucks in most of the system noise, especially the display whirr. We need to ensure it is grounded or floating. The easiest fix is to make it floating: bend it slightly off, so it doesn't enter the socket on chip insertion. If you are very adventurous you could also try to improve the SID input voltage with additional capacitors and coils. It will help a little, but this modification is what counts."//
+
+According to one other person, simply lifting the leg, without any kind of grounding, will also add a low frequency noise. 
+
+====== Software Methods ======
+
+You can also reduce noise a bit by turning the screen off (with the VIC) and setting background colour screen to black. We want to get rid of h-sync noise as well as noise due to pixels on the screen.
+
+Some hot code to do this:
+<code>
+	lda #0
+	sta $d011
+	sta $d020
+</code>
+
+Another way to get rid of some of the noise is to route the external input signal into the filter. If, in addition, no filter type is selected, then this will effectively turn this external signal off. If any of the filter types are enabled, the noise will not be turned off, but at least reduced, because the noisy signal will at least be filtered. The extent to which the noise will be filtered in that case depends on the filter type and filter cutoff. The following code makes sure the external input signal is routed through the filter. It also de-selects all possible filter types, and turns off filtering for the three standard SID oscillators:
+
+<code>
+	lda #$08	;Bit3 - filter external input signal set, all other bits off.
+	sta $d417
+</code>

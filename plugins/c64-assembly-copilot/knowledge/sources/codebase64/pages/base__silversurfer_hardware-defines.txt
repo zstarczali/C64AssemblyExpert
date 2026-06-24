@@ -1,0 +1,23 @@
+# PAGE: base:silversurfer_hardware-defines
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:silversurfer_hardware-defines
+
+===== SilverSurfer hardware defines =====
+<code>
+rs16550base             = $de08
+
+fifo_rxd     = rs16550base+$00 ;8  (r)
+fifo_txd     = rs16550base+$00 ;8 (w)
+
+fifo_dll     = rs16550base+$00 ;8 (r/w)
+fifo_dlm     = rs16550base+$01 ;9 (r/w)
+
+fifo_ier     = rs16550base+$01 ;9
+
+fifo_fcr     = rs16550base+$02 ;a (w)
+fifo_iir     = rs16550base+$02 ;a (r)
+fifo_lcr     = rs16550base+$03 ;b
+fifo_mcr     = rs16550base+$04 ;c
+fifo_lsr     = rs16550base+$05 ;d
+fifo_msr     = rs16550base+$06 ;e (r)
+fifo_scratch = rs16550base+$07 ;f (r/w)
+</code>

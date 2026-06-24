@@ -1,0 +1,32 @@
+# PAGE: base:ascii_char_to_4_bit_integer
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:ascii_char_to_4_bit_integer
+
+====== ASCII Char to 4 bit integer ======
+
+
+This is a very simple routine that converts an ASCII char contained in 'a' to a 4 bit number returned in 'a'. 
+It can deal with upper/lowercase hex letters 'a'..'f' as well as 'A'..'F' and returns the error code 255 for
+nonvalid input like 'g'..'z', 'G'...'Z' or other non hex digits like interpunction, spaces, math symbols etc...
+ 
+<code 6502acme>
+  sec
+  sbc #'0'
+  bcc error
+  
+  cmp #10
+  bcc return
+
+nondigit
+  and #$3f
+  cmp #('f'-'0'+1)
+  bcs error
+  cmp #('a'-'0')
+  bcc error
+  
+  sbc #('a'-'0'-10) 
+  rts
+error
+  lda #255
+return
+  rts
+</code>

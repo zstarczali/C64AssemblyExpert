@@ -1,0 +1,102 @@
+# PAGE: base:supercpu_wai
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:supercpu_wai
+
+====== WAI ======
+
+<code>
+    /*-------------------------------------------------------------------------
+    OP CODE: WAI (WAit for Interrupt)
+    =================================
+    
+    Addressing Modes:
+        Implied                            ($cb - 1 byte, 3 cycles¹)
+        ¹ Uses 3 cycles to shut the processor down;
+        additional cycles are required by interrupt to restart it
+
+    Flags Affected:
+        N/A
+
+    Description:
+        It has been the goal of the designers of the 65x series to keep
+        interrupt latency to a minimum. To further reduce interrupt latency,
+        the 65816 introduced a special new instruction, the WAI or wait for
+        interrupt instruction.
+
+        In an environment where the processor can be dedicated to serving
+        interrupts – that is, where the interrupts provide timing or
+        synchronization information, rather than being used to allow
+        asynchronous I/O operations to be performed – the processor can be put
+        into a special state where it sits and waits for an interrupt to
+        happen. This lets any of the user registers be saved before the
+        interrupt occurs, and eliminates the latency required to complete an
+        existing instruction. Upon execution of a WAI instruction, the
+        processor goes into a very low-power state, signals the outside world
+        that it is waiting by pulling the bidirectional RDY signal low, and
+        sits idle until an interrupt is received. When that occurs, response is
+        immediate since no cycles are wasted completing an executing
+        instruction.
+
+        There are two responses to an interrupt after the WAI instruction is
+        executed. The first, as you might expect, is to release the waiting
+        condition and transfer control to the appropriate interrupt vector, as
+        normally takes place whenever interrupts are serviced. The second
+        response is if maskable interrupts (on the IRQ’ line) have been
+        disabled, in which case the normal interrupt processing does not occur.
+        However, since the waiting condition is released, execution continues
+        with the instruction following the WAI opcode. This means that
+        specialized interrupt-synchronization routines can be coded with a
+        one-cycle latency between receipt of interrupt and response.
+
+        Pulla the RDY pin low. Power consumption is reduced and RDY remains low
+        until an external hardware interrupt (NMI, IRQ, ABORT, or RESET) is
+        received.
+
+        WAI is designed to put the processor to sleep during an external event
+        to reduce its power consumption, to allow it to be synchronized with an
+        external event, and/or to reduce interrupt latency (an interrupt
+        occurring during execution of an instruction is not acted upon until
+        execution of the instruction is complete, perhaps many cycles later;
+        WAI ensures that an interrupt is recognized immediately).
+
+        Once an interrupt is received, control is vectored through one of the
+        hardware interrupt vectors; an RTI from the interrupt handling routine
+        will return control to the instruction following the original WAI.
+        However, if by setting the i flag, interrupt have been disabled prior
+        to the execution of the WAI instruction, and IRQ’ is asserted, the
+        “wait” condition is terminated and control resumes with the next
+        instruction, rather than through the interrupt vectors. This provides
+        the quickest response to an interrupt, allowing synchronization with
+        external events. WAI also frees up the bus; since RDY is pulled low in
+        the third instruction cycle, the processor may be disconnected from the
+        bus if BE is also pulled low.
+
+        The WAI instruction pulls RDY low and places the processor in the WAI
+        "low power" mode. /NMI, /IRQ or /RESET will terminate the WAI condition
+        and transfer control to the interrupt handler routine.
+
+        Note that an /ABORT input will abort the WAI instruction, but will not
+        restart the processor.
+
+        When the Status Register I flag is set (IRQ disabled), the IRQ
+        interrupt will cause the next instruction (following the WAI
+        instruction) to be executed without going to the IRQ interrupt handler.
+
+        This method results in the highest speed response to an IRQ input. When
+        an interrupt is received after an ABORT which occurs during the WAI
+        instruction, the processor will return to the WAI instruction.
+        Other than RES (highest priority), ABORT is the next highest priority,
+        followed by NMI or IRQ interrupts.
+
+    Notes:
+        If WAI is used after 'CLI' in an IRQ setup, a 'JMP' back to the WAI
+        OPC must be done. The Interrupt handler will still trigger. This is
+        not excatly as described above, but uncertain if this is an emulator
+        issue or doc error.
+
+    -------------------------------------------------------------------------*/
+
+    .pseudocommand wai {
+        .byte $cb
+    }
+
+</code>

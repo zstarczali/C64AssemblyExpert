@@ -1,0 +1,30 @@
+# PAGE: quick_howto
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=quick_howto
+
+====== Quick howto ======
+
+===== Adding a new page =====
+
+To add a new page, do this:
+
+  - Log in. If you don't have username/password, send a message to Frantic at [[https://csdb.dk|CSDb]] with the username you want AND your email.
+  - Edit the page that should link to your page. Do this by pressing the "Edit this page" on the top/bottom or press an "edit" button on the right side of the page to edit a particular section of the page rather than all of it. 
+  - Go the the precise location in the text where you want to add a link to your new page. Click the button that looks like a chain (not the one with the earth behind). Type %%[[xxx]]%% where xxx is the name of the page you want to create. This will create what is called an internal link.
+  - Save Page.
+  - Click on this newly created (and currently broken) internal link and you will be asked to create the new "missing" page...
+  - Click "Edit this page" in order to create a new one.
+  - Type text or cut/paste into this edit window. Make sure that you start each new page with a heading (select the text to be used as heading, and press the toolbar button with a blue "H" on it). Use the ''<code>'' and ''</code>'' tags before and after code segments.
+  - If you want to upload additional files like binary includes required to assemble, or pictures or screenshots that illustrate something, press the button/icon that looks like a framed painting.
+  - Save your page.
+
+When updating an existing page it is a good idea to fill in the "Edit summary" field, to give a brief explanation of what kind of change you applied to the page in question.
+
+Please contact Frantic/HT if you feel that these instructions are not sufficient or hard to follow. Contact me through [[http://noname.c64.org/csdb/scener/?id=8093|CSDb]].
+
+===== The Playground and Syntax =====
+
+If you wish to try out editing features without messing up the site itself, you can do so at the [[playground:playground]].
+
+Information about the formatting syntax used in this wiki is available [[wiki:syntax|here]].
+
+Also see the [[Guidelines]], which will tell you in brief form what to keep in mind when adding stuff to this site.

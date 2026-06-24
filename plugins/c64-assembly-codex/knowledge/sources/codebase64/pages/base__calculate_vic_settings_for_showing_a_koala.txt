@@ -1,0 +1,127 @@
+# PAGE: base:calculate_vic_settings_for_showing_a_koala
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:calculate_vic_settings_for_showing_a_koala
+
+====== Generic koala shower (VIC settings calculator) ======
+
+
+====== Do not use this code, it's just... wrong =======
+
+**//This is not code anyone should learn from.//**
+
+**//Original article below://**
+
+As I was fed up searching for the correct settings in $d018 and alike, I wrote a general koala source that will calculate all settings depending on the bitmap/screen locations as the only input needed.
+Of course this "unnecessary" calculation takes memory space, so if you need optimized code, you may still want use this and copy the resulting values into your code.
+
+Feel free to edit.
+
+<code>
+;JTR TRIES TO CODE: GENERIC KOALA SHOWER
+
+PIC          = $6000  ;SOURCE       - only these two settings are manually entered
+SCREEN       = $4000  ;DESTINATION
+
+             *= $0810
+             SEI
+
+             STA $D07A ;1MHZ on SCPU
+
+             LDX #$00
+             LDA #>PIC
+             CMP #$40
+             BCC CHECKED
+             INX
+             CMP #$80
+             BCC CHECKED
+             INX
+             CMP #$C0
+             BCC CHECKED
+             INX
+CHECKED      SEC
+             SBC VICBANK,X
+             LDY #%00000000
+             CMP #$00
+             BEQ LOCCED
+             LDY #%00001000
+LOCCED       STY BITLOC+1
+
+             LDA $DD00
+             AND ANDD,X
+             ORA ORADD,X
+             STA $DD00
+
+             LDY #$00
+             LDA #>SCREEN
+             SEC
+             SBC VICBANK,X
+             BEQ SCREENCHECKED
+CHECKSON     INY
+             SBC #$04
+             BNE CHECKSON
+SCREENCHECKED
+             TYA
+             ASL A
+             ASL A
+             ASL A
+             ASL A
+             STA ORARA+1
+
+             LDA $D018
+             AND #%00000111
+ORARA        ORA #$EE
+BITLOC       ORA #$EE
+             STA $D018
+
+             LDA #%00011000  ;BIT4: MULTI ON
+             STA $D016
+
+             LDA $D011       ;BITMAP-MODE
+             ORA #%00100000
+             STA $D011
+
+             LDA PIC+$2710   ;BACKGROUND
+             STA $D021
+             STA $D020
+
+             LDX #$00        ;SCREENRAM COPY
+SCREENRAME   LDA PIC+$1F40,X
+             STA SCREEN,X
+             LDA PIC+$2040,X
+             STA SCREEN+$0100,X
+             LDA PIC+$2140,X
+             STA SCREEN+$0200,X
+             LDA PIC+$2240,X
+             STA SCREEN+$0300,X
+             INX
+             BNE SCREENRAME
+
+             LDA #$D8
+             STA FARBRAM+2
+             LDA #>PIC+$23
+             STA MULTIFIL+2
+             LDX #$00        ;FARBRAM COPY
+MULTIFIL     LDA $6328,X
+FARBRAM      STA $D800,X
+             INX
+             BNE MULTIFIL
+             INC FARBRAM+2
+             INC MULTIFIL+2
+             LDY FARBRAM+2
+             CPY #$DB
+             BNE MULTIFIL
+
+FILL2        LDA PIC+$2628,X
+             STA $DB00,X
+             INX
+             CPX #$E8
+             BNE FILL2
+
+             JMP *
+
+ANDD         .BYTE %11111111,%11111110,%11111101
+             .BYTE %11111100
+ORADD        .BYTE %00000011,%00000010
+             .BYTE %00000001,%00000000
+VICBANK      .BYTE $00,$40,$80,$C0
+</code>
+ --- //[[jaktrip@gmx.de|Tim Jakob Chen-Voos]] 2011/02/07 21:49//

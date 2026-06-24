@@ -1,0 +1,28 @@
+# PAGE: base:berzerk_redux
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:berzerk_redux
+
+====== Berzerk Redux ======
+
+===== History =====
+
+When someone posted a [[http://noname.c64.org/csdb/forums/?roomid=11&topicid=58028|link]] to some source code they found for this old game I became interested to see what it was. When it turned out to be C sources it became obvious it wasn't really the arcade version of Berzerk which uses Z80(ish). So I looked for the 6502 Atari version, found some ROMs and disassembled them. The assembly code was then used to do a really quick hack to get it to partially run on the C64. But the Atari code spent most of its time in a video update loop so it was too slow on the C64. Also the Atari version lacked speech and game play aspects from the arcade version so I shelved it.
+
+Then when nobody else came up with a version I thought to myself that I would quickly test out the basic technical requirements to get a feel for how long it would take to do a new version. Chiefly these were:
+
+1) Getting NMI samples working with the multiplexor.
+2) Then seeing how many segments of speech could be squeezed into realistic memory conditions.
+3) Maze generation that did not produce a blocked route for the player.
+4) Pixel accurate collision detection of background and sprites (just like the arcade) using the VIC registers.
+
+Most of the code used existing libraries for the sprites, music, sound effects and disk access from my other projects. After the technical proof of concept was completed the extra game play code and tweaking took most of the remaining development time.
+
+The reference version for this conversion was the arcade ROM with MAME.
+
+
+The finished version can be downloaded from [[http://noname.c64.org/csdb/release/index.php?id=80567|C64db]].
+
+===== Source code =====
+
+Source code for the game and supporting libraries is available from [[projects:resurrection|the large archive here]].
+
+The file C64\BerzerkRedux\HowToBuildRelease.txt contains build instructions for all of the components of this game.

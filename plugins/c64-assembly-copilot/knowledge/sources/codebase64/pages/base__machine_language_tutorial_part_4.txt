@@ -1,0 +1,112 @@
+# PAGE: base:machine_language_tutorial_part_4
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:machine_language_tutorial_part_4
+
+====== Machine Language Tutorial Part 4 - Logical Operations and Math ======
+Logical operations are simply operations that have to do with the logic circuits of the computer. Therefore we will be dealing with bits in this part.
+===== The Operations =====
+All of these commands can only be used on the A register. The commands are applied to A with a mask, which is the operand.
+==== ORA - Logical OR to A ====
+This command will turn bits in A on. If the mask is zero, the bit will be left alone. If the mask is one, the bit will be turned on.
+<code>Bit in accumulator | Mask = Resulting A bit.
+0 | 0 = 0
+0 | 1 = 1
+1 | 0 = 1
+1 | 1 = 1</code>
+Let's see this in action. If A was %00110101 and we ORA %01010011, what would happen?
+<code>A = 00110101
+ORA 01010110 <- masks
+    vvvvvvvv
+A = 01110111</code>
+==== AND - Logical AND to A ====
+This command will turn bits in A off. If the mask is zero, the bit will be turned off. If the mask is one, the bit will be left alone.
+<code>Bit in accumulator & Mask = Resulting A bit.
+0 & 0 = 0
+0 & 1 = 0
+1 & 0 = 0
+1 & 1 = 1</code>
+<code>A = 00110101
+AND 01010011 <- masks
+    vvvvvvvv
+A = 00010001</code>
+==== EOR - Exclusive OR to A ====
+This command flips bits around. If the mask is zero, the bit is left alone. If the mask is 1, the bit is flipped.
+<code>Bit in accumulator ^ Mask = Resulting A bit.
+0 ^ 0 = 0
+0 ^ 1 = 1
+1 ^ 0 = 1
+1 ^ 1 = 0</code>
+<code>A = 00110101
+EOR 01010011 <- masks
+    vvvvvvvv
+A = 01100110</code>
+===== Math =====
+==== Addition ====
+To add to A, we use ADC. The carry bit is used to link different ADCs together for multi-byte addition.
+Therefore we must clear carry before any new addition to prevent any previous carry from being added.
+
+So to add a two byte value at $3000 to a value at $2000 and store that to $4000, we'd do:
+<code>CLC
+LDA $2000 <- handle low byte
+ADC $3000
+STA $4000
+LDA $2001 <- handle high byte
+ADC $3001
+STA $4001</code>
+By the way, it doesn't matter if you CLC or LDA first.
+==== Subtraction ====
+To subtract from A, we use SBC. The carry bit is used as a borrow for multi-byte subtraction.
+We need to set the carry to prevent anything extra from being subtracted.
+<code>SEC
+LDA $2000
+SBC $3000
+STA $4000
+LDA $2001
+SBC $3001
+STA $4001</code>
+
+For both subtraction and addition, if the carry flag is on after addition, that means that the number overflowed and you will need to use another byte depending on what you're trying to do.
+==== Multiplication ====
+To multiply by two we need to shift the bytes back. We use ASL (arithmetic shift left) or ROL (rotate left). You can use these on memory or A.
+
+ASL does this:
+<code>     +-+-+-+-+-+-+-+-+
+C <- |7|6|5|4|3|2|1|0| <- 0
+     +-+-+-+-+-+-+-+-+</code>
+It shifts bit 7 into carry, all other bits left, and 0 goes in bit 0.
+
+ROL does this:
+<code>+------------------------------+
+|                              |
+|   +-+-+-+-+-+-+-+-+    +-+   |
++-< |7|6|5|4|3|2|1|0| <- |C| <-+
+    +-+-+-+-+-+-+-+-+    +-+</code>
+It shifts carry into zero, all other bits left, and bit 7 goes into the new carry.
+
+To multiply by non-powers of two, we must use other ways to get there. So to multiply by 6:
+<code>LDA #$01
+ASL A <- multiply by 2
+STA $xxxx <- store A*2 into some location
+ASL A <- now we have A*4
+CLC
+ADC $xxxx <- and add A*2 to get A*6</code>
+To multiply a two-byte value we need to use ASL and ROL in sequence.
+<code>ASL $2000 <- x*2
+ROL $2001
+ASL $2000 <- x*4
+ROL $2001
+...and so on.</code>
+==== Division ====
+To divide by two we use LSR (logical shift right) and ROR (rotate right). These work similarly to their "left" counterparts.
+
+LSR does this:
+<code>     +-+-+-+-+-+-+-+-+
+0 -> |7|6|5|4|3|2|1|0| -> C
+     +-+-+-+-+-+-+-+-+</code>
+And ROR does this:
+<code>+------------------------------+
+|                              |
+|   +-+    +-+-+-+-+-+-+-+-+   |
++-> |C| -> |7|6|5|4|3|2|1|0| >-+
+    +-+    +-+-+-+-+-+-+-+-+</code>
+
+Note that the ASL/LSR/ROL/ROR can be used for more than just addition, since they work with the bits of a memory address/accumulator.

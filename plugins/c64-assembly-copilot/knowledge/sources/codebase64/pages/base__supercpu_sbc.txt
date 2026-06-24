@@ -1,0 +1,139 @@
+# PAGE: base:supercpu_sbc
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:supercpu_sbc
+
+====== SBC ======
+
+<code>
+    /*-------------------------------------------------------------------------
+    OP CODE: SBC (Subtract with Borrow from aCcumulator)
+    ====================================================
+    
+    Addressing Modes:
+        Immediate                        ($e9 - 2 bytes*, 2 cycles¹°)
+        Absolute                         ($ed - 3 bytes, 4 cycles¹°)
+        Absolute Long                    ($ef - 4 bytes, 5 cycles¹°)
+        Direct Page (also DP)            ($e5 - 2 bytes, 3 cycles¹²°)
+        DP Indirect                      ($f2 - 2 bytes, 5 cycles¹²°)
+        DP Indirect Long                 ($e7 - 2 bytes, 6 cycles¹²°)
+        Absolute Indexed, X              ($fd - 3 bytes, 4 cycles¹³°)
+        Absolute Long Indexed, X         ($ff - 4 bytes, 5 cycles¹°)
+        Absolute Indexed, Y              ($f9 - 3 bytes, 4 cycles¹³°)
+        DP Indexed, X                    ($f5 - 2 bytes, 4 cycles¹²³°)
+        DP Indexed Indirect, X           ($e1 - 2 bytes, 6 cycles¹²°)
+        DP Indirect Indexed, Y           ($f1 - 2 bytes, 5 cycles¹²³°)
+        DP Indirect Long Indexed, Y      ($f7 - 2 bytes, 6 cycles¹²°)
+        Stack Relative (also SR)         ($e3 - 2 bytes, 4 cycles¹°)
+        SR Indirect Indexed, Y           ($f3 - 2 bytes, 7 cycles¹°)
+        * - Add 1 byte if m = 0 (16-bit memory/accumulator)
+        ¹ - Add 1 cycle if m = 0 (16-bit memory/accumulator)
+        ² - Add 1 cycle if low byte of Direct Page register is other than zero
+            (DL< >0)
+        ³ - Add 1 cycle if adding index crosses a page boundary
+        ° - Add 1 cycle if 65C02 and d=1 (decimal mode, 65C02)
+
+    Flags Affected:
+        n - Set if most significant bit of result is set; else cleared.
+        v - Set if signed overflow; cleared if valid sign result.
+        z - Set if result is zero; else cleared.
+        c - Set if unsigned borrow not required; cleared if unsigned borrow.
+
+    Description:
+        Subtract the data located at the effective address specified by the
+        operand from the contents of the accumulator; subtract one more if the
+        carry flag is clear, and store the result in the accumulator.
+
+        The 65x processors have no subtract instruction that does not involve
+        the carry. To avoid subtracting the carry flag from the result, either
+        you must be sure it is set or you must explicitly set it (using SEC)
+        prior to executing the SBC instruction.
+
+        In a multi-precision (multi-word) subtract, you set the carry before
+        the low words are subtracted. The low word subtraction generates a new
+        carry flag value based on the subtraction. The carry is set if no
+        borrow was required and cleared if borrow was required. The complement
+        of the new carry flag (one if the carry is clear) is subtracted during
+        the next subtraction, and so on. Each result thus correctly reflects
+        the borrow from the previous subtraction.
+
+        Note that this use of the carry flag is the opposite of the way the
+        borrow flag is used by some other processors, which clear (not set) the
+        carry if no borrow was required.
+
+        d flag clear: Binary subtraction is performed.
+        d flag set: Binary coded decimal (BCD) subtraction is performed.
+        
+        8-bit accumulator (all processors): Data subtracted from memory is
+        eight-bit.
+        16-bit accumulator (65802/65816 only, m=0): Data subtracted from memory
+        is sixteen-bit: the low eight bits is located at the effective address;
+        the high eight bits is located at the effective address plus one.
+
+    Notes:
+
+    -------------------------------------------------------------------------*/
+
+    .pseudocommand sbc val {
+        .if (val.getType()==AT_IMMEDIATE) {
+            .byte $e9, <val.getValue(), >val.getValue()
+        }
+
+        .if (val.getType()==AT_ABSOLUTE) {
+            .if (val.getValue()<256) {
+                .byte $e5, <val.getValue()  // Direct Page
+            } else {
+                .if (val.getValue()<65536) {
+                    .byte $ed, <val.getValue(), >val.getValue()
+                } else {
+                    .byte $ef, <val.getValue(), >val.getValue(), val.getValue() >> 16
+                }
+            }
+        }
+
+        .if (val.getType()==AT_ABSOLUTEX) {
+            .if (val.getValue()<256) {
+                .byte $f5, <val.getValue()  // Direct Page
+            } else {
+                .if (val.getValue()<65536) {
+                    .byte $fd, <val.getValue(), >val.getValue()
+                } else {
+                    .byte $ff, <val.getValue(), >val.getValue(), val.getValue() >> 16
+                }
+            }
+        }
+
+        .if (val.getType()==AT_ABSOLUTEY) {
+            .byte $f9, <val.getValue(), >val.getValue()
+        }
+        .if (val.getType()==AT_IZEROPAGEX) {
+            sbc (val.getValue(),x)
+        }
+        .if (val.getType()==AT_IZEROPAGEY) {
+            sbc (val.getValue()),y
+        }
+        .if (val.getType()==AT_INDIRECT) {
+            .byte $f2, val.getValue()
+        }
+
+    }
+
+    // Handle long addressing modes for Indirect and Indirect,y:
+    .pseudocommand sbc_l val {
+        .if (val.getType()==AT_INDIRECT) {
+            .byte $e7, val.getValue()
+        }
+        .if (val.getType()==AT_IZEROPAGEY) {
+            .byte $f7, val.getValue()
+        }
+    }
+
+    // Handle stack addressing modes for Stack Relative and Stack Indirect Indexed,y:
+    .pseudocommand sbc_s val {
+        .if (val.getType()==AT_INDIRECT) {
+            .byte $e3, val.getValue()
+        }
+        .if (val.getType()==AT_IZEROPAGEY) {
+            .byte $f3, val.getValue()
+        }
+    }
+
+</code>

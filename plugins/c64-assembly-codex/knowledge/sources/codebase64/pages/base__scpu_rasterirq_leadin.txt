@@ -1,0 +1,18 @@
+# PAGE: base:scpu_rasterirq_leadin
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:scpu_rasterirq_leadin
+
+====== RasterIRQLeadIn ======
+
+Pushes A, X & Y registers to stack in preparation to handle the IRQ. Does not need stabilization as this is handled by the WAI OPC in asynchrenous code.
+
+| SYNTAX:     | RasterIRQLeadIn |
+| EXAMPLE:    | RasterIRQLeadIn |
+| PARAMETERS: |  N/A            |
+
+<code>
+    .pseudocommand RasterIRQLeadIn {
+        pha
+        phx
+        phy
+    }
+</code>

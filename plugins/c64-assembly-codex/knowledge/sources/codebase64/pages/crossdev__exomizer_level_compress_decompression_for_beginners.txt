@@ -1,0 +1,61 @@
+# PAGE: crossdev:exomizer_level_compress_decompression_for_beginners
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=crossdev:exomizer_level_compress_decompression_for_beginners
+
+===== Exomizer Memory Crunching / Decrunching for Beginners =====
+
+Exomizer comes with a manual on how to compress data. However there may be people who are quite new to using the Exomizer tool, and the decruncher source, provided with Exomizer. I find Exomizer to be VERY useful for level packing single or multi-load files. Some times decrunching binary/source data can be a right pain in the neck. Exomizer decrunch routines might need to have interrupts disabled if using wrap.s. $01 value might need to be altered to suit the program memory which you are crunching from. 
+
+Depending on the path used the command used (for example compressing a koala paint picture) is :
+<code>
+exomizer mem -l $2000 mypic.prg,$6000 -o mypackedpic.prg
+</code>
+
+**If you use Exomizer V3, you will need to add a -P0 extension at the end of the command above **
+
+This will load a koalapaint picture to $6000, then pack the memory to $2000. Exomizer then displays the pack result at the end of the crunching phase. If not using a crossassembler You must note down the END address in which the pack address lies. However if you are using a cross assembler, then you don't need to note the memory. Since you can use labels to indicate the end of the current load address. 
+
+
+====An Example Using Exomizer's Decruncher on a Cross Assembler==== 
+
+An example program (in ACME/C64Studio) - Note that I assembed Exomizer's wrap.s decruncher source to $C000:
+<code>
+!to "koalapaintdisplayer.prg",cbm
+
+  *=$1000
+  sei
+  ldx #<PicDepackEndAddress
+  ldy #>PicDepackEndAddress
+  stx $c010 ;Exomizer depack address low
+  sty $c011 ;Exomizer depack address hi
+  jsr $c000 ;Exomizer decrunch source
+
+  ;Rest of pic display code.... 
+  ... Type in your own pic display code 
+  
+  *=$2000
+  PicDepackStartAddress
+  !binary "mypackedpic.prg",,2
+  PicDepackEndAddress 
+  
+</code>
+Please take note that there can be cases where running the decruncher, sometimes it might crash. This is normally if a zero byte has been read while depacking from reverse memory. Or the crash will occur if you are decrunching from the incorrect end address. Sometimes you may need to set the $01 value to #$35, #$36 or #$37 before/after calling the decrunch code, depending on which memory address you wish to decrunch from/to.
+====An Example of Using Exomizer's Decruncher on a Native C64==== 
+
+What about if you wanted to use Exomizer when using a native C64 instead of a cross-assembler. It is quite easy. Exomizer's level decrunch is very flexible when it comes to areas to place the crunched data (Providing the crunched data is NOT loaded on to the memory that is being used for something else. A machine code monitor, such as the Action / Retro Replay fast load is helpful. Where there is spare memory in your program, you load the crunched data to a chosen address. Take note of the END address where the program lies. Then use the end address as a LOW/HI BYTE target. Then call the Exomizer to decrunch from that address. You can also load in the next crunched file one byte AFTER the END address of the previous file. Note down the end address and so on.
+
+{{:base:exo_decrunch_example_fixed.png?400|}}
+
+//This snapshot above shows a small example of using the Exomizer de-crunch routine assembled from wrap.s DASM cross-assembler //
+
+
+
+
+
+
+
+
+
+
+
+
+

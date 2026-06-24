@@ -1,0 +1,100 @@
+# PAGE: cia:io_programming
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=cia:io_programming
+
+====== I/O Programming ======
+
+This section contains info on how to access various kinds of peripheral I/O hardware such as the keyboard, joysticks, serial devices and so on. It also contains info on communications programming, such as modem protocols.
+
+===== Disk/Tape IO =====
+
+  * [[base:detect_drives_on_iec_bus]] - by Todd S. Elliott
+
+==== General DOS/Kernal stuff ====
+
+These are general file IO functions, not restricted to a certain type of hardware.
+
+  * [[base:dos_examples]] - a few sourcecodes on how to use DOS/KERNAL calls, by Graham
+  * [[base:how_the_vic_64_serial_bus_works|How The VIC/64 Serial Bus Works]] - by Jim Butterfield
+  * [[base:making_use_of_the_fastload_save_in_the_cartridge]] - Various people
+
+==== Disk IO ====
+  * [[base:flexloader_3.0]] - IRQ/Fast loader (1541 only!) by Jayce / Focus
+  * [[base:disk_loader_with_flashing_border_for_non-fastload]] - by Richard Bayliss
+  * [[base:autostarting_disk_files]] by TFG/MMD
+  * [[base:formatting_disks]] - Various people
+  * [[base:electronic_arts_fat_tracks_file_buster]] - by Fungus
+  * [[books:hardware_diagnostics|Hardware diagnostics]] - In case your 1541 drive is broken, check this.
+  * [[base:drivecode]] - by Bitbreaker/Oxyron^Arsenic^Nuance
+  * [[base:fastloaders]] - by Bitbreaker/Oxyron^Arsenic^Nuance
+
+==== Tape IO ====
+
+  * [[base:irq-tape_loader]] - aka [[http://cadaver.homeftp.net/rants/irq-tape.htm|"rant 8"]] - Tutorial by Laze Ristoski (Cybertronic Studios)
+  * [[base:autoboot_tape_turbo_loader]] - How to create an auto-booting tape turbo loader by Martin Piper
+  * [[base:cult_loader]] - Disassembled by Fungus
+  * [[base:turbo250_disassembled]] - The classic Turbo250 by Mr.Z/Triad disassembled by FTC/HT.
+  * [[base:turbotape_loader_source]] - minimal setup to load Turbo Tape data by enthusi/Onslaught
+  * [[base:freeload_v5.0_saver]] - by Paul Hughes. Used by Ocean.
+
+==== Tape xfer routines ====
+By Fungus. Either of these two shell routines is to be used with each of the transfer routines below:
+  * [[base:tape_transfer_shell]] - by Fungus
+  * [[base:newshell]] - by Fungus
+
+The xfer routines below are to be used for reading originals using various loaders and storing them onto disk:
+  * [[base:burner_tape_transfer_1.0]] - by Fungus
+  * [[base:chr_tape_to_disk_transfer_1.0]] - by Fungus
+  * [[base:chr_load_tape_transfer_2.0]] - by Fungus
+  * [[base:ocean_imagine_transfer_-_v1]] - by Fungus
+  * [[base:ocean_imagine_transfer_-_v2]] - by Fungus
+  * [[base:ocean_imagine_transfer_-_v3]] - by Fungus
+  * [[base:novaload_tape_transfer_1.0]] - by Fungus
+  * [[base:novaload_special_tape_transfer_1.0]] - by Fungus
+  * [[base:c_pavloda_transfer_1.0a]] - by Fungus
+  * [[base:rom-load]] - by Fungus
+  * [[base:u.s.gold_tape_transfer_1.0]] - by Fungus
+  * [[base:virgin_tape_transfer_1.0]] - by Fungus
+  * [[base:wildload_tape_transfer_1.0]] - by Fungus
+
+==== Harddrive stuff ====
+
+  * [[base:hd-park-switch_-_how_to_patch_a_cmd-hd_to_your_own_needs]] - in Domination #17 by Ninja/The Dreams.
+
+===== Keyboard and text IO =====
+  * [[base:reading_the_keyboard]] - by Various
+  * [[base:robust_string_input]] - by Schema
+  * [[base:ip_address_input]] - by Schema
+  * [[magazines:chacking6#three-key_rollover_for_the_c-128_and_c-64|THREE-KEY ROLLOVER for the C=128 and C=64]] - by Craig Bruce (from C=Hacking #6)
+  * [[base:scanning_the_keyboard_the_correct_and_non_kernal_way]] - by TWW/CTR
+  * [[base:print_stringchain]] - Tiny solution for printing given stringchains - by ABujok
+  * [[base:scanning_the_keyboard_without_joysticks_interfere]] - by Erhan
+  * [[base:shortest_keyboard_scan]] - by Erhan
+==== Text manipulation and formatting ====
+
+  * [[base:tiny_.a_to_ascii_routine|Tiny .A to Decimal 3-Digit String Conversion]]
+  * [[base:32_bit_hexadecimal_to_decimal_conversion|32 bit hexadecimal to decimal conversion]] - by Graham
+  * [[base:hex_string_to_integer]] - hexadecimal string to integer converter by FMan
+  * [[base:ascii_char_to_4_bit_integer]] - Converts a alnum character to a value between 0 and 15 by Monte Carlos
+  * [[base:integer_to_hex_string]] - integer to hexadecimal string converter by FMan
+  * [[base:string_manipulation_routines]] - string copying and printing routines by FMan
+  * [[base:petscii_to_screencode|Convert PETSCII/ASCII to screencodes]] by Mace/Secure
+
+
+===== Joystick, mouse, paddles, koalapad, lightgun… =====
+
+  * [[base:joystick_input_handling]] - general info and examples by tfg
+  * [[base:fast_joystick_handling]] - By JAS
+  * [[base:both_joysticks_handling_plus_proper_keyboard_scan]] - by Erhan
+  * [[base:c_1351_standard_mouse_routine]] - Converted to KickAssembler by TWW
+  * [[base:c_1351_mouse_routine_alternative]] - By Erhan
+  * [[base:neos_mouse_routine]] - By Erhan
+  * [[base:multi-adapter_support]] by Sokrates
+===== MIDI IO =====
+  * [[base:midi_on_the_c64| Midi on the C64 ]] - Collection of C64 related MIDI info.
+
+===== Data transfer protocols =====
+  * [[base:x-modem_file_transfer_protocol]] - for 6551 serial port (NOT in a native C64), by Daryl Rictor - taken from [[http://www.6502.org|www.6502.org]]
+  * [[base:simple_basic_x-modem_receive]] - A short type-in program to bootstrap transfer programs, using KERNAL RS232 routines.  By White Flame.
+
+The sourcecode for C*Base (BBS software) also contains a number of sources of transfer protocols, such as Punter and others. It is maintained by Tao/Triad and you can find it [[http://www.acc.umu.se/~tao/cbase|here]].
+

@@ -1,0 +1,22 @@
+# PAGE: base:scpu_setscrncol
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:scpu_setscrncol
+
+====== PSEUDOCOMMAND ======
+
+Sets $d020 and $d021 to value passed to pseudocommand. Lowbyte of val sets $d020 and highbyte sets $d021
+
+| SYNTAX:     | :ScreenColor val             |||
+| EXAMPLE:    | :ScreenColor #$0201          |||
+| PARAMETERS: |  Type  |  Minimum  |  Maximum  |
+|             |   U16  |  #$0000   |  #$ffff   |
+
+Can with good advantage be improved to take advantage of the nativly defined color constants in Kickassembler allowing :ScreenColor BLUE : RED
+
+<code>
+    .pseudocommand ScreenColor val {
+        .if (val.getType()==AT_IMMEDIATE) {
+            lda #val.getValue()
+            sta $d020
+        }
+    }
+</code>

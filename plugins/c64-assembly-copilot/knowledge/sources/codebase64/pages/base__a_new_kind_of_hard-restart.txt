@@ -1,0 +1,115 @@
+# PAGE: base:a_new_kind_of_hard-restart
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:a_new_kind_of_hard-restart
+
+====== A new kind of hard-restart  ======
+
+By shrydar, with contributions from lft.
+
+This article explains how to perform a stable hard-restart; i.e. it not only zeros the envelope and captures the envelope rate counter, but it sets RC to a known value.
+
+Back in 2011 I wanted to get the SID envelope generator into a known state to the cycle level, so I could then take some measurements of envelope behaviour.  At the time, the best routine I could manage took well over three frames, as I had to twice recapture a potential rate-counter escape. The first frame and a half was spent on an ordinary hard-restart (OHR), then following some limit manipulations to get the rate counter into one of a number of states that were all equal modulo nine, a second OHR waas required to fold the potential values back into a known state.
+
+Then in early April 2015, lft had a cunning plan.  The first step was still to perform an OHR, as per my original.  His innovation was to use the 'safe' transition from a slow attack to a fast decay to perform the recapture; if this is all done up around env=$fe, it can be performed in just a couple of hundred cycles
+
+The envelope overflow bug (where an attack triggered when env=$ff causes env to wrap back to $00) can then be used to bring the envelope back down.
+
+
+The CPU intensive part of the process takes a mere ten raster lines.
+
+The core implementation is included below; details of how the magic part works to follow in a future update.
+
+<code>
+;------------------------------------------------------------------------------
+; stabiliseRC3                                                                ;
+;                                                                             ;
+;    place SID in a known state, with quiescent env3 and ADSR=0000            ;
+;                                                                             ;
+;    All DMA and interrupts must be disabled for the last 600 cycles          ;
+;                                                                             ;
+;------------------------------------------------------------------------------
+
+	.align 256
+
+stabiliseRC3:
+	lda#$00
+	sta v3AD
+	sta v3CR
+	lda#$f0
+	sta v3SR
+
+	ldy#25         ; wait >0x7fff cycles to recapture
+	ldx#128
+:	dex
+	bne :-
+	dey
+	bpl :-
+
+	lda#$01
+	sta v3CR       ; start rise to $ff
+
+	ldx#205        ; wait >256*9 cycles for rise to maximum
+:	dex
+	bne :-
+:	dex
+	bne :-
+	               ; from this point on, timing is critical
+	lda#$02
+	ldx#$01
+	ldy#$00
+.repeat 7          ; here's where the magic happens.  Potential RC values are released
+	sta   v3AD     ; one at a time into a 63 cycle bottle, at intervals multiples of
+	jsr wait20     ; 9 cycles apart
+	stx   v3AD
+	nop
+	nop
+	sty   v3AD
+.endrep
+	sta   v3AD
+	waitNy 18      ; wait 18 cycles (clobbers Y, as ncycles>7)
+
+	lda#$44        ; rate 4, limit 149
+	stx v3AD
+	sta v3AD
+	sta v3SR
+	               ; rate counter should now be one of 9 different values that
+	               ; are all equal modulo 9, in the range 0 to 99
+	lda#$00
+	sta v3CR       ; ADSR=$4444, env=$ff, switching to release
+
+	waitNy 170     ; wait for env to drop to $fe
+	ldx#$01        ; request attack
+	stx v3CR       ; we've now a few cycles grace before env reaches ff in which to switch ADSR to $40f0 
+
+	lda#$40
+	sta v3AD
+	lda#$f0
+	sta v3SR
+	waitNy 99      ; wait for the entire packet of potential values to be captured into the 9 cycle decay limit loop
+	               ; now ADSR = 40f0, RC is synchronised, env=$ff 
+
+	lda #$11       ; next we need to force overflow
+	sta v3AD       ; by switching to decay, then back to attack before env drops below $ff
+	lda#$f1        ; we do this at a rate of 1 (RC limit of 31) to give us time for register fiddling.
+	sta v3SR
+	ldx #0
+	stx v3CR       ; drop into decay
+
+	ldx #1
+	stx v3CR       ; return to attack - this'll increase env to $00
+	waitNy 5
+	lda#$00        ; recapture to the fastest rate
+	sta v3AD       ; this write must be performed while RC<9, or we'll trigger the bug again.
+	sta v3SR
+	sta v3CR       ; and drop back to release state
+	rts
+
+wait20:
+	nop
+	nop
+	nop
+	nop
+	rts
+
+</code>
+
+Source for a full implementation and test harness may be found at {{:sourcecode:hard_restart_bottle_0.1.tar.gz|}}

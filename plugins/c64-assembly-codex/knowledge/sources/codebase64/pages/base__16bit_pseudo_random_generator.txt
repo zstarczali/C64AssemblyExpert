@@ -1,0 +1,38 @@
+# PAGE: base:16bit_pseudo_random_generator
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:16bit_pseudo_random_generator
+
+====== 16 bit Pseudo Random Generator ======
+
+The original creator of this routine is unknown.
+
+<code>
+;---------------------------------------------------------------------------
+;pseudo-random routine, value in random+1 (akku also) and random
+;---------------------------------------------------------------------------
+getrandom:
+
+         lda random+1
+         sta temp1
+         lda random
+         asl a
+         rol temp1
+         asl a
+         rol temp1
+         clc
+         adc random
+         pha
+         lda temp1
+         adc random+1
+         sta random+1
+         pla
+         adc #$11
+         sta random
+         lda random+1
+         adc #$36
+         sta random+1
+
+         rts
+
+temp1:   .byte $5a
+random:  .byte %10011101,%01011011
+</code>

@@ -1,0 +1,30 @@
+# PAGE: base:programming_languages
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:programming_languages
+
+====== Programming Languages ======
+
+This section contains material on programming languages other than assembler, such as BASIC, COMAL, and so on.
+
+===== Assembler Programming =====
+Assembler isn't exactly a "programming language" in the same sense as the other languages covered on this page. Having said that, Turbo Assembler was the most used tool for C64 programming for a long time.
+
+  * [[TurboAssembler 5.2 (Bacchus Version)]] — Reference document by Bacchus/FLT
+
+
+===== BASIC Programming =====
+
+  * [[http://www.c64-wiki.com/index.php/C64-Commands|Overview of Basic V2 commands]] - (External link, but useful info)
+
+  * [[Reference for HES GRAPHICS BASIC 1.07]]
+
+===== COMAL Programming =====
+
+The [[books:start#third_party_topics|books section]] contains a COMAL reference guide.
+
+===== PROMAL Programming =====
+
+Find disk images, manuals, newsletters and many various resources for the PROMAL programming language at [[https://www.lyonlabs.org/commodore/onrequest/PROMAL/index.html|Lyonlabs]]
+
+===== FORTH Programming =====
+
+ * [[https://github.com/jkotlinski/durexforth|durexForth]] follows Forth 2012 standard and is the fastest C64 Forth available

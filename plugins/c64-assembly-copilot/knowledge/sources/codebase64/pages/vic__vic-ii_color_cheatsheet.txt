@@ -1,0 +1,13 @@
+# PAGE: vic:vic-ii_color_cheatsheet
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=vic:vic-ii_color_cheatsheet
+
+====== VIC-II Color Cheat-Sheet ======
+by Groepaz
+
+This is a cheatsheet i made for myself (very) long ago, when 320x200 was still top notch on PCs :)
+
+The upper part of the diagram shows the measured VIC-II luminances from different revisions (different dot colors). This isnt very useful per se i guess :)
+
+The lower part shows how the 16 VIC-II colors are spread around the RGB colorspace (very much estimated), which colors are available in multicolor charset, and imho is a nice help to create proper shadings for rasterbars and such things (simply walk from left to right on the diagram, jumping to the next color).
+
+{{:base:luma.gif}}

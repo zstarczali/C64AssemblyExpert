@@ -1,0 +1,60 @@
+# PAGE: base:signed_8bit_divide_by_2_arithmetic_shift_right
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:signed_8bit_divide_by_2_arithmetic_shift_right
+
+====== Arithmetic shift right ======
+
+By Bitbreaker
+
+If we want to divide by the power of 2 we usually shift right. That is fine with unsigned numbers, but for signed numbers we would need a arithemtic shift right, that we have no opcode for.
+So we need a trick to preserve bit 7 in another way:
+
+<code>
+    cmp #$80 ;copy bit 7 to carry (i love that trick also for other situations where A should not be clobbered)
+    ror      ;now rotate and we successfully preserved bit 7
+</code>
+
+Easy like that, done in 4 cycles! However keep in mind that this way the result is rounded down and not up when dealing with negative numbers. So for more accuracy you might prefer:
+
+<code>
+   bpl +     ;positive number?
+   eor #$ff  ;a = 0 - a to get a positive number
+   clc
+   adc #$01
+   lsr       ;shift right
+   eor #$ff  ;make it negative again
+   clc
+   adc #$01
+   jmp ++
++
+   lsr
+++
+</code>
+
+This would need 13 cycles in average, but it can be done faster as well using the first method:
+
+<code>
+   cmp #$80  ;copy bit 7 to carry
+   ror       ;shift right as before
+   bpl +     ;if positive number then skip
+   adc #$00  ;else round up
++  ...
+</code>
+
+Then we would need 7,5 cycles in average. Still pretty nice. If you need it even faster (6 cycles) and use a lot of div by 2, then a lookup table might also be an option:  
+
+<code>
+   tax
+   lda divtable,x
+</code>
+
+When using illegal op-codes you might also want to use this version that gives you always a cleared carry afterwards:
+
+<code>
+   anc #$fe  ;copy N to C and mask out bit 0
+   ror       ;rotate, carry will now be clear
+</code>
+
+===== And how's about shifting left? =====
+
+
+If you intend to multiply a signed number by two, just do a = a + a and you are fine.

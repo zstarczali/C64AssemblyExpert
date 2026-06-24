@@ -1,0 +1,17 @@
+# PAGE: base:scpu_emulatedmode
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:scpu_emulatedmode
+
+====== EmulatedMode ======
+
+Sets the processor into 6502/6510 Emulated mode.
+
+| SYNTAX:        | EmulatedMode |
+| EXAMPLE:       | EmulatedMode |
+| PARAMETERS:    | N/A          |
+
+<code>
+    .pseudocommand EmulatedMode {
+        sec
+        xce
+    }
+</code>

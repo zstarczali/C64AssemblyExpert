@@ -1,0 +1,125 @@
+# PAGE: base:supercpu_ora
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:supercpu_ora
+
+====== ORA ======
+
+<code>
+    /*-------------------------------------------------------------------------
+    OP CODE: ORA (OR Accumulator with memory)
+    =========================================
+    
+    Addressing Modes:
+        Immediate                        ($09 - 2 bytes*, 2 cycles¹)
+        Absolute                         ($0d - 3 bytes, 4 cycles¹)
+        Absolute Long                    ($0f - 4 bytes, 5 cycles¹)
+        Direct Page (also DP)            ($05 - 2 bytes, 3 cycles¹²)
+        DP Indirect                      ($12 - 2 bytes, 5 cycles¹²)
+        DP Indirect Long                 ($07 - 2 bytes, 6 cycles¹²)
+        Absolute Indexed, X              ($1d - 3 bytes, 4 cycles¹³)
+        Absolute Long Indexed, X         ($1f - 4 bytes, 5 cycles¹)
+        Absolute Indexed, Y              ($19 - 3 bytes, 4 cycles¹³)
+        DP Indexed, X                    ($15 - 2 bytes, 4 cycles¹²)
+        DP Indexed Indirect, X           ($01 - 2 bytes, 6 cycles¹²)
+        DP Indirect Indexed, Y           ($11 - 2 bytes, 5 cycles¹²³)
+        DP Indirect Long Indexed, Y      ($17 - 2 bytes, 6 cycles¹²)
+        Stack Relative (also SR)         ($03 - 2 bytes, 4 cycles¹)
+        SR Indirect Indexed, Y           ($13 - 2 bytes, 7 cycles¹)
+        * - Add 1 byte if m = 0 (16-bit memory/accumulator)
+        ¹ - Add 1 cycle if m = 0 (16-bit memory/accumulator)
+        ² - Add 1 cycle if low byte of Direct Page register is other than zero
+            (DL< >0)
+        ³ - Add 1 cycle if adding index crosses a page boundary
+
+    Flags Affected:
+        n - Set if most significant bit of result is set; else cleared.
+        z - Set if result is zero; else cleared.
+
+    Description:
+        Bitwise logical OR the data located at the effective address specified
+        by the operand with the contents of the accumulator. Each bit in the
+        accumulator is ORed with the corresponding bit in memory. The result is
+        stored into the same accumulator bit.
+
+        The truth table for the logical OR operation is:
+            First Operand    Second Operand    Result
+                0                0                0
+                0                1                1
+                1                0                1
+                1                1                1
+
+        A 1 or logical true results if either of the two operands of the OR
+        operation is true.
+        8-bit accumulator (all processors): Data ORed from memory is eight-bit.
+        16-bit accumulator (65802/65816 only, m=0): Data ORed from memory is
+        sixteen-bit: the low-order eight bits are located at the effective
+        address; the high-order eight bits are located at the effective address
+        plus one.
+
+    Notes:
+
+    -------------------------------------------------------------------------*/
+
+    .pseudocommand ora val {
+        .if (val.getType()==AT_IMMEDIATE) {
+            .byte $09, <val.getValue(), >val.getValue()
+        }
+
+        .if (val.getType()==AT_ABSOLUTE) {
+            .if (val.getValue()<256) {
+                .byte $05, <val.getValue()  // Direct Page
+            } else {
+                .if (val.getValue()<65536) {
+                    .byte $0d, <val.getValue(), >val.getValue()
+                } else {
+                    .byte $0f, <val.getValue(), >val.getValue(), val.getValue() >> 16
+                }
+            }
+        }
+
+        .if (val.getType()==AT_ABSOLUTEX) {
+            .if (val.getValue()<256) {
+                .byte $15, <val.getValue()  // Direct Page
+            } else {
+                .if (val.getValue()<65536) {
+                    .byte $1d, <val.getValue(), >val.getValue()
+                } else {
+                    .byte $1f, <val.getValue(), >val.getValue(), val.getValue() >> 16
+                }
+            }
+        }
+
+        .if (val.getType()==AT_ABSOLUTEY) {
+            .byte $19, <val.getValue(), >val.getValue()
+        }
+        .if (val.getType()==AT_IZEROPAGEX) {
+            ora (val.getValue(),x)
+        }
+        .if (val.getType()==AT_IZEROPAGEY) {
+            ora (val.getValue()),y
+        }
+        .if (val.getType()==AT_INDIRECT) {
+            .byte $12, val.getValue()
+        }
+
+    }
+
+    // Handle long addressing modes for Indirect and Indirect,y:
+    .pseudocommand ora_l val {
+        .if (val.getType()==AT_INDIRECT) {
+            .byte $07, val.getValue()
+        }
+        .if (val.getType()==AT_IZEROPAGEY) {
+            .byte $17, val.getValue()
+        }
+    }
+
+    // Handle stack addressing modes for Stack Relative and Stack Indirect Indexed,y:
+    .pseudocommand ora_s val {
+        .if (val.getType()==AT_INDIRECT) {
+            .byte $03, val.getValue()
+        }
+        .if (val.getType()==AT_IZEROPAGEY) {
+            .byte $13, val.getValue()
+        }
+    }
+</code>

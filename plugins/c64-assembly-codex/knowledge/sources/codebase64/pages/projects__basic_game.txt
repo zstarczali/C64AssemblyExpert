@@ -1,0 +1,18 @@
+# PAGE: projects:basic_game
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=projects:basic_game
+
+====== Basic Shooting Game ======
+
+By tomesz.
+
+Nice shooting game written in BASIC.
+The code is optimized for speed.
+Developed in CBM prg Studio.
+
+You can move the spaceship with the buttons next to the shifts (Y and -), and fire with the space.
+
+{{:projects:basicgame0.jpg?200|}}
+
+{{:projects:basicgame.zip|}}
+
+{{:projects:basicgamesrc.zip|}}

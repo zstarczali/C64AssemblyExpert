@@ -1,0 +1,122 @@
+# PAGE: base:supercpu_eor
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:supercpu_eor
+
+====== EOR ======
+
+<code>
+    //---------------------------------------------------------------------------------------------
+    // PseudoCommand-OPC: EOR16 (Exclusive-OR accumulator with memory)
+    //
+    // Addressing Modes:
+    //   Immediate                               ($49 - 2 bytes*, 2 cycles¹)
+    //   Absolute                                ($4d - 3 bytes, 4 cycles¹)
+    //   Absolute Long                           ($4f - 4 bytes, 5 cycles¹)
+    //   Direct Page (also DP)                   ($45 - 2 bytes, 3 cycles¹²)
+    //   DP Indirect                             ($52 - 2 bytes, 5 cycles¹²)
+    //   DP Indirect Long                        ($47 - 2 bytes, 6 cycles¹²)
+    //   Absolute Indexed, X                     ($5d - 3 bytes, 4 cycles¹³)
+    //   Absolute Long Indexed, X                ($5f - 4 bytes, 5 cycles¹)
+    //   Absolute Indexed, Y                     ($59 - 3 bytes, 4 cycles¹³)
+    //   DP Indexed, X                           ($55 - 2 bytes, 4 cycles¹²)
+    //   DP Indexed Indirect, X                  ($41 - 2 bytes, 6 cycles¹²)
+    //   DP Indirect Indexed, Y                  ($51 - 2 bytes, 5 cycles¹²³)
+    //   DP Indirect Long Indexed, Y             ($57 - 2 bytes, 6 cycles¹²)
+    //   Stack Relative (also SR)                ($43 - 2 bytes, 4 cycles¹)
+    //   SR Indirect Indexed, Y                  ($53 - 2 bytes, 7 cycles¹)
+    //   * - Add 1 byte if m = 0 (16-bit memory/accumulator)
+    //   ¹ - Add 1 cycle if m = 0 (16-bit memory/accumulator)
+    //   ² - Add 1 cycle if low byte of Direct Page register is other than zero (DL< >0)
+    //   ³ - Add 1 cycle if adding index crosses a page boundary
+    //
+    // Flags Affected:
+    //   n - Set if most significant bit of result is set; else cleared.
+    //   z - Set if result is zero; else cleared.
+    //
+    // Description:
+    //   Bitwise logical Exclusive-OR the data located at the effective address specified by the
+    //   operand with the contents of the accumulator. Each bit in the accumulator is
+    //   exclusive-ORed with the corresponding bit in memory, and the result is stored into the
+    //   same accumulator bit.
+    //
+    //   The truth table for the logical exclusive-OR operation is:
+    //       First Operand    Second Operand    Result
+    //           0                0                0
+    //           0                1                1
+    //           1                0                1
+    //           1                1                0
+    //
+    //   A 1 or logical true results only if the two elements of the Exclusive-OR operation are
+    //   different.
+    //
+    //   8-bit accumulator (all processors): Data exclusive-ORed from memory is eight-bit.
+    //
+    //   16-bit accumulator (65802/65816 only, m = 0): Data exclusive-ORed from memory is
+    //   sixteen-bit:
+    //    - the low-order eight bits are located at the effective address;
+    //    - the high-order eight bits are located at the effective address plus one.
+    //---------------------------------------------------------------------------------------------
+
+    .pseudocommand eor16 val {
+        .if (val.getType()==AT_IMMEDIATE) {
+            .byte $49, <val.getValue(), >val.getValue()
+        }
+
+        .if (val.getType()==AT_ABSOLUTE) {
+            .if (val.getValue()<256) {
+                .byte $45, <val.getValue()       // Direct Page
+            } else {
+                .if (val.getValue()<65536) {
+                    .byte $4d, <val.getValue(), >val.getValue()
+                } else {
+                    .byte $4f, <val.getValue(), >val.getValue(), val.getValue() >> 16
+                }
+            }
+        }
+
+        .if (val.getType()==AT_ABSOLUTEX) {
+            .if (val.getValue()<256) {
+                .byte $55, <val.getValue()       // Direct Page
+            } else {
+                .if (val.getValue()<65536) {
+                    .byte $5d, <val.getValue(), >val.getValue()
+                } else {
+                    .byte $5f, <val.getValue(), >val.getValue(), val.getValue() >> 16
+                }
+            }
+        }
+
+        .if (val.getType()==AT_ABSOLUTEY) {
+            .byte $59, <val.getValue(), >val.getValue()
+        }
+        .if (val.getType()==AT_IZEROPAGEX) {
+            eor (val.getValue(),x)
+        }
+        .if (val.getType()==AT_IZEROPAGEY) {
+            eor (val.getValue()),y
+        }
+        .if (val.getType()==AT_INDIRECT) {
+            .byte $52, val.getValue()
+        }
+
+    }
+
+    // Handle long addressing modes for Indirect and Indirect,y:
+    .pseudocommand eor_l val {
+        .if (val.getType()==AT_INDIRECT) {
+            .byte $47, val.getValue()
+        }
+        .if (val.getType()==AT_IZEROPAGEY) {
+            .byte $57, val.getValue()
+        }
+    }
+
+    // Handle stack addressing modes for Stack Relative and Stack Indirect Indexed,y:
+    .pseudocommand eor_s val {
+        .if (val.getType()==AT_INDIRECT) {
+            .byte $43, val.getValue()
+        }
+        .if (val.getType()==AT_IZEROPAGEY) {
+            .byte $53, val.getValue()
+        }
+    }
+</code>

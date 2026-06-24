@@ -1,0 +1,63 @@
+# PAGE: base:c_1351_mouse_routine_alternative
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:c_1351_mouse_routine_alternative
+
+====== 1351 mouse routine (Alternative) ======
+
+<code>
+
+;64tass format
+;taken from Operation Wolf game (Taito version) and optimized
+;2 zp's needed
+;output of jsr mouse is in X Y registers
+;recent optimization by TWW
+
+	zp1 = $0a 		;2 zp's total
+
+mouse	lda #$9f		;this depends on idle value. can be $ff too
+	sta $dc00
+	lda $dc00
+	tay
+	and #$01
+	sta buttonr		;right mouse button
+	tya
+	and #$10	
+	sta buttonl		;left mouse button
+		
+	lda $d41a
+	sec
+	sbc zp1+1
+	jsr mcomm
+
+;	eor #$ff		;uncomment these means Y = NOT Y
+;	clc
+;	adc #$01
+			
+	sta mhere+1
+			
+	lda $d41a
+	sta zp1+1
+	lda $d419
+	sec
+	sbc zp1
+	jsr mcomm
+		
+	tay
+mhere	ldx #$00
+	lda $d419
+	sta zp1
+	rts
+
+mcomm	and #$7f
+	cmp #$40
+	bcc +
+	ora #$80
+	sec
+	ror
+	rts
++       lsr
+        rts
+		
+buttonl	.byte $00
+buttonr	.byte $00
+
+</code>

@@ -1,0 +1,17 @@
+# PAGE: base:flexible_48_sprite_multiplexer
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:flexible_48_sprite_multiplexer
+
+{{base:44sprs.png|}}
+
+This is an update to the [[Flexible 32 Sprite Multiplexer 2|Flexible 32 Sprite Multiplexer - Version 2]] code to display up to 48 sprites.
+
+[[projects:resurrection|Updated sources available in the large archive here]]
+
+The assembled demo is at C64\SpriteMultiplexor\TestMultiplexor.prg and can be tested with CCS64 or Vice emulators.
+
+To assemble open a command line window, change directory to C64\SpriteMultiplexor then use:
+..\acme.exe -v3 TestMultiplexor.a
+
+The sources have plenty of comments.
+
+The C64\Scroller demonstration code also uses the multiplexer and shows how to hook in your own interrupt chain as well as some of the more advanced features for avoiding raster time overflows.

@@ -1,0 +1,52 @@
+# PAGE: base:supercpu_rtl
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:supercpu_rtl
+
+====== RTL ======
+
+<code>
+    /*-------------------------------------------------------------------------
+    OP CODE: RTL (ReTurn from subroutine Long)
+    ==========================================
+    
+    Addressing Modes:
+        Stack                            ($6b - 1 byte, 6 cycles)
+
+    Flags Affected:
+        N/A
+
+    Description:
+        Pull the program counter (incrementing the stacked, sixteen-bit value
+        by one before loading the program counter with it), then the program
+        bank register from the stack.
+        When a subroutine in another bank is called (via a jump to subroutine
+        long instruction), the current bank address is pushed onto the stack
+        along with the return address. To return to the calling bank, a long
+        return instruction must be executed, which first pulls the return
+        address from the stack, increments it, and loads the program counter
+        with it, then pulls the calling bank from the stack and loads the
+        program bank register. This transfers control to the instruction
+        immediately following the original jump to subroutine long.
+
+                                              STACK
+                                    |                       |
+                                    +-----------------------+
+            Stack Pointer After  -->|  Return Bank Address  |
+                                    +-----------------------+
+                                    |  Return Address High  |
+                                    +-----------------------+
+                                    |  Return Address Low   |
+                                    +-----------------------+
+            Stack Pointer Before -->|                       |
+                                    +-----------------------+
+                                    |                       |
+                                             Bank 0
+
+    Notes:
+
+    -------------------------------------------------------------------------*/
+
+    .pseudocommand rtl {
+        .byte $6b
+    }
+
+</code>

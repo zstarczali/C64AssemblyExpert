@@ -1,0 +1,93 @@
+# PAGE: base:neos_mouse_routine
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:neos_mouse_routine
+
+====== NEOS Mouse Routine (in Port 2) ======
+
+<code>
+
+;64tass format
+;taken from Operation Wolf game (Taito version) and combined with
+;some code from Joyride (by T'Pau) and optimized
+;2 zp's needed
+;output of jsr mouse is in X Y registers
+		
+	zp1 = $0a 		;2 zp's total
+		
+mouse	lda #$00
+	sta $dc02
+	lda $dc00
+	and #$10
+	eor #$10
+	sta buttonl		;left button
+		
+	lda #$10
+	sta $dc02
+		
+	ldx #$01
+-	lda #$ef
+	sta $dc00
+		
+	ldy #$04
+	jsr wait		;wait - optional
+		
+	lda $dc00
+	asl
+	asl
+	asl
+	asl
+	sta zp1,x
+		
+	lda #$ff
+	sta $dc00
+		
+	ldy #$01
+	jsr wait		;wait - optional
+		
+	lda $dc00
+	and #$0f
+	ora zp1,x
+	sta zp1,x
+		
+	dex
+	bpl -
+		
+	lda $d419
+	cmp #$ff
+	beq +
+	lda #$10
+	.byte $2c
++	lda #$00
+	sta buttonr		;right button
+		
+	lda zp1
+
+;	eor #$ff		;uncomment these means Y = NOT Y
+;	clc
+;	adc #$01
+		
+	sta neosx+1
+	lda zp1+1
+		
+;	eor #$ff		;uncomment these means Y = NOT Y
+;	clc
+;	adc #$01		
+		
+	tay
+neosx	ldx #$00
+neosend	lda #$ff
+	sta $dc02
+	lda #$9f		;this depends on idle value. can be $7f too
+	sta $dc00
+	rts
+		
+wait	nop
+	nop		
+	nop
+	dey
+	bne wait
+	rts
+		
+buttonl	.byte $00
+buttonr	.byte $00		
+
+</code>

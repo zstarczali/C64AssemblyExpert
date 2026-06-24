@@ -1,0 +1,63 @@
+# PAGE: base:mathematics_in_assembly_part_4
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:mathematics_in_assembly_part_4
+
+====== Mathematics in Assembly - Part 4 ======
+
+by Krill/Plush
+
+====== Prologue ======
+
+Welcome fellow sceners to my contribution to this magazine's RUBY edition, which is three more chapters of my tutorial about mathematics in assembly, first published in German and in printed form in GO64! Magazine. The digital versions of this tutorial's first three chapters were published in Attitude #4, Domination#17 and Attitude #5, successively. Have a nice read! 
+
+As promised, we're slowly approaching more practical maths routines, this time the bit-wise multiplication. It's about the more practical way of multiplying, as it's universally usable, small and relatively fast. 
+
+Alright, between this publication and the release of the previous chapter, there was enough time to take a deep look at the multiplication by constants. Let's sum up what was done:
+
+A constant was reduced to powers of two. Then an arbitrary factor was multiplied with them accordingly, say shifted left, and at last, the shifted values were added up. Okay. This works, as the small mathematical consideration in the previous chapter showed, because the following applies:
+
+If bit 0 (value 1) is set in the constant, the arbitrary factor is contained at least once in the result. If bit 1 (value 2) isset in the constant, the arbitrary factor is contained at least twice in the result - and so on. So, for example, 7 (%0111) multiplied by 5 (%0101) is contained 2^2 + 2^0 + 4 + 1 times in the result. I hope I succeeded at least half-way in making you understand that. To eliminate any further misunderstandings, the whole printed properly:
+
+<code>
+ 7*5 = %0111*%0101
+
+       %0111; 7 unshifted, so 2^0 = 1 time
+     + %0111; 7 shifted twice, so 2^2 = 4 times. 
+
+     %100011; both values added - result 35 ($23)
+</code>
+
+Looks like ordinary written multiplication but with binary numbers instead. The whole thing can also be solved in a routine, namely for two arbitrary factors that are passed to this routine as arguments. The routine does nothing different than we did a moment ago: one of the two values is used as 'shifting factor' i.e. what was 7 was in previous example - the value being shifted left and, if necessary, added to the result The second factor then is the value being tested bit by bit. But now for the actual routine.
+
+====== The bit-wise multiplication ======
+
+At first, the result variable is initialised with zero. In a loop, the following is happening: the second factor is shifted right which causes the least significant bit, i.e. bit 0, to fall in the carry bit. If it's set, the first factor is added to the result variable, if not, it's not. In the first run of the loop, the first factor is unaltered. After that, it's doubled and in the second run of the loop, bit 1 of the original second factor is tested and according to that, the doubled first factor is added to the result variable, or just not. This goes on until all bits of the second factor have been tested and the altered first factor accordingly added to the result variable. After the loop has been run through, the result is contained in the result variable. Just as simple as that. Finally, in fact just for the sake of a better understanding, an entirely unoptimised demonstration routine is printed here:
+<code>
+        STX factorlo  ; store both
+        STX factor2   ; factors
+        LDA #$00
+        STA factor1hi ; initialise hi-nibble
+        STA resultlo  ; and result word
+        STA resulthi
+        LDX #$08      ; 2nd factor has 8 bits
+loop    LSR factor2   ; bit 0 to carry
+        BCC nullbit   ; bit test
+        CLC
+        LDA factor1lo ; bit was set,
+        ADC resultlo  ; so add
+        STA resultlo  ; current
+        LDA factor1hi ; multiple of
+        ADC resulthi  ; the first factor
+        STA resulthi
+nullbit ASL factor1lo ; double first
+        ROL factor1hi ; factor
+        DEX
+        BNE loop
+        LDX resultlo  ; return result
+        LDY resulthi
+</code>
+
+By the way, the things to be aware of, which are mentioned in the previous chapter, also have to be considered here. Just a small hint for optimising the code: The more seldom factor 1 has to be added to the result variable, the faster the routine is. That is, the less bits are set in factor 2, the faster the routine is. So it would be a smart move to swap both factors if factor 1 has less bits set than factor 2 and if the swapping routine won't take more time than it saves, of course.
+
+That's it for the bit-wise multiplication. Please read the following two Vandalism News chapters to learn more about quite fast but rather memory-intense methods of multiplication.
+
+Krill.

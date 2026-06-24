@@ -1,0 +1,118 @@
+# PAGE: base:rs232silversurfer.h
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:rs232silversurfer.h
+
+====== rs232silversurfer.h ======
+<code>
+/*
+* rs232silversurfer.h
+*
+* Groepaz/Hitmen, 16.12.2001
+*
+* This defines for the SilverSurver (16c550 UART) what Ullrichs rs232 module
+* defines for the Swithlink/Turbo232
+*
+* this driver operates in polling mode only atm !
+*
+*/
+
+#ifndef _RS232silversurfer_H
+#define _RS232silversurfer_H
+
+/*****************************************************************************/
+/*                   Data                                                    */
+/*****************************************************************************/
+
+/* Baudrate settings */
+#define RS_BAUD_50                0x00
+#define RS_BAUD_110               0x10
+#define RS_BAUD_134_5             0x20
+#define RS_BAUD_300               0x30
+#define RS_BAUD_600               0x40
+#define RS_BAUD_1200              0x50
+#define RS_BAUD_2400              0x60
+#define RS_BAUD_4800              0x70
+#define RS_BAUD_9600              0x80
+#define RS_BAUD_19200             0x90
+#define RS_BAUD_38400             0xa0
+#define RS_BAUD_57600             0xb0
+#define RS_BAUD_115200            0xc0
+#define RS_BAUD_230400            0xd0
+
+/* Stop bit settings */
+#define RS_STOP_1                       0x00
+#define RS_STOP_2                       0x04
+
+/* Data bit settings */
+#define RS_BITS_5                       0x00
+#define RS_BITS_6                       0x01
+#define RS_BITS_7                       0x02
+#define RS_BITS_8                       0x03
+
+/* Parity settings */
+#define RS_PAR_NONE                     0x00
+#define RS_PAR_ODD                      0x28
+#define RS_PAR_EVEN                     0x38
+#define RS_PAR_MARK                     0x48
+#define RS_PAR_SPACE                    0x48
+
+/* Bit masks to mask out things from the status returned by rs232_status */
+#define RS_STATUS_IRQ                   0x01    /* (iir) IRQ condition */
+#define RS_STATUS_OVERRUN               0x02    /* (lsr) Overrun error */
+#define RS_STATUS_PE                    0x04    /* (lsr) Parity error */
+#define RS_STATUS_FE                    0x08    /* (lsr) Framing error */
+#define RS_STATUS_DSR                   0x10    /* (msr>>1) NOT data set ready */
+#define RS_STATUS_THRE                  0x20    /* (lsr) Transmit holding reg. empty */
+#define RS_STATUS_DCD                   0x40    /* (msr>>1) NOT data carrier detect */
+#define RS_STATUS_RDRF                  0x80    /* Receiver data register full */
+
+/* Error codes returned by all functions */
+#define RS_ERR_OK                       0x00    /* Not an error - relax */
+#define RS_ERR_NOT_INITIALIZED          0x01    /* Module not initialized */
+#define RS_ERR_BAUD_TOO_FAST            0x02    /* Cannot handle baud rate */
+#define RS_ERR_BAUD_NOT_AVAIL           0x03    /* Baud rate not available */
+#define RS_ERR_NO_DATA                  0x04    /* Nothing to read */
+#define RS_ERR_OVERFLOW                 0x05    /* No room in send buffer */
+
+/*****************************************************************************/
+/*                                   Code                                                                            */
+/*****************************************************************************/
+
+unsigned char __fastcall__ ss232_init (char hacked);
+/* Initialize the serial port, install the interrupt handler. The parameter
+* has no effect for now and should be set to 0.
+*/
+
+unsigned char __fastcall__ ss232_params (unsigned char params, unsigned char parity);
+/* Set the port parameters. Use a combination of the #defined values above. */
+
+unsigned char __fastcall__ ss232_done (void);
+/* Close the port, deinstall the interrupt hander. You MUST call this function
+* before terminating the program, otherwise the machine may crash later. If
+* in doubt, install an exit handler using atexit(). The function will do
+* nothing, if it was already called.
+*/
+
+unsigned char __fastcall__ ss232_get (char* b);
+/* Get a character from the serial port. If no characters are available, the
+* function will return RS_ERR_NO_DATA, so this is not a fatal error.
+*/
+
+unsigned char __fastcall__ ss232_put (char b);
+/* Send a character via the serial port. There is a transmit buffer, but
+* transmitting is not done via interrupt. The function returns
+* RS_ERR_OVERFLOW if there is no space left in the transmit buffer.
+*/
+
+unsigned char __fastcall__ ss232_pause (void);
+/* Assert flow control and disable interrupts. */
+
+unsigned char __fastcall__ ss232_unpause (void);
+/* Re-enable interrupts and release flow control */
+
+unsigned char __fastcall__ ss232_status (unsigned char* status,
+                                         unsigned char* errors);
+/* Return the serial port status. */
+
+/* End of rs232silversurfer.h */
+#endif
+</code>

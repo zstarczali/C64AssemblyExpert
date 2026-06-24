@@ -1,0 +1,18 @@
+# PAGE: guidelines
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=guidelines
+
+====== Guidelines ======
+
+  - Rule #1 is to always fix any problems you encounter in information here yourself, rather than complaining about others and expect them to do stuff for you. The wiki is a collective endeavor.
+  - Put a main heading on top of each page (select the text to be used as heading and press the blue "H" button in the tool bar). Don't start the body text immediately. Then right under the heading, provide information about who wrote the text, such as "By Frantic.", or "Code by SuperCoder, text by Frantic.".
+  - Try to keep routines covering the exact same purpose on the same page to avoid a excessively large index with redundant information. This also helps finding all the relevant information on a given topic.
+  - Whenever possible, aim at providing source code that can be assembled right away. If include files are required to assemble the routines you should note that you can upload files here by using the upload button in the editor (the button confusingly looks like a painting hanging on the wall, but can be used to upload files other than images).
+  - Separate links to material contained on this site from links to material on other sites (which should be in the External Links section.)
+
+====== Recommendations ======
+
+  - Don't be afraid to use pictures to explain your routines. A simple screenshot next to an effect/routine is very informative for somebody who doesn't speak the lingo but who likes to get a better understanding
+
+====== Confused? ======
+
+Also see the [[Quick Howto]] on the topic of "How to add stuff to the wiki".

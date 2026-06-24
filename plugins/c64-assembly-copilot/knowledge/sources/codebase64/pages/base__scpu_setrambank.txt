@@ -1,0 +1,22 @@
+# PAGE: base:scpu_setrambank
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:scpu_setrambank
+
+====== SetRAMBank ======
+
+Set's the active RAM Bank used by the 658C16 CPU.
+
+Requires the function: "SwitchEndian16"
+
+| SYNTAX:     | :SetRAMBank val              |||
+| EXAMPLE:    | :SetRAMBank $100000          |||
+| PARAMETERS: |  Type  |  Minimum  |  Maximum  |
+|   val       |   U8   |    $00    |   $ff     |
+
+<code>
+    .pseudocommand SetRAMBank val {
+        lda #SwitchEndian16(val.getValue())
+        pha
+        plb
+        plb
+    }
+</code>

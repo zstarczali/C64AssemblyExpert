@@ -1,0 +1,59 @@
+# PAGE: base:horizontal_raster_split
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:horizontal_raster_split
+
+====== Horizontal Rastersplits ======
+
+By Monte Carlos
+
+Very basic rastersplitting can be done by waiting for a certain rasterline an then switch some VIC register.
+The display has 312 rasterlines at max but the VIC rasterline register ($d012) has only a range of 0 to 255.
+Therefore bit 7 of $d011 indicates if the rasterline is <256 or >255. Now the questions arises how to wait for a certain rasterline in the whole range without the preassumption of beeing in rasterline x when the wait routine is called.
+Here is a diagram which examples the situation:
+
+{{{{:base:rect11618.png?400| waiting for a rasterline}}
+
+Dependent of which rasterline you're currently in, you can simply compare $d012 with the desired rasterline or you must first wait for bit 7 of $d011 to attain the right value and then wait again for the desired line. Even more, retrace has to be taken into account, too.
+
+In total you have to consider 6 different cases:
+
+//being in rasterline 0-255 and//
+  * waiting for a rasterline < $d012 -> wait for bit 7 of $d011 to switch to 1 and back to 0 and then wait for lowbyte
+  * waiting for rasterline > $d012 but < 256 -> simply wait on lowbyte to match
+  * waiting for a rasterline > $d012 but > 255 -> wait for set bit 7 of $d011 and then wait for lowbyte to match
+
+//being in rasterline 256+ and//
+  * waiting for a rasterline < $d012 and < 256 -> wait for unset bit 7 of $d011 and then wait for lowb
+  * waiting for rasterline < $d012 but > 256 -> wait for unset bit 7 of $d011, then set bit7 of $d011 and then on lowbyte
+  * waiting for a rasterline > $d012 -> simply wait for lowbyte to match
+
+<code>
+
+waitrasterline:
+    cpx #0
+    beq wait0To255
+    ;from here on we wait for a rasterline > 255
+    bit $d011
+    bpl *-3
+    ;inRasterLineGT255
+    cmp $d012
+    bcs waitMatchingD012
+    bit $d011
+    bmi *-3
+    bit $d011
+    bpl *-3
+    bmi waitMatchingD012
+wait0To255:
+    bit $d011
+    bmi *-3
+    ;inRasterlineLT256
+    cmp $d012
+    bcs waitMatchingD012
+    bit $d011
+    bpl *-3
+    bit $d011
+    bmi *-3
+waitMatchingD012:
+    cmp $d012
+    bne waitMatchingD012
+    rts
+</code>

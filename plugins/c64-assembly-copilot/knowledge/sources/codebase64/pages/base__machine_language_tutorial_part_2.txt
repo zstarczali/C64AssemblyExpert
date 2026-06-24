@@ -1,0 +1,83 @@
+# PAGE: base:machine_language_tutorial_part_2
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:machine_language_tutorial_part_2
+
+====== Machine Language Tutorial Part 2 - Memory Manipulation ======
+The 6510 has three registers that can all hold 8 bits of data (this is why the C64 is called an 8-bit computer): A, X, and Y.
+The proper name for the A register is the accumulator because of its ability to do math, and X & Y are called index registers.
+You cannot transfer data directly between two memory addresses, so these must pass through the registers.
+
+To load a byte into registers, use these commands:
+<code>LDA - load into A
+LDX - load into X
+LDY - load into Y</code>
+
+So the "LDA $1234" example from last part would load whatever was in $1234 into A.
+
+To store registers into memory, use these commands:
+<code>STA - store A into
+STX - store X into
+STY - store Y into</code>
+
+So the "STA $4321" example from last part would store whatever was in A into $4321.
+
+To transfer data between registers, use these commands:
+<code>TAX - transfer A to X
+TAY - transfer A to Y
+TXA - transfer X to A
+TYA - transfer Y to A</code>
+
+These commands have no operand, so just "TAX" would be sufficient.
+
+To increment or decrement registers or memory, use these commands:
+<code>INC - increment memory
+INX - increment X
+INY - increment Y
+DEC - decrement memory
+DEX - decrement X
+DEY - decrement Y</code>
+
+So "INC $1111" would increment $1111. INX and INY have no operand. You'll use INX/DEX/INY/DEY a lot, so remember them!
+
+===== A Little Tangent =====
+Alright, so we have a question that still needs to be answered: where do we put our programs?
+The cassette buffer, $033C-$03FB is a good spot to put these short example programs.
+But in the future, you're going to need to use different spots of memory.
+There's a completely free block of RAM in $C000-$CFFF, but that's still only 4K.
+$0800-$9FFF is the normal spot if you're not using BASIC at all, but usually you're going to include a SYS-line, so you'll need to start at $080D if so. If you have the BASIC and Kernal-ROMs turned off entirely, you've also got almost all of $A000-$BFFF and $E000-$FFFF. Don't use $D000-$DFFF, that's where the I/O (SID, VIC, CIA) lies.
+
+===== The Example =====
+Objective: We want to get $46 into A, transfer that to X, increase it, put it back into A, and then store that into $CFFF.
+
+The first problem comes right away: how do we get the specific value $46 into A? We can't do LDA $46, or else it would load from the zeropage $46.
+
+The solution is that we have to add a number sign preceding the value. This is called immediate addressing. Using a full address (LDA $FFFF) is called absolute addressing, and zeropage access (LDA $FF) is called zeropage addressing. We'll learn about more addressing modes later.
+
+So type this into the monitor:
+<code>A 033C LDA #$46</code>
+Remember what this means? It means that we're Assembling LDA #$46 to $033C.
+
+So now we see that the monitor has prepared the next line, now all we must type to transfer is:
+<code>TAX</code>
+And now we increment it:
+<code>INX</code>
+Put it back into A:
+<code>TXA</code>
+And store it (absolute addressing):
+<code>STA $CFFF</code>
+But now there's another issue: how do we tell the computer to stop execution? If we didn't, it would just go into a random series of commands that would inevitably crash it.
+
+To tell the computer to quit this program, we use:
+<code>BRK</code>
+This breaks the program and jumps to the address at $0316. In this case, it returns to the monitor.
+
+Note: Using BRK to end a program is generally a bad idea for actual programs. We're only using it in this example.
+
+We're done, now just press return on the next line to exit assembly mode.
+
+To start the program, we could do two things: go back to BASIC and type SYS828 ($033C in decimal), or type in the monitor:
+<code>G 033C</code>
+This command (goto) changes the Program Counter so the next thing it executes is your program (the instruction at $033C).
+
+Now type R into the monitor to view the registers, and type M CFFF. See anything different?
+
+End of part 2...

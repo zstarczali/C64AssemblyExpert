@@ -1,0 +1,111 @@
+# PAGE: base:cult_loader
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:cult_loader
+
+====== Cult Loader ======
+
+<code>
+Cult Loader Disassembly
+
+Fungus of Nostalgia 2006
+
+
+      0355  78             SEI           ;disable irq's
+      0356  A9 AF          LDA #$AF      ;initalize file length
+      0358  85 AE          STA $AE       
+      035A  A9 DD          LDA #$DD      ;($ae) = $ddaf  
+      035C  85 AF          STA $AF       
+      035E  A9 05          LDA #$05      ;motor on , i/o only
+      0360  85 01          STA $01       
+      0362  A9 1F          LDA #$1F      
+      0364  8D 0D DC       STA $DC0D     ;cia irq's off
+      0367  85 A4          STA $A4       ;loading complete flag
+      0369  AD 0D DC       LDA $DC0D     ;clear flags
+      036C  A9 00          LDA #$00       
+      036E  85 95          STA $95       ;sync flag
+      0370  85 90          STA $90       ;st = 00
+      0372  A9 A0          LDA #$A0      ;threshold is $01a0 hex
+      0374  8D 06 DC       STA $DC06     
+      0377  A9 03          LDA #$03       
+      0379  8D 07 DC       STA $DC07    
+      037C  A9 90          LDA #$90      ;enable irq on tape in  
+      037E  8D 0D DC       STA $DC0D    
+      0381  A9 92          LDA #$92      ;irq vector $0392
+      0383  8D FE FF       STA $FFFE    
+      0386  A9 03          LDA #$03      
+      0388  8D FF FF       STA $FFFF     
+      038B  58             CLI           ;reenable irq's 
+      038C  A5 A4          LDA $A4       ;wait for end of load
+      038E  D0 FC          BNE $038C
+      0390  60             RTS           ;return to basic
+       
+      0391  00             BRK           ;unused ?
+        
+      0392  48             PHA           ;main irq
+      0393  98             TYA           
+      0394  48             PHA          
+      0395  AD 07 DC       LDA $DC07     ;get threshold high
+      0398  A0 11          LDY #$11      ;reset timer and irq
+      039A  8C 0F DC       STY $DC0F     
+      039D  EE 20 D0       INC $D020     ;load effect
+      03A0  49 02          EOR #$02      ;adjust threshold (invert bits)
+      03A2  4A             LSR           
+      03A3  4A             LSR           ;move bit 2 into carry
+      03A4  66 A9          ROR $A9       ;rol in the bit
+      03A6  90 0F          BCC $03B7     ;carry set? (sync or byte in)
+      03A8  EA             NOP           
+      03A9  AD 0D DC       LDA $DC0D     ;clear flags
+      03AC  68             PLA           
+      03AD  A8             TAY           
+      03AE  68             PLA           
+      03AF  40             RTI           ;exit irq
+  
+      03B0  A9 7F          LDA #$7F      ;initialize input byte #%01111111
+      03B2  85 A9          STA $A9       
+      03B4  D0 F3          BNE $03A9     ;jump always
+      03B6  EA             NOP           
+
+      03B7  A5 A9          LDA $A9       ;get completed byte
+      03B9  A4 95          LDY $95       ;0 = were still syncing
+      03BB  D0 09          BNE $03C6     ;(Y has set the flags or not)
+      03BD  C9 80          CMP #$80       
+      03BF  D0 E8          BNE $03A9     ;exit irq
+      03C1  85 95          STA $95       
+      03C3  F0 EB          BEQ $03B0     ;branch always
+
+      03C5  00             BRK           ;unused
+           
+      03C6  10 11          BPL $03D9     ;check negative
+      03C8  C9 AA          CMP #$AA      ;sync #%10101010 
+      03CA  F0 06          BEQ $03D2     ;branch if synced
+
+      03CC  A9 00          LDA #$00      ;not sync, so reset flag to sync 
+      03CE  85 95          STA $95       
+      03D0  F0 D7          BEQ $03A9     ;exit irq
+
+      03D2  A9 01          LDA #$01      ;sync achived
+      03D4  85 95          STA $95       ;set flag for loading
+      03D6  D0 D8          BNE $03B0     ;branch always
+ 
+      03D8  EA             NOP           ;unused
+
+      03D9  A0 00          LDY #$00      ;load to mem
+      03DB  C6 01          DEC $01       ;all ram
+      03DD  91 AC          STA ($AC),Y   ;save byte
+      03DF  E6 01          INC $01       ;i/o back in
+      03E1  E6 AC          INC $AC       ;inc low of store
+      03E3  D0 02          BNE $03E7
+      03E5  E6 AD          INC $AD       ;inc high of store
+      03E7  38             SEC          
+      03E8  A5 AC          LDA $AC       ;adj file size low
+      03EA  E5 AE          SBC $AE      
+      03EC  A5 AD          LDA $AD      
+      03EE  E5 AF          SBC $AF       ;adj filesize high
+      03F0  90 BE          BCC $03B0     ;reset input byte
+
+      03F2  A9 00          LDA #$00      ;set load complete
+      03F4  85 A4          STA $A4     
+      03F6  F0 B8          BEQ $03B0     ;exit irq
+
+      03F8  8E 08 05       STX $0508     ;unused
+      03FB  12             ??? 
+</code>

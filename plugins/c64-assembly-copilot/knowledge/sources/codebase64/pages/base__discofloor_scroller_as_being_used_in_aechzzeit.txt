@@ -1,0 +1,1763 @@
+# PAGE: base:discofloor_scroller_as_being_used_in_aechzzeit
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:discofloor_scroller_as_being_used_in_aechzzeit
+
+======= Perspective discofloor scroller =======
+
+by Bitbreaker/Oxyron^Arsenic^Nuance
+
+{{ :base:perpsc.gif|}}
+
+For this scroller we need a bitmap as shown in the screenshots, while each adjacent cell alternatingly uses multicolor 1 or 2. Also there's FLI splits where the horizontal black lines are. Thus each cell of the grid can be changed independently by setting their respective screen positions with the fitting color. The FLI-bug is hidden with a bunch of sprites. The colors for those sprites will also be set accordingly to make them appear as independent cells. 
+
+Now we shift a pattern through a table from left to right and bitwise decoded chars in another table from right to left.
+
+Scrolling now happens in two steps:
+
+$d016 is set from $00 to $07, means the whole bitmap is shifted 7 pixel to the right. Before that the cells for the scrolltext all advance one to the left. 
+On teh next frame $d016 is then set back to $00. The whole bitmap shifts 7 pixel to the left then. Before this gets visible, all cells of the underlaying patterns advance one to the right. 
+This way the underlying pattern appears to smoothly scroll from left to right and the text scrolls smoothly from right to left. It exactly takes 2 steps to advance 16 pixel in the lowest line being displayed. Actually it is not 8 + 8 but 7 + 9 pixels, but as you see it is not noticeable. 
+
+One might also think of doing a hires version of this scroller. Then the black separating lines would need to vanish.
+
+And here's the source \o/ But be aware the bitmap + sprites in disco.prg are missing.
+
+(added by xIII: {{ :sourcecode:discoscroller.zip |}} Kickassembler format + bitmap + executable)
+
+<code 6502acme>
+!convtab pet
+!cpu 6510
+
+         * = $3000
+         ;bitmap + sprites as a binary blob
+!bin "disco.prg",,$0002
+
+         *= $4000
+char     = $40      ;2 bytes
+tmp1     = $42
+tmp2     = $43
+charbit  = $44
+sclo     = $48
+schi     = $49
+colpos   = $50
+
+dchar    = $0340    ;here goes the decoded char as a 8x8 byte matrix
+base     = $2000
+charset  = $7000
+
+comb     = $0402
+letters  = $0500
+colors   = $0600
+
+         jmp start
+fli
+         sei
+         lda #$7f
+         sta $dc0d
+         lda $dc0d
+         lda #$01
+         sta $d019
+         sta $d01a
+         lda #$cb
+         sta $d012
+         lda #$3b
+         sta $d011
+
+         ;be lazy, use irq-vector
+         lda #<irq
+         sta $0314
+         lda #>irq
+         sta $0315
+         cli
+trig
+         lda #$00
+         beq trig
+         lda #$00
+         sta trig+1
+         jsr matrix
+         jsr scroller
+         jmp trig
+
+         ;first irq, do all the fli stuff and so on. This could be done way more compact
+         ;by just doing an fli were necessary, but well, too lazy :-)
+irq
+         dec $d019
+
+d016     lda #$10
+
+         ldy #$03
+lower    ldx #$00
+         sta $d016
+         sty $dd00
+         nop
+         lda #$7b
+         stx $d020
+         stx $d021
+         sta $d011
+
+         lda #$88
+         ldx #$38
+         sta $d018
+         stx $d011
+         inx
+         nop
+         nop
+         nop
+         nop
+         sta $d018
+         stx $d011
+         lda #$98
+         inx
+         nop
+         nop
+         nop
+         sta $d018
+         stx $d011
+         inx
+         nop
+         nop
+         nop
+         nop
+         sta $d018
+         stx $d011
+         lda #$a8
+         inx
+         nop
+         nop
+         nop
+         sta $d018
+         stx $d011
+         inx
+         nop
+         nop
+         nop
+         nop
+         sta $d018
+         stx $d011
+         lda #$b8
+         inx
+         nop
+         nop
+         nop
+         sta $d018
+         stx $d011
+         inx
+         nop
+         nop
+         nop
+         nop
+         sta $d018
+         stx $d011
+         bit $ea
+
+         lda #$88
+         ldx #$38
+         sta $d018
+         stx $d011
+         inx
+sp04     ldy #$00
+         sty $d025
+sp05     ldy #$00
+         sty $d027
+         stx $d011
+         lda #$98
+         inx
+sp06     ldy #$00
+         sty $d026
+         sta $d018
+         stx $d011
+         inx
+         nop
+         nop
+         nop
+         nop
+         sta $d018
+         stx $d011
+sp07     ldy #$00
+         inx
+sp08     lda #$00
+         sta $d026
+         sty $d027
+         stx $d011
+         inx
+sp09     ldy #$00
+         sty $d025
+         lda #$a8
+         sta $d018
+         stx $d011
+         lda #$b8
+         inx
+         nop
+         nop
+         nop
+         sta $d018
+         stx $d011
+         inx
+         nop
+         nop
+         nop
+sp0a     ldy #$00
+         sta $d018
+         stx $d011
+         sty $d027
+sp0b     lda #$00
+         ldx #$38
+         sta $d026
+         stx $d011
+         inx
+sp0c     ldy #$00
+         sty $d025
+         lda #$88
+         sta $d018
+         stx $d011
+         lda #$98
+         inx
+         nop
+         nop
+         nop
+         sta $d018
+         stx $d011
+         inx
+         nop
+         nop
+         nop
+         nop
+         sta $d018
+         stx $d011
+         lda #$a8
+         inx
+         nop
+         nop
+         nop
+         sta $d018
+         stx $d011
+         inx
+sp0d     ldy #$00
+sp0e     lda #$00
+         sty $d026
+         sta $d025
+         stx $d011
+         lda #$b8
+         inx
+sp0f     ldy #$00
+         sty $d027
+         sta $d018
+         stx $d011
+         inx
+         nop
+         nop
+         nop
+         nop
+         sta $d018
+         stx $d011
+         bit $ea
+         lda #$88
+         ldx #$38
+         sta $d018
+         stx $d011
+         inx
+         nop
+         nop
+         nop
+         nop
+         sta $d018
+         stx $d011
+         lda #$98
+         inx
+         nop
+         nop
+         nop
+         sta $d018
+         stx $d011
+         inx
+sp10     lda #$00
+sp11     ldy #$00
+         sta $d025
+         sty $d028
+         stx $d011
+         lda #$a8
+         inx
+sp12     ldy #$00
+         sty $d026
+         sta $d018
+         stx $d011
+         inx
+         nop
+         nop
+         nop
+         nop
+         sta $d018
+         stx $d011
+         lda #$b8
+         inx
+         nop
+         nop
+         nop
+         sta $d018
+         stx $d011
+         inx
+         nop
+         nop
+         nop
+         nop
+         sta $d018
+         stx $d011
+         bit $ea
+         lda #$88
+         ldx #$38
+         sta $d018
+         stx $d011
+         inx
+         nop
+         nop
+         nop
+         nop
+         sta $d018
+         stx $d011
+         inx
+sp13     lda #$00
+sp14     ldy #$00
+         sta $d025
+         sty $d028
+         stx $d011
+         inx
+         lda #$98
+sp15     ldy #$00
+         sty $d026
+         sta $d018
+         stx $d011
+         lda #$a8
+         inx
+         nop
+         nop
+         nop
+         sta $d018
+         stx $d011
+         inx
+         nop
+         nop
+         nop
+         nop
+         sta $d018
+         stx $d011
+         lda #$b8
+         inx
+         nop
+         nop
+         nop
+         sta $d018
+         stx $d011
+         inx
+         nop
+         nop
+         nop
+         nop
+         sta $d018
+         stx $d011
+         bit $ea
+
+         ;set sane values after fli
+         lda #$84
+         ldy #$78
+         sta $d018
+         sty $d011
+         lda #$32
+         sta $d012
+         lda #<irq2
+         sta $0314
+         lda #>irq2
+         sta $0315
+         ;jsr $1003
+         lda #$18
+         sta $d011
+sp01     lda #$00
+         sta $d025
+sp02     lda #$00
+         sta $d027
+sp03     lda #$00
+         sta $d026
+         lda #$03
+         sta $dd00
+         inc trig+1
+         jmp $ea7e
+
+         ;second irq to start gray area above scroller
+irq2
+         dec $d019
+         lda #$cb
+         sta $d012
+         lda #<irq
+         sta $0314
+         lda #>irq
+         sta $0315
+bgc1     lda #$0c
+         sta $d020
+         sta $d021
+         jmp $ea7e
+
+start
+         ;fetch systemchar as charset, can be replaced by a proper charset of course
+         sei
+         lda #$33
+         sta $01
+         ldx #$08
+         ldy #$00
+-
+sy01     lda $d000,y
+sy02     sta charset,y
+         dey
+         bne -
+         inc sy01+2
+         inc sy02+2
+         dex
+         bne -
+         lda #$37
+         sta $01
+         cli
+
+         ;clear all fli screens and colram
+         ldx #$00
+-
+         lda #$20
+         sta $2000,x
+         sta $2100,x
+         sta $2200,x
+         sta $2220,x
+         lda #$00
+         sta $2320,x
+         sta $2400,x
+         sta $2500,x
+         sta $2600,x
+         sta $2700,x
+         sta $2800,x
+         sta $2900,x
+         sta $2a00,x
+         sta $2b00,x
+         sta $2c00,x
+         sta $2d00,x
+         sta $2e00,x
+         sta $2f00,x
+         sta $d800,x
+         sta $d900,x
+         sta $da00,x
+         sta $db00,x
+         dex
+         bne -
+
+         ;set up sprite stuff
+         sta $d025
+         sta $d026
+         sta $d027
+         sta $d028
+         sta $d01d
+         sta $d017
+         sta $d01b
+         sta $d010
+
+         lda #$18
+         sta $d000
+         sta $d002
+         lda #$cd
+         sta $d001
+         clc
+         adc #$15
+         sta $d003
+         lda #$03
+         sta $d01c
+         sta $d015
+
+         ldx #$c0
+         stx base+$0ff8
+         stx base+$0bf8
+         stx base+$07f8
+         stx base+$03f8
+         stx $07f8
+         inx
+         stx base+$0ff9
+         stx base+$0bf9
+         stx base+$07f9
+         stx base+$03f9
+         stx $07f9
+
+         lda #$10
+         sta d016+1
+
+         ;scroll text pointer
+         lda #<text
+         sta sclo
+         lda #>text
+         sta schi
+
+         ;fetch first bits of first char
+         jsr char2bits
+
+         lda #$00
+         sta charbit
+         sta colpos
+         tax
+         ;clean tables
+-
+         sta comb-2,x
+         sta letters,x
+         sta colors,x
+         dex
+         bne -
+
+         ;draw cells
+         jsr matrix
+
+         ;now start irq and main loop
+         jmp fli
+
+         ;color patterns that underlay the text
+patt
+         !byte $00,$00,$00,$00,$00,$00,$00,$0b
+         !byte $09,$08,$0a,$08,$09,$0b,$00,$0b
+         !byte $04,$0a,$0f,$0a,$04,$0b,$00,$0b
+         !byte $0c,$05,$0f,$05,$0c,$0b,$00,$0b
+         !byte $06,$0e,$0f,$0e,$06,$0b,$00,$0b
+         !byte $02,$04,$0a,$04,$02,$0b,$00,$0b
+         !byte $05,$03,$0d,$03,$05,$0b,$00,$0b
+         !byte $09,$08,$0a,$08,$09,$0b,$00,$0b
+patt_e
+
+scroller
+         ;flip $d016
+         lda d016+1
+         eor #$07
+         sta d016+1
+         ;and move sprites accordingly
+         and #$07
+         tax
+         clc
+         adc #$18
+         sta $d000
+         sta $d002
+         txa
+         beq shiftl
+
+         ;shift pattern to right
+shiftr
+         ldx #$1c
+-
+         lda colors+$00,x
+         sta colors+$01,x
+         lda colors+$20,x
+         sta colors+$21,x
+         lda colors+$40,x
+         sta colors+$41,x
+         lda colors+$60,x
+         sta colors+$61,x
+         lda colors+$80,x
+         sta colors+$81,x
+         lda colors+$a0,x
+         sta colors+$a1,x
+         lda colors+$c0,x
+         sta colors+$c1,x
+         dex
+         bpl -
+
+         ;fill up with next values on the left side
+         ldx colpos
+         lda patt+0,x
+         sta colors+$00
+         lda patt+1,x
+         sta colors+$20
+         lda patt+2,x
+         sta colors+$40
+         lda patt+3,x
+         sta colors+$60
+         lda patt+4,x
+         sta colors+$80
+         lda patt+5,x
+         sta colors+$a0
+         lda patt+6,x
+         sta colors+$c0
+         inx
+         ;wrap around?
+         cpx #(patt_e-patt-8)
+         bne +
+         ldx #$08
++
+         stx colpos
+         jmp combine
+
+         ;shift chars to left
+shiftl
+         ldx #$00
+-
+         lda letters+$01,x
+         sta letters+$00,x
+         lda letters+$21,x
+         sta letters+$20,x
+         lda letters+$41,x
+         sta letters+$40,x
+         lda letters+$61,x
+         sta letters+$60,x
+         lda letters+$81,x
+         sta letters+$80,x
+         lda letters+$a1,x
+         sta letters+$a0,x
+         lda letters+$c1,x
+         sta letters+$c0,x
+         inx
+         cpx #$20
+         bne -
+
+         ;fill up with new values on right side
+         ldx charbit
+         lda dchar+$00,x
+         sta letters+$1e
+         lda dchar+$08,x
+         sta letters+$3e
+         lda dchar+$10,x
+         sta letters+$5e
+         lda dchar+$18,x
+         sta letters+$7e
+         lda dchar+$20,x
+         sta letters+$9e
+         lda dchar+$28,x
+         sta letters+$be
+         lda dchar+$30,x
+         sta letters+$de
+         inx
+         ;need to decode next char?
+         cpx #$08
+         beq +
+         stx charbit
+         jmp combine
++
+         ;fetch next char
+         inc sclo
+         bne +
+         inc schi
++
+         lda schi
+         cmp #>textend
+         bne +
+         lda sclo
+         cmp #<textend
+         bne +
+
+         ;reset text pointer
+         lda #<text
+         sta sclo
+         lda #>text
+         sta schi
++
+         ;split up char into a 8x8 byte matrix
+char2bits
+         ldy #$00
+         sty charbit
+         ;fetch char from text
+         lda (sclo),y
+         and #$3f
+         ;determine position in charset (char * 8 + charsetpos)
+         asl
+         sta char
+         tya
+         rol
+         asl char
+         rol
+         asl char
+         rol
+         adc #>charset
+         sta char+1
+
+         ;7 lines are enough
+         ldy #$06
+         ;mask to and with when using sax
+         ldx #$01
+
+!set .pos = $30
+!for .x,7 {
+         ;decode 8 pixel, fast
+         lda (char),y
+         sax dchar+.pos+7
+         lsr
+         sax dchar+.pos+6
+         lsr
+         sax dchar+.pos+5
+         lsr
+         sax dchar+.pos+4
+         lsr
+         sax dchar+.pos+3
+         lsr
+         sax dchar+.pos+2
+         lsr
+         sax dchar+.pos+1
+         lsr
+         sax dchar+.pos+0
+         dey
+         !set .pos = .pos - 8
+}
+
+         ;combine patterns + letters and let letters have the higher priority
+         ;now also shift values if needed
+combine
+         ldy #$1f
+-
+         ;hinibbles
+         ldx letters+$00,y
+         bne *+5
+         ldx colors+$00,y
+         lda hinib,x         ;A = A << 4;
+         sta comb+$00-$02,y
+
+         ldx letters+$20,y
+         bne *+5
+         ldx colors+$20,y
+         lda hinib,x
+         sta comb+$20-$02,y
+
+         ldx letters+$40,y
+         bne *+5
+         ldx colors+$40,y
+         lda hinib,x
+         sta comb+$40-$02,y
+
+         ldx letters+$60,y
+         bne *+5
+         ldx colors+$60,y
+         lda hinib,x
+         sta comb+$60-$02,y
+
+         ldx letters+$80,y
+         bne *+5
+         ldx colors+$80,y
+         lda hinib,x
+         sta comb+$80-$02,y
+
+         ldx letters+$a0,y
+         bne *+5
+         ldx colors+$a0,y
+         lda hinib,x
+         sta comb+$a0-$02,y
+
+         ldx letters+$c0,y
+         bne *+5
+         ldx colors+$c0,y
+         lda hinib,x
+         sta comb+$c0-$02,y
+         dey
+
+         ;lownibbles
+         lda letters+$00,y
+         bne *+5
+         lda colors+$00,y
+         sta comb+$00-$02,y
+
+         lda letters+$20,y
+         bne *+5
+         lda colors+$20,y
+         sta comb+$20-$02,y
+
+         lda letters+$40,y
+         bne *+5
+         lda colors+$40,y
+         sta comb+$40-$02,y
+
+         lda letters+$60,y
+         bne *+5
+         lda colors+$60,y
+         sta comb+$60-$02,y
+
+         lda letters+$80,y
+         bne *+5
+         lda colors+$80,y
+         sta comb+$80-$02,y
+
+         lda letters+$a0,y
+         bne *+5
+         lda colors+$a0,y
+         sta comb+$a0-$02,y
+
+         lda letters+$c0,y
+         bne *+5
+         lda colors+$c0,y
+         sta comb+$c0-$02,y
+         dey
+
+         bmi +
+         jmp -
++
+         rts
+
+text
+         !text "     sorry - no boobies above this scroller! :-) ...     "
+textend
+
+         ;as most of this is old code imported from TASS, all the mapping was still done manually at that time.
+         ;good old times :-)
+matrix
+         lda comb+$01
+         lsr
+         lsr
+         lsr
+         lsr
+         sta sp03+1
+         lda comb+$00
+         sta sp02+1
+         lda comb-$01
+         lsr
+         lsr
+         lsr
+         lsr
+         sta sp01+1
+
+         lda comb+$01
+         ora comb+$02
+         sta base+$0323
+         lda comb+$02
+         sta base+$0324
+         lda comb+$03
+         sta base+$0325
+         lda comb+$04
+         sta base+$0326
+         ora comb+$05
+         sta base+$0327
+         lda comb+$05
+         sta base+$0328
+         lda comb+$06
+         sta base+$0329
+         ora comb+$07
+         sta base+$032a
+         lda comb+$07
+         sta base+$032b
+         lda comb+$08
+         sta base+$032c
+         lda comb+$09
+         sta base+$032d
+         ora comb+$0a
+         sta base+$032e
+         sta base+$032f
+         lda comb+$0b
+         sta base+$0330
+         ora comb+$0c
+         sta base+$0331
+         lda comb+$0c
+         ora comb+$0d
+         sta base+$0332
+         sta base+$0333
+         lda comb+$0e
+         sta base+$0334
+         ora comb+$0f
+         sta base+$0335
+         lda comb+$0f
+         ora comb+$10
+         sta base+$0336
+         lda comb+$10
+         sta base+$0337
+         ora comb+$11
+         sta base+$0338
+         lda comb+$11
+         ora comb+$12
+         sta base+$0339
+         sta base+$033a
+         lda comb+$13
+         sta base+$033b
+         ora comb+$14
+         sta base+$033c
+         sta base+$033d
+         lda comb+$15
+         sta base+$033e
+         ora comb+$16
+         sta base+$033f
+         lda comb+$16
+         ora comb+$17
+         sta base+$0340
+         sta base+$0341
+         lda comb+$18
+         sta base+$0342
+         ora comb+$19
+         sta base+$0343
+         lda comb+$19
+         ora comb+$1a
+         sta base+$0344
+         sta base+$0345
+         lda comb+$1b
+         sta base+$0346
+         ora comb+$1c
+         sta base+$0347
+row2
+         lda comb+$21
+         lsr
+         lsr
+         lsr
+         lsr
+         sta sp06+1
+         lda comb+$20
+         sta sp05+1
+         lda comb+$1f
+         lsr
+         lsr
+         lsr
+         lsr
+         sta sp04+1
+         lda comb+$21
+         ora comb+$22
+         sta base+$0723
+         lda comb+$22
+         ora comb+$23
+         sta base+$0724
+         lda comb+$23
+         ora comb+$24
+         sta base+$0725
+         sta base+$0726
+         lda comb+$24
+         ora comb+$25
+         sta base+$0727
+         lda comb+$25
+         ora comb+$26
+         sta base+$0728
+         sta base+$0729
+         lda comb+$27
+         sta base+$072a
+         ora comb+$28
+         sta base+$072b
+         lda comb+$28
+         sta base+$072c
+         lda comb+$29
+         sta base+$072d
+         ora comb+$2a
+         sta base+$072e
+         sta base+$072f
+         lda comb+$2b
+         sta base+$0730
+         ora comb+$2c
+         sta base+$0731
+         lda comb+$2c
+         ora comb+$2d
+         sta base+$0732
+         sta base+$0733
+         lda comb+$2e
+         sta base+$0734
+         ora comb+$2f
+         sta base+$0735
+         sta base+$0736
+         lda comb+$30
+         sta base+$0737
+         ora comb+$31
+         sta base+$0738
+         sta base+$0739
+         lda comb+$32
+         sta base+$073a
+         ora comb+$33
+         sta base+$073b
+         lda comb+$33
+         ora comb+$34
+         sta base+$073c
+         sta base+$073d
+         lda comb+$35
+         sta base+$073e
+         ora comb+$36
+         sta base+$073f
+         sta base+$0740
+         lda comb+$37
+         sta base+$0741
+         ora comb+$38
+         sta base+$0742
+         lda comb+$38
+         ora comb+$39
+         sta base+$0743
+         sta base+$0744
+         lda comb+$3a
+         sta base+$0745
+         ora comb+$3b
+         sta base+$0746
+         sta base+$0747
+
+row3
+         lda comb+$42
+         sta sp09+1
+         lda comb+$41
+         lsr
+         lsr
+         lsr
+         lsr
+         sta sp08+1
+         lda comb+$40
+         sta sp07+1
+
+         lda comb+$42
+         sta base+$0b23
+         sta base+$0f23
+         lda comb+$43
+         sta base+$0b24
+         sta base+$0f24
+         ora comb+$44
+         sta base+$0b25
+         sta base+$0f25
+         lda comb+$44
+         sta base+$0b26
+         ora comb+$45
+         sta base+$0f26
+         lda comb+$45
+         sta base+$0b27
+         sta base+$0f27
+         ora comb+$46
+         sta base+$0b28
+         sta base+$0f28
+         lda comb+$46
+         ora comb+$47
+         sta base+$0b29
+         sta base+$0f29
+         lda comb+$47
+         sta base+$0b2a
+         sta base+$0f2a
+         ora comb+$48
+         sta base+$0b2b
+         sta base+$0f2b
+         lda comb+$48
+         ora comb+$49
+         sta base+$0b2c
+         sta base+$0f2c
+         lda comb+$49
+         sta base+$0b2d
+         sta base+$0f2d
+         lda comb+$4a
+         sta base+$0b2e
+         sta base+$0f2e
+         ora comb+$4b
+         sta base+$0b2f
+         sta base+$0f2f
+         lda comb+$4b
+         sta base+$0b30
+         sta base+$0f30
+         lda comb+$4c
+         sta base+$0b31
+         sta base+$0f31
+         ora comb+$4d
+         sta base+$0b32
+         sta base+$0f32
+         lda comb+$4d
+         sta base+$0b33
+         sta base+$0f33
+         lda comb+$4e
+         sta base+$0b34
+         sta base+$0f34
+         ora comb+$4f
+         sta base+$0b35
+         sta base+$0f35
+         lda comb+$4f
+         sta base+$0b36
+         sta base+$0f36
+         lda comb+$50
+         sta base+$0b37
+         sta base+$0f37
+         ora comb+$51
+         sta base+$0b38
+         sta base+$0f38
+         lda comb+$51
+         sta base+$0b39
+         sta base+$0f39
+         ora comb+$52
+         sta base+$0b3a
+         sta base+$0f3a
+         lda comb+$52
+         ora comb+$53
+         sta base+$0b3b
+         sta base+$0f3b
+         lda comb+$53
+         sta base+$0b3c
+         sta base+$0f3c
+         lda comb+$54
+         sta base+$0b3d
+         sta base+$0f3d
+         ora comb+$55
+         sta base+$0b3e
+         sta base+$0f3e
+         lda comb+$55
+         sta base+$0b3f
+         sta base+$0f3f
+         lda comb+$56
+         sta base+$0b40
+         sta base+$0f40
+         ora comb+$57
+         sta base+$0b41
+         sta base+$0f41
+         lda comb+$57
+         sta base+$0b42
+         sta base+$0f42
+         lda comb+$58
+         sta base+$0b43
+         sta base+$0f43
+         ora comb+$59
+         sta base+$0b44
+         sta base+$0f44
+         lda comb+$59
+         ora comb+$5a
+         sta base+$0b45
+         sta base+$0f45
+         lda comb+$5a
+         sta base+$0b46
+         sta base+$0f46
+         ora comb+$5b
+         sta base+$0b47
+         sta base+$0f47
+
+row4
+         lda comb+$62
+         sta sp0c+1
+         lda comb+$61
+         lsr
+         lsr
+         lsr
+         lsr
+         sta sp0b+1
+         lda comb+$60
+         sta sp0a+1
+
+         lda comb+$62
+         ora comb+$63
+         sta base+$034b
+         sta base+$074b
+         sta base+$0b4b
+         lda comb+$63
+         ora comb+$64
+         sta base+$034c
+         sta base+$074c
+         sta base+$0b4c
+         lda comb+$64
+         sta base+$034d
+         sta base+$074d
+         sta base+$0b4d
+         ora comb+$65
+         sta base+$034e
+         sta base+$074e
+         sta base+$0b4e
+         lda comb+$65
+         ora comb+$66
+         sta base+$034f
+         sta base+$074f
+         sta base+$0b4f
+         lda comb+$66
+         sta base+$0350
+         sta base+$0750
+         sta base+$0b50
+         ora comb+$67
+         sta base+$0351
+         sta base+$0751
+         sta base+$0b51
+         lda comb+$67
+         ora comb+$68
+         sta base+$0352
+         sta base+$0752
+         sta base+$0b52
+         lda comb+$68
+         sta base+$0353
+         sta base+$0753
+         sta base+$0b53
+         ora comb+$69
+         sta base+$0354
+         sta base+$0754
+         sta base+$0b54
+         lda comb+$69
+         sta base+$0355
+         sta base+$0755
+         sta base+$0b55
+         lda comb+$6a
+         sta base+$0356
+         sta base+$0756
+         sta base+$0b56
+         ora comb+$6b
+         sta base+$0357
+         sta base+$0757
+         sta base+$0b57
+         lda comb+$6b
+         sta base+$0358
+         sta base+$0758
+         sta base+$0b58
+         lda comb+$6c
+         sta base+$0359
+         sta base+$0759
+         sta base+$0b59
+         ora comb+$6d
+         sta base+$035a
+         sta base+$075a
+         sta base+$0b5a
+         lda comb+$6d
+         sta base+$035b
+         sta base+$075b
+         sta base+$0b5b
+         lda comb+$6e
+         sta base+$035c
+         sta base+$075c
+         sta base+$0b5c
+         ora comb+$6f
+         sta base+$035d
+         sta base+$075d
+         sta base+$0b5d
+         lda comb+$6f
+         sta base+$035e
+         sta base+$075e
+         sta base+$0b5e
+         ora comb+$70
+         sta base+$035f
+         sta base+$075f
+         sta base+$0b5f
+         lda comb+$70
+         ora comb+$71
+         sta base+$0360
+         sta base+$0760
+         sta base+$0b60
+         lda comb+$71
+         sta base+$0361
+         sta base+$0761
+         sta base+$0b61
+         ora comb+$72
+         sta base+$0362
+         sta base+$0762
+         sta base+$0b62
+         lda comb+$72
+         sta base+$0363
+         sta base+$0763
+         sta base+$0b63
+         ora comb+$73
+         sta base+$0364
+         sta base+$0764
+         sta base+$0b64
+         lda comb+$73
+         ora comb+$74
+         sta base+$0365
+         sta base+$0765
+         sta base+$0b65
+         sta base+$0366
+         sta base+$0766
+         sta base+$0b66
+         lda comb+$75
+         sta base+$0367
+         sta base+$0767
+         sta base+$0b67
+         ora comb+$76
+         sta base+$0368
+         sta base+$0768
+         sta base+$0b68
+         lda comb+$76
+         ora comb+$77
+         sta base+$0369
+         sta base+$0769
+         sta base+$0b69
+         sta base+$036a
+         sta base+$076a
+         sta base+$0b6a
+         lda comb+$77
+         ora comb+$78
+         sta base+$036b
+         sta base+$076b
+         sta base+$0b6b
+         lda comb+$78
+         ora comb+$79
+         sta base+$036c
+         sta base+$076c
+         sta base+$0b6c
+         sta base+$036d
+         sta base+$076d
+         sta base+$0b6d
+         lda comb+$79
+         ora comb+$7a
+         sta base+$036e
+         sta base+$076e
+         sta base+$0b6e
+         lda comb+$7a
+         ora comb+$7b
+         sta base+$036f
+         sta base+$076f
+         sta base+$0b6f
+row5
+         lda comb+$83
+         lsr
+         lsr
+         lsr
+         lsr
+         sta sp0f+1
+         lda comb+$82
+         sta sp0e+1
+         lda comb+$81
+         lsr
+         lsr
+         lsr
+         lsr
+         sta sp0d+1
+
+         lda comb+$83
+         ora comb+$84
+         sta base+$0f4b
+         sta base+$0373
+         sta base+$0773
+         lda comb+$84
+         sta base+$0f4c
+         sta base+$0374
+         sta base+$0774
+         ora comb+$85
+         sta base+$0f4d
+         sta base+$0375
+         sta base+$0775
+         lda comb+$85
+         ora comb+$86
+         sta base+$0f4e
+         sta base+$0376
+         sta base+$0776
+         lda comb+$86
+         sta base+$0f4f
+         sta base+$0377
+         sta base+$0777
+         ora comb+$87
+         sta base+$0f50
+         sta base+$0378
+         sta base+$0778
+         lda comb+$87
+         sta base+$0f51
+         sta base+$0379
+         sta base+$0779
+         ora comb+$88
+         sta base+$0f52
+         sta base+$037a
+         sta base+$077a
+         lda comb+$88
+         sta base+$0f53
+         sta base+$037b
+         sta base+$077b
+         lda comb+$89
+         sta base+$0f54
+         sta base+$037c
+         sta base+$077c
+         ora comb+$8a
+         sta base+$0f55
+         sta base+$037d
+         sta base+$077d
+         lda comb+$8a
+         sta base+$0f56
+         sta base+$037e
+         sta base+$077e
+         ora comb+$8b
+         sta base+$0f57
+         sta base+$037f
+         sta base+$077f
+         lda comb+$8b
+         sta base+$0f58
+         sta base+$0380
+         sta base+$0780
+         lda comb+$8c
+         sta base+$0f59
+         sta base+$0381
+         sta base+$0781
+         ora comb+$8d
+         sta base+$0f5a
+         sta base+$0382
+         sta base+$0782
+         lda comb+$8d
+         sta base+$0f5b
+         sta base+$0383
+         sta base+$0783
+         lda comb+$8e
+         sta base+$0f5c
+         sta base+$0384
+         sta base+$0784
+         ora comb+$8f
+         sta base+$0f5d
+         sta base+$0385
+         sta base+$0785
+         lda comb+$8f
+         sta base+$0f5e
+         sta base+$0386
+         sta base+$0786
+         ora comb+$90
+         sta base+$0f5f
+         sta base+$0387
+         sta base+$0787
+         lda comb+$90
+         sta base+$0f60
+         sta base+$0388
+         sta base+$0788
+         ora comb+$91
+         sta base+$0f61
+         sta base+$0389
+         sta base+$0789
+         lda comb+$91
+         ora comb+$92
+         sta base+$0f62
+         sta base+$038a
+         sta base+$078a
+         lda comb+$92
+         sta base+$0f63
+         sta base+$038b
+         sta base+$078b
+         ora comb+$93
+         sta base+$0f64
+         sta base+$038c
+         sta base+$078c
+         lda comb+$93
+         sta base+$0f65
+         sta base+$038d
+         sta base+$078d
+         lda comb+$94
+         sta base+$0f66
+         sta base+$038e
+         sta base+$078e
+         ora comb+$95
+         sta base+$0f67
+         sta base+$038f
+         sta base+$078f
+         lda comb+$95
+         sta base+$0f68
+         sta base+$0390
+         sta base+$0790
+         ora comb+$96
+         sta base+$0f69
+         sta base+$0391
+         sta base+$0791
+         lda comb+$96
+         ora comb+$97
+         sta base+$0f6a
+         sta base+$0392
+         sta base+$0792
+         lda comb+$97
+         sta base+$0f6b
+         sta base+$0393
+         sta base+$0793
+         ora comb+$98
+         sta base+$0f6c
+         sta base+$0394
+         sta base+$0794
+         lda comb+$98
+         ora comb+$99
+         sta base+$0f6d
+         sta base+$0395
+         sta base+$0795
+         sta base+$0f6e
+         sta base+$0396
+         sta base+$0796
+         lda comb+$99
+         ora comb+$9a
+         sta base+$0f6f
+         sta base+$0397
+         sta base+$0797
+row6
+         lda comb+$a4
+         sta sp12+1
+         lda comb+$a3
+         lsr
+         lsr
+         lsr
+         lsr
+         sta sp11+1
+         lda comb+$a2
+         sta sp10+1
+
+         lda comb+$a4
+         sta base+$0b73
+         sta base+$0f73
+         sta base+$039b
+         ora comb+$a5
+         sta base+$0b74
+         sta base+$0f74
+         sta base+$039c
+         lda comb+$a5
+         sta base+$0b75
+         sta base+$0f75
+         sta base+$039d
+         ora comb+$a6
+         sta base+$0b76
+         sta base+$0f76
+         sta base+$039e
+         lda comb+$a6
+         sta base+$0b77
+         sta base+$0f77
+         ora comb+$a7
+         sta base+$039f
+         sta base+$0b78
+         sta base+$0f78
+         sta base+$03a0
+         lda comb+$a7
+         ora comb+$a8
+         sta base+$0b79
+         sta base+$0f79
+         sta base+$03a1
+         lda comb+$a8
+         sta base+$0b7a
+         sta base+$0f7a
+         sta base+$03a2
+         ora comb+$a9
+         sta base+$0b7b
+         sta base+$0f7b
+         sta base+$03a3
+         lda comb+$a9
+         sta base+$0b7c
+         sta base+$0f7c
+         sta base+$03a4
+         ora comb+$aa
+         sta base+$0b7d
+         sta base+$0f7d
+         sta base+$03a5
+         lda comb+$aa
+         sta base+$0b7e
+         sta base+$0f7e
+         sta base+$03a6
+         lda comb+$ab
+         sta base+$0b7f
+         sta base+$0f7f
+         sta base+$03a7
+         ora comb+$ac
+         sta base+$0b80
+         sta base+$0f80
+         sta base+$03a8
+         lda comb+$ac
+         sta base+$0b81
+         sta base+$0f81
+         sta base+$03a9
+         ora comb+$ad
+         sta base+$0b82
+         sta base+$0f82
+         sta base+$03aa
+         sta base+$0b83
+         sta base+$0f83
+         sta base+$03ab
+         lda comb+$ae
+         sta base+$0b84
+         sta base+$0f84
+         sta base+$03ac
+         sta base+$0b85
+         sta base+$0f85
+         sta base+$03ad
+         lda comb+$af
+         sta base+$0b86
+         sta base+$0f86
+         sta base+$03ae
+         ora comb+$b0
+         sta base+$0b87
+         sta base+$0f87
+         sta base+$03af
+         lda comb+$b0
+         sta base+$0b88
+         sta base+$0f88
+         sta base+$03b0
+         ora comb+$b1
+         sta base+$0b89
+         sta base+$0f89
+         sta base+$03b1
+         lda comb+$b1
+         sta base+$0b8a
+         sta base+$0f8a
+         sta base+$03b2
+         ora comb+$b2
+         sta base+$0b8b
+         sta base+$0f8b
+         sta base+$03b3
+         lda comb+$b2
+         ora comb+$b3
+         sta base+$0b8c
+         sta base+$0f8c
+         sta base+$03b4
+         lda comb+$b3
+         sta base+$0b8d
+         sta base+$0f8d
+         sta base+$03b5
+         ora comb+$b4
+         sta base+$0b8e
+         sta base+$0f8e
+         sta base+$03b6
+         lda comb+$b4
+         sta base+$0b8f
+         sta base+$0f8f
+         sta base+$03b7
+         ora comb+$b5
+         sta base+$0b90
+         sta base+$0f90
+         sta base+$03b8
+         lda comb+$b5
+         sta base+$0b91
+         sta base+$0f91
+         sta base+$03b9
+         ora comb+$b6
+         sta base+$0b92
+         sta base+$0f92
+         sta base+$03ba
+         lda comb+$b6
+         ora comb+$b7
+         sta base+$0b93
+         sta base+$0f93
+         sta base+$03bb
+         lda comb+$b7
+         sta base+$0b94
+         sta base+$0f94
+         sta base+$03bc
+         ora comb+$b8
+         sta base+$0b95
+         sta base+$0f95
+         sta base+$03bd
+         lda comb+$b8
+         ora comb+$b9
+         sta base+$0b96
+         sta base+$0f96
+         sta base+$03be
+         sta base+$0b97
+         sta base+$0f97
+         sta base+$03bf
+row7
+         lda comb+$c4
+         sta sp15+1
+         lda comb+$c3
+         lsr
+         lsr
+         lsr
+         lsr
+         sta sp14+1
+         lda comb+$c2
+         sta sp13+1
+
+         lda comb+$c4
+         ora comb+$c5
+         sta base+$079b
+         sta base+$0b9b
+         sta base+$0f9b
+         lda comb+$c5
+         sta base+$079c
+         sta base+$0b9c
+         sta base+$0f9c
+         ora comb+$c6
+         sta base+$079d
+         sta base+$0b9d
+         sta base+$0f9d
+         lda comb+$c6
+         sta base+$079e
+         sta base+$0b9e
+         sta base+$0f9e
+         ora comb+$c7
+         sta base+$079f
+         sta base+$0b9f
+         sta base+$0f9f
+         lda comb+$c7
+         ora comb+$c8
+         sta base+$07a0
+         sta base+$0ba0
+         sta base+$0fa0
+         sta base+$07a1
+         sta base+$0ba1
+         sta base+$0fa1
+         lda comb+$c8
+         ora comb+$c9
+         sta base+$07a2
+         sta base+$0ba2
+         sta base+$0fa2
+         lda comb+$c9
+         sta base+$07a3
+         sta base+$0ba3
+         sta base+$0fa3
+         ora comb+$ca
+         sta base+$07a4
+         sta base+$0ba4
+         sta base+$0fa4
+         lda comb+$ca
+         sta base+$07a5
+         sta base+$0ba5
+         sta base+$0fa5
+         ora comb+$cb
+         sta base+$07a6
+         sta base+$0ba6
+         sta base+$0fa6
+         lda comb+$cb
+         sta base+$07a7
+         sta base+$0ba7
+         sta base+$0fa7
+         ora comb+$cc
+         sta base+$07a8
+         sta base+$0ba8
+         sta base+$0fa8
+         lda comb+$cc
+         sta base+$07a9
+         sta base+$0ba9
+         sta base+$0fa9
+         ora comb+$cd
+         sta base+$07aa
+         sta base+$0baa
+         sta base+$0faa
+         sta base+$07ab
+         sta base+$0bab
+         sta base+$0fab
+         lda comb+$ce
+         sta base+$07ac
+         sta base+$0bac
+         sta base+$0fac
+         sta base+$07ad
+         sta base+$0bad
+         sta base+$0fad
+         lda comb+$cf
+         sta base+$07ae
+         sta base+$0bae
+         sta base+$0fae
+         sta base+$07af
+         sta base+$0baf
+         sta base+$0faf
+         lda comb+$d0
+         sta base+$07b0
+         sta base+$0bb0
+         sta base+$0fb0
+         ora comb+$d1
+         sta base+$07b1
+         sta base+$0bb1
+         sta base+$0fb1
+         lda comb+$d1
+         sta base+$07b2
+         sta base+$0bb2
+         sta base+$0fb2
+         ora comb+$d2
+         sta base+$07b3
+         sta base+$0bb3
+         sta base+$0fb3
+         lda comb+$d2
+         sta base+$07b4
+         sta base+$0bb4
+         sta base+$0fb4
+         ora comb+$d3
+         sta base+$07b5
+         sta base+$0bb5
+         sta base+$0fb5
+         lda comb+$d3
+         sta base+$07b6
+         sta base+$0bb6
+         sta base+$0fb6
+         ora comb+$d4
+         sta base+$07b7
+         sta base+$0bb7
+         sta base+$0fb7
+         lda comb+$d4
+         sta base+$07b8
+         sta base+$0bb8
+         sta base+$0fb8
+         ora comb+$d5
+         sta base+$07b9
+         sta base+$0bb9
+         sta base+$0fb9
+         lda comb+$d5
+         ora comb+$d6
+         sta base+$07ba
+         sta base+$0bba
+         sta base+$0fba
+         sta base+$07bb
+         sta base+$0bbb
+         sta base+$0fbb
+         lda comb+$d6
+         ora comb+$d7
+         sta base+$07bc
+         sta base+$0bbc
+         sta base+$0fbc
+         sta base+$07bd
+         sta base+$0bbd
+         sta base+$0fbd
+         lda comb+$d7
+         ora comb+$d8
+         sta base+$07be
+         sta base+$0bbe
+         sta base+$0fbe
+         sta base+$07bf
+         sta base+$0bbf
+         sta base+$0fbf
+
+         rts
+
+         ;lookup table for X = X << 4;
+hinib
+         !for .x,16 {
+             !for .y,16 { !byte (.y-1) * $10 }
+         }
+</code>

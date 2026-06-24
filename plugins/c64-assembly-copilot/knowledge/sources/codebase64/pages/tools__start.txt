@@ -1,0 +1,86 @@
+# PAGE: tools:start
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=tools:start
+
+====== Most used tools ======
+ 
+This list of tools is meant to serve as a quick reference for newcomers and oldschoolers who returned to the scene and are wondering what the current state of tools is and what most people use. It's not meant to be a comprehensive or complete list, so don't add more than a handful essential and notable tools to each category. Also please don't link directly to //binaries// in cases where a proper homepage for a tool is available. 
+
+In the past, most people used [[base:TurboAssembler 5.2 (Bacchus Version)|Turbo Assembler]] to code on the C64 itself, whereas in these days almost everyone uses some form of cross assembler at a PC instead.
+
+
+For a more comprehensive list of links to tools, check the [[links:start|links section]] instead.
+
+===== Cross-development =====
+
+==== Assemblers and compilers ====
+
+More assemblers are listed at the [[links:start#assemblers|assemblers section]] on the links page, and it should be made clear that some people prefer other assemblers than those listed here.
+
+  * [[https://github.com/docbacardi/dreamass|DreamAss]] - by Doc Bacardi / The Dreams. Basic cross-assembler, does the job.
+  * [[http://www.cc65.org|ca65]] - A complete cross-developing suite with assembler, c-compiler, linker, and more.
+  * [[http://theweb.dk/KickAssembler/|Kick Assembler]] - by Slammer/Camelot. Assembler with extensive Java-style scripting. Runs anywhere with Java. Find [[base:kick_assembler_tips_tricks|tips & tricks here]].
+  * [[https://sourceforge.net/projects/acme-crossass/|ACME]] - Cross assembler with a lot of nice features, without being bloated. Includes macro support.
+  * [[http://singularcrew.hu/64tass|64TASS]] - A very tiny TASM compatible macro assembler.
+  * [[http://style64.org/release/tmpx-v1.0-style|TMPx]] - Cross assembler that is source compatible with Turbo Macro Pro
+==== Crunchers ====
+  * [[http://csdb.dk/release/?id=33093|ByteBoozer]] - Fast(er), ok results. Made for demos, also integrated decruncher with loader.
+  * [[http://www.cs.tut.fi/~albert/Dev/pucrunch/|Pucrunch]] - Faster, good results. (Sometimes bugs out on very small binaries.)
+  * [[https://bitbucket.org/magli143/exomizer/wiki/Home|Exomizer]] - Slower, better results
+==== Character Sets and sprites ====
+  * [[https://subchristsoftware.itch.io/charpad-c64-free|CharPad]] by Subchrist Software
+  * [[https://subchristsoftware.itch.io/spritepad-c64-pro|SpritePad Pro]] by Subchrist Software
+
+==== Graphics ====
+  * [[http://hammarberg.github.io/pixcen/|Pixcen]] by CRT
+  * [[http://csdb.dk/release/?id=39261|Project One]] by Oswald
+  * [[http://csdb.dk/release/?id=75871|Timanthes]] by Mirage
+  * [[https://csdb.dk/release/?id=52822|OxPaint]] by Oxidy
+  * [[http://csdb.dk/release/?id=128693|HermIRES]] by Hermit
+==== Music ====
+  * [[http://covertbitops.c64.org/|Goattracker]] - By Cadaver. Ports for various systems are available here.
+    * [[http://www.sidmusic.org/goattracker/mac/|Goattracker (Mac port)]]
+  * [[http://koti.kapsi.fi/~ttaipalus/ccutter/|CheeseCutter]] a cross platform music tool by Abaddon/Fairlight, based on the JCH music editor. 
+  * [[http://csdb.dk/release/?id=93693|Music Studio 2.1.0.7]] by Martin Piper
+
+==== Hacking/Cracking ====
+  * [[http://www.hex-rays.com/idapro/|IDA Pro]] -  THE industry standard disassembler.
+  * [[https://csdb.dk/release/?id=247992|Regenerator]] - Excellent free disassembler
+
+==== Emulators ====
+  * [[https://vice-emu.sourceforge.io//|VICE]] - Official homepage for the most widely used C64 Emulator
+  * [[http://www.hoxs64.net/|HOXS64]] - Also aiming at cycle exact Commodore 64 emulation.
+  * [[http://www.ccs64.com/|CCS64]]
+
+==== Transfer your stuff to a real C64 ====
+  * [[http://www.oxyron.de/html/freplay.html|Final replay and Codenet]] - by Graham/Oxyron. Requires a Retro Replay cartridge with RR-net. Also check "Warpcopy".
+
+==== Transfer your stuff from a real C64 ====
+  * [[http://style64.org/release/tmpview-v1.3-style|TMPView 1.3]] - by Style. Convert your TASM source to PC, for crossassember environment.
+
+===== Native development =====
+
+==== Assemblers ====
+  * [[http://turbo.style64.org/|Turbo Assembler Homepage]] - maintained by Style. Also featuring Turbo Macro Pro.
+  * [[http://csdb.dk/release/?id=99889|Ass Blaster V3.2]] - by Mr. Lee of Cascade
+==== Crunchers ====
+  * [[http://csdb.dk/release/?id=15274|ByteBoozer 1.0]] - By HCL.
+  * [[http://csdb.dk/release/?id=30939|2MHz Time Cruncher V5.0]] by Stoat + Tim
+  * [[http://csdb.dk/release/?id=48475|The Cruncher AB V1.0]] by Zizyphus and Skyflash of Oneway. Bugfixed by Crossbow/Crest
+  * [[http://csdb.dk/release/?id=51249|Byte Boiler V1.0]] by Zizyphus and Skyflash of OneWay
+
+==== Packers/Linkers ====
+  * [[http://csdb.dk/release/?id=27574|Sledgehammer V2.1+]] packer/linker by Trap/Bonzai, improved by Atis/Cross
+  * [[http://csdb.dk/release/?id=20847|Lightimizer Packer V6.0]] by Zagon/Light
+  * [[http://csdb.dk/release/?id=47784|Visiomizer Packer V6.3]] by Zagon/Vision
+  * [[http://csdb.dk/release/?id=97926|Zipper V5.0]] by Zagon/Vision 
+  * [[http://csdb.dk/release/?id=10712|BYG Compactor V1.0]] by Naf/Babygang
+==== Graphics ====
+
+  * [[vic:gfx_editors_and_converters|GFX Editors and Converters]] — This info is contained on a separate page
+==== Music ====
+  * [[http://csdb.dk/release/?id=14037|JCH Editor]] - By JCH. Most used editor ever(?).
+  * [[http://csdb.dk/release/?id=84874|SDI]] - By SHAPE ..for best sound quality(?).
+  * [[http://csdb.dk/release/?id=22938|DMC V5.0+]] by Graffity, Improved by CreaMD
+  * [[http://csdb.dk/release/?id=2596|DMC V4.0]] by Graffity
+  * [[http://csdb.dk/release/?id=7159|ATMDS v3.2]] by St0fF / Neoplasia, AcidTrackMusicDevelopmentSystem - an Editor for coders, style based on the DMC-series.
+  * [[https://cadaver.github.io/tools.html|NinjaTracker]] by Cadaver, a converter from GoatTracker is available, too.

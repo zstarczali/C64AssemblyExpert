@@ -1,0 +1,49 @@
+# PAGE: base:fixed_point_arithmethic
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:fixed_point_arithmethic
+
+====== Fixed point arithmethic ======
+
+A fixed-point number representation is a number that has a fixed number of digits before and after the radix point (e.g. "." in English decimal notation). 
+
+In terms of binary numbers, each magnitude bit represents a power of two, while each fractional bit represents an inverse power of two. Thus the first fractional bit is ½, the second is ¼, the third is ⅛ and so on. 
+
+8:8 Fixed Point representation is the most straightforward approach (in fact the only sane approach when coding on the c64).
+
+for example:
+
+
+ integer.fractional
+
+<code>00001101.01010000</code>
+
+
+represents the number:
+
+integer part:
+
+<code>1*2^3+1*2^2+0*2^1+1*2^0</code>
+
+fractional part:
+
+<code>0*(2^-1)+1*(2^-2)+0*(2^-3)+1*(2^-4)</code>
+
+giving us:
+
+<code>1*2^3+1*2^2+0*2^1+1*2^0  +  0*(2^-1)+1*(2^-2)+0*(2^-3)+1*(2^-4) = 13.3125</code>
+
+It's easyer to think of a 8.8 fixed number in a way that you have a 1 byte integer part, and a 1 byte fractional part where the fractional part represents a number which is: fractional part* 1/256. 
+
+Repeating the example above: 
+
+
+ integer.fractional
+
+<code>00001101.01010000</code>
+
+
+<code>%01010000 = 80 decimal => 80*1/256 = 0.3125</code>
+
+
+You may totally forget about fractional parts and just threat the two 8 bit numbers as a straight representation of numbers from 0-65536: a 16 bit number when working with numbers like this. In reality a fixed point number will be always just a bunch of bits, and what makes it fixed point is only how you think about it. :)
+
+

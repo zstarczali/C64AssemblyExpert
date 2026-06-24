@@ -1,0 +1,16 @@
+# PAGE: base:scpu_bitmode16
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:scpu_bitmode16
+
+====== BitMode16 ======
+
+Pseudocommand to set the Accumulator and X/Y Index registers to 16 bit mode on the 658C16.
+
+| SYNTAX:        | BitMode16 |
+| EXAMPLE:       | BitMode16 |
+| PARAMETERS:    | N/A       |
+
+<code>
+    .pseudocommand BitMode16 {
+        rep #%00110000
+    }
+</code>

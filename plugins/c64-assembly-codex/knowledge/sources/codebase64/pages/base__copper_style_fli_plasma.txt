@@ -1,0 +1,2334 @@
+# PAGE: base:copper_style_fli_plasma
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:copper_style_fli_plasma
+
+====== Copper Style FLI Plasma ======
+
+{{copperplasma.png|}}
+
+===== Concept =====
+This type of plasma was invented on Amiga many years ago, where the copper co-processor was used for changing the background color for every 8th pixel. By applying sinus waves on both the X and Y axis, a plasmatic effect was achieved.
+This C64 version has been watered down in many ways in order to be implemented on a slower machine with less colors and no copper.
+First of all there is only colors on each 2nd rasterline, and the X-sinus only updates on each 2nd of these lines, i.e. every 4th rasterline.
+The colors are stored into FLI, and since you can have 2 colors for every byte, only 2 bytes need to be stored per char.
+
+
+===== Source Code =====
+<code>
+;----------------------------------------------------------
+; Copper Style Plasma
+;----------------------------------------------------------
+; Coded by Cruzer/CML 2002-2004
+; Asm: mxass
+;----------------------------------------------------------
+
+.la benderpointers = 	$02 
+.la go =		$5e
+.la color0 = 		$5f
+.la color1 = 		$60
+.la color2 = 		$61
+.la benderadds = 	$e0
+.la scrollbuf = 	$f0
+.la tmp =		$fe
+
+.la basic =      $0800 ;09ff
+.la loadersrc =  $0a00 ;0bff
+.la movezp =     $0d00 ;0fff
+.la tune =       $1000 ;1f7f
+.la main =       $1e20 ;32ff
+.la d016lut =    $3300 ;33ff
+.la jsrlut =     $3400 ;34ff
+.la div64 =      $3500 ;35ff
+.la benderlut =  $3600 ;36ff
+.la sine2 =      $3700 ;38ff
+.la sine3 =      $3900 ;3cff
+.la colorlut0 =  $3d00 ;3d7f
+.la colorlut1 =  $3d80 ;3dff
+.la sine =       $3e00 ;3fff
+.la bitmap =     $4000 ;527f
+.la logo =       $5280 ;5fff
+.la screens =    $6000 ;67ff
+.la bender =     $7000 ;77ff
+.la techtecher = $7800 ;7fff
+.la plasmers =   $8000 ;bfff
+.la shower =     $c000 ;cdff
+.la charset =	 $ce00 ;cfff
+.la scrolltext = $e000 ;efff
+
+.ba main
+.la border=$d020
+
+;----------------------------------------------------------
+	
+	sei
+	
+	lda #$00
+	sta $d020
+	sta $d021
+	sta $d011
+	
+	lda #$36
+	sta $01
+
+	jsr clearscreens
+	jsr convertcolors
+	jsr fetcheffect
+	jsr makeplasmers
+	jsr makeshower
+	jsr makebender
+	jsr maketechtecher
+	jsr makemovezp
+	jsr fliinit
+	jsr colorinit
+	jsr logoinit
+	jsr makeluts
+	jsr zpinit
+
+
+	lda #$96
+	sta $dd00
+
+	lda #%00111111
+	sta $d015
+	lda #%00111111
+	sta $d017
+	lda #%01111111
+	sta $d01d
+	lda #$00
+	sta $d027
+	sta $d028
+	sta $d029
+	sta $d02a
+	sta $d02b
+	sta $d02c
+	lda #$3c
+	sta $d001
+	sta $d003
+	lda #$66
+	sta $d005
+	sta $d007
+	lda #$90
+	sta $d009
+	sta $d00b
+	lda #$27
+	sta $d000
+	sta $d004
+	sta $d008
+	lda #$18
+	sta $d002
+	sta $d006
+	sta $d00a
+	lda #%11101010
+	sta $d010
+	
+	lda #$1a
+	sta $d00c
+	lda #$4a
+	sta $d00e
+	lda #$f2
+	sta $d00d
+	sta $d00f
+	lda #$0d
+	sta $d02d
+	sta $d02e
+
+	lda #$00
+	jsr $1000
+
+
+
+	ldx #$00
+	txa
+-
+	sta $7f00,x
+	inx
+	bne -
+
+	sta scrollbuf+0
+	sta scrollbuf+1
+	sta scrollbuf+2
+	sta scrollbuf+3
+	sta scrollbuf+4
+
+	cli
+	sei
+	lda #<irq1
+	sta $0314
+	lda #>irq1
+	sta $0315
+	lda #$7b
+	sta $dc0d
+	lda #$81
+	sta $d01a
+	lda #$0b
+	sta $d011
+	lda #$3b
+	sta $d012
+	asl $d019
+	cli
+
+	lda #$00
+	sta go
+
+-loop	
+
+	lda go
+	beq -loop
+
+	lda #$7b
+	sta shower+$2e
+	lda #$7c
+	sta shower+$3d
+	lda #$7e
+	sta shower+$6a
+	lda #$7a
+	sta shower+$d3
+	
+	jsr clearscreens
+	jsr neweffect
+	jsr fetcheffect
+	jsr makebender
+	jsr maketechtecher
+	jsr colorinit
+
+	jmp +
+	ldx #$00
+	ldy #$40
+-
+	inx
+	bne -
+	iny
+	bne -
++
+	
+	lda #0
+	sta go
+
+	lda #$3a
+	sta shower+$d3
+
+	jmp -loop
+
+
+;----------------------------------------------------------
+-
+	lda #$ff
+-c1	cmp $d012
+	bne -c1
+	lda #$11
+-c2	cmp $d012
+	bne -c2
+
+	inc border
+	jsr $10c1
+
+	lda #%00111111
+	sta $d017
+	lda #$7f
+	sta $d011
+
+	jmp +
+	
+irq1
+
+	inc border
+	asl $d019
+
+	bit $ff
+	bit $ff
+	bit $ff
+
+	jsr shower
+
+	lda #$00
+	sta $d017
+
+	nop
+	nop
+	nop
+	nop
+	nop
+	bit $ff
+	
+	inc border
+
+	lda #$c8
+	sta $d016
+	lda #$80
+	sta $d018
+
+
+
+	lda go
+	bne -
+	jmp plasma
+pr
+
+
+	lda #%00111111
+	sta $d017
+	lda #$7f
+	sta $d011
+
+	inc border
+	jsr $10c1
++
+	
+
+spacecheck
+
+	lda $dc01
+	cmp #$ef
+	bne +
+
+	lda #<fadeoutirq
+	sta $0314
+	lda #>fadeoutirq
+	sta $0315
+	lda #$00
+	sta $d012
+	asl $d019
+	
+	sta fadecnt
+	sta $d418
+	sta $d011
+
+	jmp ri
++	
+
+
+	;jsr fadectrl
+	dec fxcnt
+	bne +
+	dec fxcnt+1
+	bpl +
+	inc go
+	;lda #<irq2
+	;sta $0314
+	;lda #>irq2
+	;sta $0315
+	;lda #$3b
+	;sta $d012
+	;asl $d019
+	;lda #0
+	;sta noisecnt
++
+	
+	jsr scrollctrl
+	lda #$36
+	sta $01
+	
+	lda #0
+	sta border
+
+	pla
+	tay
+	pla
+	tax
+	pla
+	rti
+
+
+;----------------------------------------------------------
+
+fadeoutirq
+
+	asl $d019
+
+	ldx fadecnt
+	lda fadecolz,x
+	sta $d020
+	lda fadecnt
+	cmp #9
+	beq +
+	inc fadecnt
+	jmp +j
++
+	jmp loadnext
++j
+	jmp ri
+
+
+fadecolz .by $0,$b,$c,$f,$1,$1,$f,$c,$b,$0
+
+
+loadnext
+
+	sei
+	lda #$37
+	sta $01
+	lda #$0a
+	sta $d021
+	lda #$00
+	sta $d01a
+	sta $d015
+	lda #$14
+	sta $d018
+	lda #$08
+	sta $2e
+	lda #$03
+	sta $2f
+
+	ldx #0
+-
+	lda loadersrc+$0000,x
+	sta $c000,x
+	lda loadersrc+$0100,x
+	sta $c100,x
+	inx
+	bne -
+
+	jmp $c1f0
+
+;----------------------------------------------------------
+ri
+	pla
+	tay
+	pla
+	tax
+	pla
+	rti
+
+;----------------------------------------------------------
+fadectrl
+
+
+
+	rts
+
+fxcnt	.wo $0333
+fadecnt	.by 0
+;----------------------------------------------------------
+rotate
+
+	lda #<scrollbuf+4
+	sta asl1+1
+	
+	ldx #4*3
+-	
+asl1	asl scrollbuf
+	rol $7f42,x
+	rol $7f41,x
+	rol $7f40,x
+	rol $7f02,x
+	rol $7f01,x
+	rol $7f00,x
+	dec asl1+1
+	dex
+	dex
+	dex
+	bpl -
+	
+	rts
+	
+	
+
+scrollctrl
+
+	
+	dec cw
+	beq +
+	rts
++
+	lda #6
+	sta cw
+	
+
+	lda #$35
+	sta $01
+
+	
+	inc scrollpnt
+	bne +
+	inc sl1+2
++	
+	ldx scrollpnt
+sl1	lda scrolltext,x
+	cmp #$ff
+	bne +
+	lda #$00
+	sta scrollpnt
+	lda #>scrolltext
+	sta sl1+2
+	rts
++
+	cmp #$00
+	beq +
+	ldx #$ff
+	stx $d015
++
+	asl
+	asl
+	asl
+	tax
+	
+	lda #$00
+	rol
+	bne +
++j
+
+	lda charset,x
+	sta scrollbuf+0
+	lda charset+1,x
+	sta scrollbuf+1
+	lda charset+2,x
+	sta scrollbuf+2
+	lda charset+3,x
+	sta scrollbuf+3
+	lda charset+4,x
+	sta scrollbuf+4
+	
+	rts
+
++
+	
+	lda charset+$100,x
+	sta scrollbuf+0
+	lda charset+$101,x
+	sta scrollbuf+1
+	lda charset+$102,x
+	sta scrollbuf+2
+	lda charset+$103,x
+	sta scrollbuf+3
+	lda charset+$104,x
+	sta scrollbuf+4
+
+	
+	rts
+
+
+
+
+
+scrollinit
+
+	sei
+	lda #$34
+	sta $01
+	
+
+	ldx #$00
+-loop
+	
+sl2	lda scrolltext,x
+	cmp #$ff
+	bne +
+	
+	lda #$36
+	sta $01
+	rts
++
+	cmp #" "
+	bne +
+	lda #$00
+	jmp +j
++
+	cmp #"."
+	bne +
+	lda #27
+	jmp +j
++
+	cmp #"!"
+	bne +
+	lda #28
+	jmp +j
++
+	cmp #","
+	bne +
+	lda #29
+	jmp +j
++
+	cmp #"-"
+	bne +
+	lda #30
+	jmp +j
++
+	cmp #":"
+	bne +
+	lda #31
+	jmp +j
++
+	cmp #"("
+	bne +
+	lda #32
+	jmp +j
++
+	cmp #")"
+	bne +
+	lda #33
+	jmp +j
++
+	cmp #"?"
+	bne +
+	lda #34
+	jmp +j
++
+	cmp #"'"
+	bne +
+	lda #35
+	jmp +j
++
+	cmp #"""
+	bne +
+	lda #36
+	jmp +j
++
+
+	cmp #"0"
+	bne +
+	lda #40
+	jmp +j
++
+	cmp #"1"
+	bne +
+	lda #41
+	jmp +j
++
+	cmp #"2"
+	bne +
+	lda #42
+	jmp +j
++
+	cmp #"3"
+	bne +
+	lda #43
+	jmp +j
++
+	cmp #"4"
+	bne +
+	lda #44
+	jmp +j
++
+	cmp #"5"
+	bne +
+	lda #45
+	jmp +j
++
+	cmp #"6"
+	bne +
+	lda #46
+	jmp +j
++
+	cmp #"7"
+	bne +
+	lda #47
+	jmp +j
++
+	cmp #"8"
+	bne +
+	lda #48
+	jmp +j
++
+	cmp #"9"
+	bne +
+	lda #49
+	jmp +j
++
+
+	and #$1f
+
++j
+ss2	sta scrolltext,x
+
+	inx
+	bne +
+	inc sl2+2
+	inc ss2+2
+	lda ss2+2
+	cmp #$f0
+	bne +
+	lda #$37
+	sta $01
+-	inc $d020
+	jmp -
++
+	jmp -loop
+	
+
+	
+	
+
+cw	.by 6
+
+	
+scrollpnt
+	.by 0
+	
+;----------------------------------------------------------
+d011s
+	.by $38,$39,$3a,$3b,$3c,$3d,$3e,$3f
+
+d018s
+	.by $80,$80,$90,$90,$90,$90,$80,$80
+
+
+logoshow
+
+	lda #$c8
+	sta $d016
+	lda #$80
+	sta $d018
+	lda #$00
+	sta $d017
+	lda #$7a
+	sta $d011
+
+	rts
+	
+;----------------------------------------------------------
+clearscreens
+
+	
+	lda #$00
+	ldx #$00
+-
+	sta $6000,x
+	sta $6400,x
+	inx
+	bne -
+-
+	sta $6100,x
+	sta $6500,x
+	inx
+	bne -
+-
+	sta $6158,x
+	sta $6558,x
+	inx
+	bne -
+
+	rts
+
+;----------------------------------------------------------
+plasma
+
+	;rasterbender...
+
+	ldx benderaddpnt
+	lda benderaddpnt+1
+	clc
+	adc #>sine3
+	sta +l+2
++l	lda sine3,x
+	sta benderadds
+	clc
+bdispl	adc #$00
+	sta benderadds+1
+	clc
+	adc #$00
+	sta benderadds+2
+	clc
+	adc #$00
+	sta benderadds+3
+	clc
+	adc #$00
+	sta benderadds+4
+	clc
+	adc #$00
+	sta benderadds+5
+	clc
+	adc #$00
+	sta benderadds+6
+	clc
+	adc #$00
+	sta benderadds+7
+
+	ldx benderpnt
+	ldy benderpnt+1
+	jsr bender
+
+	lda benderpnt
+	clc
+	adc benderspeed
+	sta benderpnt
+	lda benderpnt+1
+	clc
+	adc benderspeed+1
+	sta benderpnt+1
+
+	lda benderaddpnt
+	clc
+	adc benderspeed+2
+	sta benderaddpnt
+	lda benderaddpnt+1
+	adc #$00
+	and #$03
+	sta benderaddpnt+1
+
+
+	;tech-tech...
+
+	;inc border
+
+	lda techtecherpnt
+	sta tmp
+	ldy techtecherpnt+1
+	clc
+	jsr techtecher
+
+	lda techtecherpnt
+	clc
+tts1	adc #$00
+	sta techtecherpnt
+	tya ;lda techtecherpnt+1
+	clc
+tts2	adc #$00
+	sta techtecherpnt+1
+
+	;inc border
+
+
+	
+	;draw 4 segments ...
+
+	lda #>movezp
+	sta mzj+2
+
+	ldx #$03
+
+-loop
+
+seg	cpx #$00
+	bne +
+cp	ldy #$00
+jv	jsr $8000
++
+	cpx #$00
+	bne +
+	ldy #$01
+	jsr $8080
++
+	cpx #$00
+	bne +
+	ldy #$02
+	jsr $8000
++
+	cpx #$00
+	bne +
+	ldy #$03
+	jsr $8080
++
+	cpx #$00
+	bne +
+	ldy #$04
+	jsr $8000
++
+	cpx #$00
+	bne +
+	ldy #$05
+	jsr $8080
++
+	cpx #$00
+	bne +
+	ldy #$06
+	jsr $8000
++
+	cpx #$00
+	bne +
+	ldy #$07
+	jsr $8080
++
+	cpx #$00
+	bne +
+	ldy #$08
+	jsr $8000
++
+	cpx #$00
+	bne +
+	ldy #$09
+	jsr $8080
++
+	cpx #$00
+	bne +
+	ldy #$0a
+	jsr $8000
++
+	cpx #$00
+	bne +
+	ldy #$0b
+	jsr $8080
++
+	cpx #$00
+	bne +
+	ldy #$0c
+	jsr $8000
++
+	cpx #$00
+	bne +
+	ldy #$0d
+	jsr $8080
++
+	cpx #$00
+	bne +
+	ldy #$0e
+	jsr $8000
++
+	cpx #$00
+	bne +
+	ldy #$0f
+	jsr $8080
++
+	cpx #$00
+	bne +
+	ldy #$10
+	jsr $8000
++
+	cpx #$00
+	bne +
+	ldy #$11
+	jsr $8080
++
+	cpx #$00
+	bne +
+	ldy #$12
+	jsr $8000
++
+	cpx #$00
+	bne +
+	ldy #$13
+	jsr $8080
++
+	cpx #$00
+	bne +
+	ldy #$14
+	jsr $8000
++
+	cpx #$00
+	bne +
+	ldy #$15
+	jsr $8080
++
+	cpx #$00
+	bne +
+	ldy #$16
+	jsr $8000
++
+	cpx #$00
+	bne +
+	ldy #$17
+	jsr $8080
++
+	cpx #$00
+	bne +
+	ldy #$18
+	jsr $8000
++
+	cpx #$00
+	bne +
+	ldy #$19
+	jsr $8080
++
+	cpx #$00
+	bne +
+	ldy #$1a
+	jsr $8000
++
+	cpx #$00
+	bne +
+	ldy #$1b
+	jsr $8080
++
+
+	cpx #0
+	beq +
+
+	;inc border
+mzj	jsr movezp
+	;dec border
+
+	inc mzj+2
+
+	dex
+	jmp -loop
++
+
+	jmp pr
+
+
+;----------------------------------------------------------
+makeluts
+
+
+	ldx #$00
+-
+	txa
+	lsr
+	and #$07
+	ora #$d8
+	sta d016lut,x
+
+	txa
+	lsr
+	lsr
+	lsr
+	lsr
+	and #$03
+	eor #$03
+	asl
+	asl
+	asl
+	asl
+	ora #$80
+	sta jsrlut,x
+	
+	txa
+	lsr
+	lsr
+	lsr
+	lsr
+	lsr
+	lsr
+	sta div64,x
+	
+	txa
+	lsr
+	and #$7f
+	lsr
+	bcc +
+	ora #$80
++	sta benderlut,x
+
+	inx
+	bne -
+
+
+
+	rts
+
+
+;----------------------------------------------------------
+zpinit
+
+
+	;bender-pointers ...
+
+	ldx #$00
+	lda #>colorlut0
+-
+	sta $03,x
+	inx
+	inx
+	cpx #$52
+	bne -
+
+
+	rts
+;----------------------------------------------------------
+
+makeplasmers
+
+
+	lda #0
+	sta displace	
+
+-loop3
+
+	lda #<plasmers
+	sta $fe
+	lda displace
+	asl
+	asl
+	asl
+	asl
+	clc
+	adc #>plasmers
+	sta $ff
+
+	lda #0
+	sta line
+
+-loop1
+
+
+	lda line
+	asl
+	tay
+	lda +s1starts,y
+	sta +s1+1
+	lda +s1starts+1,y
+	sta +s1+2
+
+	lda displace
+	asl
+	clc
+	adc #$02
+	sta +l1+1
+
+	ldx #0
+
+-loop2
+
+	ldy #0
+-
+	lda plasmersrc,y
+	sta ($fe),y
+	iny
+	cpy #5
+	bne -
+
+	jsr yaddfe
+	
+	inc +l1+1
+	inc +l1+1
+	
+	lda +s1+1
+	clc
+	adc #1
+	sta +s1+1
+	lda +s1+2
+	adc #0
+	sta +s1+2
+
+	inx
+	cpx #$19
+	bne -loop2
+
+	jsr putrts
+	;iny
+	;jsr yaddfe
+
+	lda $fe
+	and #$80
+	clc
+	adc #$80
+	sta $fe
+	lda $ff
+	adc #$00
+	sta $ff
+
+	inc line
+	lda line
+	cmp #$1c
+	bne -loop1
+ 
+	inc displace
+	lda displace
+	cmp #4
+	beq +
+	jmp -loop3
++
+	
+	rts
+
+
+line .by 0
+displace .by 0
+
+plasmersrc
+
++l1	lda ($02),y
++s1	sta $6118
+
+
++s1starts
+	.wo $602f,$642f
+	.wo $6057,$6457
+	.wo $607f,$647f
+	.wo $60a7,$64a7
+	.wo $60cf,$64cf
+	.wo $60f7,$64f7
+	.wo $611f,$651f
+	.wo $6147,$6547
+	.wo $616f,$656f
+	.wo $6197,$6597
+	.wo $61bf,$65bf
+	.wo $61e7,$65e7
+	.wo $620f,$660f
+	.wo $6237,$6637
+	.wo $625f,$665f
+	.wo $6287,$6687
+	.wo $62af,$66af
+
+;----------------------------------------------------------
+
+makeshower
+
+	lda #<shower
+	sta $fe
+	lda #>shower
+	sta $ff
+	
+	lda #<scrollbuf
+	sta aslz+1
+	lda #$00
+	sta aslz+2
+	
+	lda #0
+	sta line
+
+	
+-loop1
+
+	lda line
+	and #$07
+	tax
+	lda d011s,x
+	sta +d11+1
+	sta +l2+1
+	sta +l4+1
+	lda d018s,x
+	sta +d18+1
+	
+	ldy #$18
+	lda line
+	cmp #$78
+	bne +
+	lda #$00
+	sta +d18+1
+	ldy #$17
++	sty +d18+3
+
+	lda line
+	cmp #9
+	bpl +
+	lda +d11+1
+	ora #$70
+	sta +d11+1
++
+
+	lda line
+	cmp #5
+	bmi +copy1
+	lda line 
+	and #$07
+	cmp #$00
+	beq +copy2
+	cmp #$01
+	beq +copy2
+	cmp #$03
+	beq +copy2
+	cmp #$04
+	beq +copy2
+	cmp #$05
+	beq +copy2
+	cmp #$07
+	beq +copy2
+
+
++copy1
+
+	ldy #0
+-
+	lda showsrc,y
+	sta ($fe),y
+	iny
+	cpy #15
+	bne -
+
+	jsr yaddfe
+
+
+	jmp +copyend
+
+
++copy2
+
+	ldy #0
+-
+	lda showsrc1,y
+	sta ($fe),y
+	iny
+	cpy #30
+	bne -
+
+	jsr yaddfe
+
+	
+	lda rolz+16
+	cmp #$12
+	beq +copyend
+	clc
+	adc #$03
+	tax
+	ora #$40
+	tay
+	stx rolz+16
+	inx
+	stx rolz+13
+	inx
+	stx rolz+10
+	sty rolz+7
+	iny
+	sty rolz+4
+	iny
+	sty rolz+1
+	
+	inc aslz+1
+	
+	jmp +copyend
+
+
+
+
++copyend
+
+
+	lda +d16+1
+	clc
+	adc #$01
+	sta +d16+1
+	adc #1
+	sta +ly+1
+
+	lda #$ff
+	sta +ds+1
+	lda line
+	and #$03
+	cmp #$01
+	bne +
+	lda #$16
+	sta +ds+1
++
+	
+	inc line
+	lda line
+	cmp #$76
+	beq +
+	jmp -loop1
++
+
+	jmp putrts
+
+
+showsrc
+
++d11	lda #$38
+	sta $d011
++d18	lda #$80
+	sta $d018
++ds	stx $d016
+	bit $ff
+
+	;20 cycles
+
++d16	lda $5c
+
+showsrc1
+
++ly	ldy $5c
+	ldx d016lut,y
+	bit $00
+	
+aslz	asl $7fff
+rolz	rol $7f42
+	rol $7f41
+	rol $7f40
+	rol $7f02
+	rol $7f01
+	rol $7f00
+	
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	
+	
+
+showsrc2
+
++l2	lda #$38
+	sta $d011
++l3	ldy $60
+	lda d016lut,y
+	sta $d016
+	bit $00
+
+showsrc3
+
++l4	lda #$38
+	sta $d011
++l5	lda #$80
+	sta $d018
+	nop
+	nop
+	nop
+	nop
+
+;----------------------------------------------------------
+makemovezp
+
+	lda #<movezp
+	sta $fe
+	lda #>movezp
+	sta $ff	
+
+	lda #$0a
+	sta +l+1
+	lda #$02
+	sta +s+1
+
+-loop
+
+	ldy #0
+-
+	lda movezpsrc,y
+	sta ($fe),y
+	iny
+	cpy #4
+	bne -
+
+	jsr yaddfe
+
+	inc +l+1
+	inc +l+1
+	inc +s+1
+	inc +s+1
+
+	lda +s+1
+	cmp #$3a
+	bne -loop
+
+	jsr putrts
+
+
+	lda #$00
+	sta $fe
+	inc $ff	
+
+	lda #$0a
+	sta +l+1
+	lda #$02
+	sta +s+1
+
+-loop
+
+	ldy #0
+-
+	lda movezpsrc,y
+	sta ($fe),y
+	iny
+	cpy #4
+	bne -
+
+	jsr yaddfe
+
+	inc +l+1
+	inc +l+1
+	inc +s+1
+	inc +s+1
+
+	lda +l+1
+	cmp #$3a
+	bne +
+	lda #$42
+	sta +l+1
++
+	
+	lda +s+1
+	cmp #$3a
+	bne -loop
+
+	jsr putrts
+
+
+
+	lda #$00
+	sta $fe
+	inc $ff	
+
+	lda #$0a
+	sta +l+1
+	lda #$02
+	sta +s+1
+
+-loop
+
+	ldy #0
+-
+	lda movezpsrc,y
+	sta ($fe),y
+	iny
+	cpy #4
+	bne -
+
+	jsr yaddfe
+
+	inc +l+1
+	inc +l+1
+	inc +s+1
+	inc +s+1
+
+	lda +l+1
+	cmp #$3a
+	bne +
+	lda #$4a
+	sta +l+1
++
+	lda +s+1
+	cmp #$3a
+	bne -loop
+
+	jsr putrts
+
+
+	rts
+
+movezpsrc
+
++l	lda $0a
++s	sta $02
+
+;----------------------------------------------------------
+
+maketechtecher
+
+
+	lda #<techtecher
+	sta $fe
+	lda #>techtecher
+	sta $ff
+	
+
+	ldy #0
+-
+	lda techtechersrcinit,y
+	sta techtechersrc,y
+	iny
+	cpy #25
+	bne -
+
+
+
+	lda #0
+	sta line
+
+-loop1
+
+	lda line
+	lsr
+	ora #$80
+	sta +a+1
+
+	ldy #0
+-
+	lda techtechersrc,y
+	sta ($fe),y
+	iny
+	cpy #25
+	bne -
+
+	jsr yaddfe
+
+
+	lda +sl1+1
+	clc
+	adc techtecherspread+0
+	sta +sl1+1
+
+	lda +sl2+1
+	clc
+	adc techtecherspread+1
+	sta +sl2+1
+
+	lda +d1+1
+	clc
+	adc #4
+	sta +d1+1
+
+	lda +j1+1
+	clc
+	adc #9
+	sta +j1+1
+	lda +j1+2
+	adc #0
+	sta +j1+2
+
+	lda +s+1
+	clc
+	adc #9
+	sta +s+1
+	lda +s+2
+	adc #0
+	sta +s+2
+
+	inc line
+	lda line
+	cmp #$1c
+	beq +
+	jmp -loop1
++
+
+	jmp putrts
+
+
+techtechersrc
+
+	ldx tmp
++sl1	lda sine+$20,y
++sl2	adc sine+$50,x
++d1	sta $66
+	tax
+	lda jsrlut,x
++a	ora #$80
++j1	sta jv+2 ;charpos%4
+	lda div64,x
++s	sta seg+1 ;charpos/4 (segment)
+
+
+techtechersrcinit
+
+	ldx tmp
++sl1	lda sine+$20,y
++sl2	adc sine+$50,x
++d1	sta $66
+	tax
+	lda jsrlut,x
++a	ora #$80
++j1	sta jv+2 ;charpos%4
+	lda div64,x
++s	sta seg+1 ;charpos/4 (segment)
+
+;----------------------------------------------------------
+
+makebender
+
+
+	lda #<bender
+	sta $fe
+	lda #>bender
+	sta $ff
+
+	lda #$00
+	sta +l+1	
+	sta +a+1
+
+	lda +s2init+1
+	sta +s2+1
+	lda +s2init+2
+	sta +s2+2
+
+	lda #$02
+	sta +s1+1
+
+
+-loop1
+
+
+	ldy #0
+-
+	lda bendersrc,y
+	sta ($fe),y
+	iny
+	cpy #16
+	bne -
+
+	jsr yaddfe
+
+	tya
+	clc
+	adc +s2+1
+	sta +s2+1
+	lda #0
+	adc +s2+2
+	sta +s2+2
+
+	lda +l+1
+	clc
+	adc benderspread+0
+	sta +l+1
+
+	lda +a+1
+	clc
+	adc benderspread+1
+	sta +a+1
+
+	lda +bap+1
+	clc
+	adc #$01
+	and #$0f
+	sta +bap+1
+	tax
+	lda +baps,x
+	clc
+	adc #<benderadds
+	sta +ba+1
+
+	lda +s1+1
+	clc
+	adc #2
+	sta +s1+1
+
+	cmp #$54
+	beq +
+	jmp -loop1
++
+
+	jmp putrts
+
+
++bap	.by 0
++baps	;.by 0,1,2,3,4,5,6,7,7,6,5,4,3,2,1,0
+	.by 0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7
+
+bendersrc
+
++l	lda sine,y
++a	adc sine,x
++ba	adc benderadds
++s2	sta bender+12
+	lda benderlut
++s1	sta $02
+
+
++s2init sta bender+12
+
+
+;----------------------------------------------------------
+
+yaddfe
+	tya
+	clc
+	adc $fe
+	sta $fe
+	lda #0
+	adc $ff
+	sta $ff
+	rts
+
+putrts
+	lda #$60
+	ldy #0
+	sta ($fe),y
+	rts
+;----------------------------------------------------------
+
+colorinit
+
+
+	lda colortype
+	asl
+	tax
+	lda colors,x
+	sta $fe
+	lda colors+1,x
+	sta $ff
+
+	ldy #0
+-loop
+
+	lda ($fe),y
+	sta color0
+	iny
+	lda ($fe),y
+	sta color1
+	iny
+	lda ($fe),y
+	sta color2
+	dey
+	dey
+
+	tya
+	lsr
+	tax
+	lda color0
+	asl
+	asl
+	asl
+	asl
+	ora color1
+	sta colorlut0,x
+	sta colorlut0+$40,x
+	asl
+	asl
+	asl
+	asl
+	ora color2
+	sta colorlut1,x
+	sta colorlut1+$40,x
+
+	iny
+	iny
+	bpl -loop
+
+	rts
+
+
+colors
+	.wo color00,color01,color02,color03,color04,color05,color06,color07
+	.wo color08,color09,color0a,color0b,color0c,color0d,color0e,color0f
+
+soc
+
+color00
+
+	.text "0600660666e66ee6eee3ee33e333133113111311331333e33ee3eee6ee66e666066006"
+	.text "0000000000000000000000000000000000000000000000000000000000"
+
+color01
+
+	.text "0000020929228284a8aafaff7f77171117177f7ffafaa8a48282292902000000"
+	.text "0000000000000000000000000000000000000000000000000000000000000000"
+
+color02
+
+	.text "00066beef3711173feeb66000000b4ceff71117ffec4b000"
+	.text "000924caff71117ffac429000000928caf71117fac8290000000"
+	.text "0000000000000000000000000000"
+
+color03
+
+	.text "66666666600929000928290928a82928afa828af7fa8af717faf71117f711111"
+	.text "7f71117faf717fa8af7fa828afa82928a82909282900092900666666666666666"
+
+color04
+
+	.text "0000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb0000000000000000000"
+	.text "0000000000000000000000000000000000000000000000000000000000000000"
+
+	;.text "00bbbbbbbbbbbbbbbbbbbb000000000000000000000000000000000000000000"
+	;.text "0000000000000000000000000000000000000000000000000000000000000000"
+
+color05
+
+	.text "00000000000929000928290928a82928afa828af7fa8af717faf71117f711111"
+	.text "d3d111d3e3d1d3e4e3d3e424e3e42624e42606242600062600000000000000000"
+
+color06
+
+	.text "00928af717fa829000"
+	.text "00924af717fa429000"
+	.text "006b4caf717fac4b6000"
+	.text "006b4ef717fe4b6000"
+	.text "006bee3d1d3eeb6000"
+	.text "00b553dd1dd355b000"
+	.text "009bcff11ffcb9000"
+	.text "000000"
+
+color07
+
+	.text "b9bb99b999299229222422442444e44ee4eee3ee33e333d33dd3ddd1dd11d111"
+	.text "711771777f77ff7fffaffaafaaa4aa44a4442442242226226626666b66bb6bbbb"
+	
+	;.text "0000092829000928a8290928afa82982af7fa828af717fa8af71117faf711111"
+	;.text "7faf71117fa8af717fa828af7fa82928afa8290928a829000928290000000000"
+
+
+color08
+
+	.text "0000000600000006b6000006beb60006be3eb606be313eb6be31113ebe311111"
+	.text "3ebe31113eb6be313eb606be3eb60006beb60000006b60000000600000000000"
+
+color09
+
+	.text "006060666b6b6bb4be4e4eceefefeff3f3331313171111117117171717777f7f7ffffafafaaaa8a8a88882828222292929999090900"
+	.text "0000000000000000000000"
+
+color0a
+
+	.text "090609696b2b28484cececaca5af3f37d7d711117d7d73f3fa5acacecec48482b2b6969060900"
+	.text "0000000000000000000000000000000000000000000000000000000000000000"
+
+color0b
+
+
+	.text "0928af717fa82900"
+	.text "00928af7fa829000"
+	.text "000928afa8290000"
+	.text "0000928a82900000"
+	.text "0000092829000000"
+	.text "0000928a82900000"
+	.text "000928afa8290000"
+	.text "00928af7fa829000"
+	.text "0"
+
+color0c
+
+	.text "028af717fa820000"
+	.text "024af717fa420000"
+	.text "064af717fa460000"
+	.text "064ef717fe460000"
+	.text "06bef717feb60000"
+	.text "064ef717fe460000"
+	.text "064af717fa460000"
+	.text "024af717fa420000"
+	.text "0"
+
+color0d
+
+	.text "0928af717fa82900"
+	.text "00928af7fa829000"
+	.text "000928afa8290000"
+	.text "0000928a82900000"
+	.text "0000092829000000"
+	.text "0000009290000000"
+	.text "0000000900000000"
+	.text "0000000000000000"
+
+
+color0e
+color0f
+
+	.text "000"
+
+eoc
+
+
+
+convertcolors
+
+	lda #<soc
+	sta $fe
+	lda #>soc
+	sta $ff
+-loop
+	ldy #$00
+	lda ($fe),y
+	jsr getcolor
+	sta ($fe),y
+	
+	lda $fe
+	clc
+	adc #$01
+	sta $fe
+	lda $ff
+	adc #$00
+	sta $ff
+	
+	lda $fe
+	cmp #<eoc
+	bne -loop
+	lda $ff
+	cmp #>eoc
+	bne -loop
+	
+	rts
+	
+	
+getcolor
+
+	ldx #0
+-
+	cmp hexcolors,x
+	beq +
+	inx
+	cpx #$10
+	bne -
++
+	txa
+	rts
+
+hexcolors
+	.text "0123456789abcdef"
+
+;----------------------------------------------------------
+
+neweffect
+	
+	inc effectpnt
+	lda effectpnt
+	cmp numfx
+	bne +
+	lda #0
+	sta effectpnt
++	
+	rts
+
+
+fetcheffect
+
+	lda effectpnt
+	asl
+	tax
+	lda fxs,x
+	sta $fe
+	lda fxs+1,x
+	sta $ff
+
+	ldy #0
+-
+	lda ($fe),y
+	sta thiseffect,y
+	iny
+	cpy #18
+	bne -
+
+	lda duration
+	ora #$01
+	sta fxcnt
+	lda duration+1
+	sta fxcnt+1
+
+	
+	lda displacement
+	ldx #0
+-
+	sta bdispl+1,x
+	inx
+	inx
+	inx
+	inx
+	inx
+	cpx #35
+	bne -
+	
+
+	lda techtecherspeed
+	sta tts1+1
+	lda techtecherspeed+1
+	sta tts2+1
+
+	lda benderstart+0
+	sta benderpnt+0	
+	lda benderstart+1
+	sta benderpnt+1	
+	
+	lda benderstart+2
+	asl
+	sta benderaddpnt+0
+	lda #$00
+	rol
+	asl benderaddpnt+0
+	rol
+	sta benderaddpnt+1
+	
+	lda techtecherstart+0
+	sta techtecherpnt+0
+	lda techtecherstart+1
+	sta techtecherpnt+1
+
+	rts
+
+
+
+effectpnt	.by 0
+numfx		.by 13
+fxs
+		;.wo fx3a,fx3b_
+		;.wo fx10
+		.wo fx7,fx3c_,fx6,fx3d_,fx4,fx3c,fx5,fx3b,fx8,fx9,fx10,fx3d,fx11
+		
+thiseffect
+benderspread		.by $00,$00
+benderspeed		.by $00,$00,$00
+benderstart		.by $00,$00,$00
+techtecherspread	.by $00,$00
+techtecherspeed		.by $00,$00
+techtecherstart		.by $00,$00
+displacement		.by $00
+colortype		.by $00
+duration		.wo $0000
+
+;-----------------------------------
+
+fx1
++benderspread		.by $00,$00
++benderspeed		.by $00,$00,$02
++benderstart		.by $00,$00,$00
++techtecherspread	.by $00,$00
++techtecherspeed	.by $00,$00
++techtecherstart	.by $00,$00
++displacement		.by $00
++colortype		.by $06
++duration		.wo $0100
+
+fx2
++benderspread		.by $03,$02
++benderspeed		.by $02,$03,$01
++benderstart		.by $00,$00,$00
++techtecherspread	.by $00,$00
++techtecherspeed	.by $00,$00
++techtecherstart	.by $33,$00
++displacement		.by $00
++colortype		.by $06
++duration		.wo $0144
+
+
+fx3a
++benderspread		.by $03,$03
++benderspeed		.by $02,$fd,$01
++benderstart		.by $00,$00,$00
++techtecherspread	.by $02,$fe
++techtecherspeed	.by $04,$03
++techtecherstart	.by $00,$00
++displacement		.by $00
++colortype		.by $06
++duration		.wo $0222
+
+fx3b
++benderspread		.by $03,$03
++benderspeed		.by $02,$fd,$01
++benderstart		.by $00,$00,$00
++techtecherspread	.by $02,$fe
++techtecherspeed	.by $04,$03
++techtecherstart	.by $00,$00
++displacement		.by $20
++colortype		.by $0b
++duration		.wo $0222
+
+fx3c
++benderspread		.by $03,$03
++benderspeed		.by $02,$fd,$01
++benderstart		.by $00,$00,$00
++techtecherspread	.by $02,$fe
++techtecherspeed	.by $04,$03
++techtecherstart	.by $00,$00
++displacement		.by $20
++colortype		.by $0c
++duration		.wo $0222
+
+fx3d
++benderspread		.by $03,$03
++benderspeed		.by $02,$fd,$01
++benderstart		.by $00,$00,$00
++techtecherspread	.by $02,$fe
++techtecherspeed	.by $04,$03
++techtecherstart	.by $00,$00
++displacement		.by $20
++colortype		.by $0d
++duration		.wo $0222
+
+
+fx3b_
++benderspread		.by $03,$03
++benderspeed		.by $02,$fd,$01
++benderstart		.by $00,$00,$00
++techtecherspread	.by $02,$fe
++techtecherspeed	.by $04,$03
++techtecherstart	.by $00,$00
++displacement		.by $00
++colortype		.by $0b
++duration		.wo $0222
+
+fx3c_
++benderspread		.by $03,$03
++benderspeed		.by $02,$fd,$01
++benderstart		.by $00,$00,$00
++techtecherspread	.by $02,$fe
++techtecherspeed	.by $04,$03
++techtecherstart	.by $00,$00
++displacement		.by $00
++colortype		.by $0c
++duration		.wo $01f0
+
+fx3d_
++benderspread		.by $03,$03
++benderspeed		.by $02,$fd,$01
++benderstart		.by $00,$00,$00
++techtecherspread	.by $02,$fe
++techtecherspeed	.by $04,$03
++techtecherstart	.by $00,$00
++displacement		.by $00
++colortype		.by $0d
++duration		.wo $0180
+
+
+fx4
++benderspread		.by $07,$06
++benderspeed		.by $fe,$01,$01
++benderstart		.by $00,$00,$00
++techtecherspread	.by $fc,$05
++techtecherspeed	.by $02,$03
++techtecherstart	.by $00,$00
++displacement		.by $00
++colortype		.by $08
++duration		.wo $02c0
+
+fx5
++benderspread		.by $04,$05
++benderspeed		.by $01,$fe,$01
++benderstart		.by $00,$00,$00
++techtecherspread	.by $fc,$06
++techtecherspeed	.by $03,$02
++techtecherstart	.by $00,$00
++displacement		.by $00
++colortype		.by $03
++duration		.wo $02c0
+
+fx6
++benderspread		.by $06,$05
++benderspeed		.by $02,$ff,$02
++benderstart		.by $00,$00,$00
++techtecherspread	.by $0c,$09
++techtecherspeed	.by $03,$01
++techtecherstart	.by $00,$00
++displacement		.by $00
++colortype		.by $09
++duration		.wo $02e0
+
+fx7
++benderspread		.by $04,$05
++benderspeed		.by $02,$ff,$01
++benderstart		.by $55,$00,$00
++techtecherspread	.by $fe,$03
++techtecherspeed	.by $03,$02
++techtecherstart	.by $00,$00
++displacement		.by $00
++colortype		.by $04
++duration		.wo $0288
+
+fx8
++benderspread		.by $81,$82
++benderspeed		.by $02,$ff,$01
++benderstart		.by $00,$00,$00
++techtecherspread	.by $01,$01
++techtecherspeed	.by $01,$fe
++techtecherstart	.by $00,$00
++displacement		.by $00
++colortype		.by $06
++duration		.wo $0222
+
+fx9
++benderspread		.by $04,$04
++benderspeed		.by $02,$ff,$01
++benderstart		.by $33,$dd,$00
++techtecherspread	.by $08,$09
++techtecherspeed	.by $05,$06
++techtecherstart	.by $00,$00
++displacement		.by $00
++colortype		.by $05
++duration		.wo $0320
+
+fx10
++benderspread		.by $04,$05
++benderspeed		.by $02,$ff,$02
++benderstart		.by $00,$00,$00
++techtecherspread	.by $0b,$0e
++techtecherspeed	.by $01,$02
++techtecherstart	.by $cc,$77
++displacement		.by $00
++colortype		.by $07
++duration		.wo $0280
+
+fx11
++benderspread		.by $06,$05
++benderspeed		.by $02,$ff,$02
++benderstart		.by $00,$00,$00
++techtecherspread	.by $0b,$0c
++techtecherspeed	.by $03,$01
++techtecherstart	.by $70,$00
++displacement		.by $00
++colortype		.by $0a
++duration		.wo $02cc
+
+;----------------------------------------------------------
+benderpnt		.by $55,$aa,$00
+benderaddpnt		.wo $0000
+techtecherpnt		.by $00,$33
+;----------------------------------------------------------
+fliinit
+
+
+	lda #$00
+	sta $fe
+	lda #$40
+	sta $ff
+
+	ldy #$00
+-
+	;lda #$00
+	lda #%01010101
+	sta ($fe),y
+	iny
+	lda #%00000000
+	sta ($fe),y
+	iny
+	lda #%10101010
+	sta ($fe),y
+	iny
+	lda #%00000000
+	sta ($fe),y
+	iny
+	beq +
+	cpy #$80
+	bne -
+	lda $ff
+	cmp #$52
+	bne -
+	jmp +end
++
+	inc $ff
+	jmp -
+
++end
+
+	lda #$00
+	sta $fe
+	lda #$60
+	sta $ff
+
+	ldy #$00
+	tya
+-
+	sta ($fe),y
+	iny
+	bne -
+
+	inc $ff
+	ldx $ff
+	cpx #$70
+	bne -
+
+
+
+	;init sprite data ...
+
+	ldx #$c0
+	lda #$ff
+-
+	sta $5f00,x
+	inx
+	bne -
+
+		
+	lda #$7f
+	ldx #$05
+-
+	sta $63f8,x
+	sta $67f8,x
+	dex
+	bpl -
+	
+	ldx #$fc
+	stx $63fe
+	stx $67fe
+	inx
+	stx $63ff
+	stx $67ff
+
+	rts
+
+
+;----------------------------------------------------------
+logoinit
+
+	ldx #$00
+-
+	lda #$e0
+	sta $6258,x
+	sta $62c0,x
+	inx
+	bne -
+
+	rts
+
+;----------------------------------------------------------
+
+</code>

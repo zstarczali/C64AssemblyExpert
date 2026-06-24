@@ -1,0 +1,8 @@
+# PAGE: base:fli
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:fli
+
+====== FLI ======
+
+FLI is short for Flexible Line Interpretation. What it does it bringing more colors to your bitmap pictures by re-reading color info each pixel-line instead of each char-line (every 8 pixels). This is possible by repeatedly writing to $d011 to re-trigger color fetch (probably called something else in technical terms). This method causes a bug on the left side of the screen, the typical "FLI-bug", where the color info is set to $ff, which is translated to bright gray by VIC. Thus when painting on the FLI-bug, the color usage is very restricted, and the very few ones who manage to have colorful graphics there are considered having wizard skills ;).
+
+FLI originally implies multicolor mode, since the usage was gaining as many colors as possible. In this mode the resolution is 160x200 multicolor-pixels, where the leftmost 12 pixels have the well-known FLI-bug.

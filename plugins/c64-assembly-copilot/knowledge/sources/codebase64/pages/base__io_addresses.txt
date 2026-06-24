@@ -1,0 +1,120 @@
+# PAGE: base:io_addresses
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:io_addresses
+
+====== IO addresses ======
+
+Taken from [[http://ide64.org/io_stnd.txt]].
+
+FIXME FTC says: I think the PASSPORT and SIEL+JMS interfaces are mixed up in this doc. Both the documentation by GRG and the source of MidiSlave specifies these two interfaces differently.
+
+<code>
+Revision 10.9.2003
+
+                C64 - IO addresses, standard for the development
+                -----------------------------------------------
+                           by Tomas Pribyl (C)1998-2003
+                           -----------------------
+
+
+   IO_1 area -  Address range $de00 - $deff
+   =======================================
+   $de00 - $de0f  DUART (RS-232 card)
+   MC68681
+   $de00 - $de0f - The card registers (R or R/W)
+
+   ======================================================
+   $de00 - $de03  Swiftlink, ACia card (fast serial port)
+   6551
+   $de00 - Transmit Data Register  (W)
+   $de00 - Receive Data Register (R)
+   $de01 - Status Register (R/W)
+   $de02 - Command Register (R/W)
+   $de03 - Control Register (R/W)
+
+   ======================================================
+   $de00 - $de03  Midi interface sequential
+   Motorola 6850
+   $de00 - Control register (W)
+   $de01 - Transmit data register (W)
+   $de02 - Status register (R)
+   $de03 - Receive data register (R)
+
+   ======================================================
+   $de04 - $de07  Midi interface Passport
+   Motorola 6850
+   $de04 - Control register (W)
+   $de05 - Transmit data register (W)
+   $de06 - Status register (R)
+   $de07 - Receive data register (R)
+
+   ======================================================
+   $de08 - $de09  Midi interface Siel/JMS
+   Motorola 6850
+   $de08 - Control register (W)
+   $de08 - Status register (R)
+   $de09 - Transmit data register (W)
+   $de09 - Receive data register (R)
+
+   ======================================================
+   $de10 - $de0f  ETH64 (Ethernet card)
+   LAN91C96
+   $de10 - $de0d - Bank registers (R and R/W)
+   $de0e - Bank select registers (R/W 2B)
+
+   ======================================================
+   $de20 - $de31  IDE64 HDD
+   IDE CHIP
+   $de20 - $de27  Primary HDD Registers
+   $de28 - $de2f  Secondary HDD Registers
+   $de30 - Low Data HDD register
+   $de31 - High Data HDD register
+   $de32 - > d7 - 0
+             d6 - 0
+             d5 - 0
+             d4 - 1  ;version number #$01
+             d3 - romaddr15
+             d2 - romaddr14
+             d1 - game
+             d0 - exrom
+   $de32 - $de35  IDE64 ROM bank select registers
+
+   ======================================================
+   $de38 - $de39  FAST SERIAL NET
+   Intel 8251 USART
+   $de38 - Transmit data register (W)
+   $de38 - Receive data register (R)
+   $de39 - Control register (W)
+   $de39 - Status register (R)
+
+   ======================================================
+   $de40 - $de43  HexCard ports (W or R/W)
+
+   ======================================================
+   $de5f - Clock IDE64 (R/W) (bit 0) 
+   $defb - IDE64 clock reset, kill the cartridge (W)
+   $defc - $deff  IDE64 ROM configuration registers (W)
+
+   ======================================================
+   $de60 - $deff  Software for IDE64 cartridge serving (R)
+
+
+
+
+   IO_2 area - Address range $df00 - $dfff
+   ======================================
+
+   $df00 - $df0a   Ram Expansion Unit
+   REU 1700, 1764, 1750
+   $df00 - Status Register (R)
+   $df01 - Command Register (R/W)
+   $df02 - C64 Base Address Register (low)  (R/W)
+   $df03 - C64 Base Address Register (high) (R/W)
+   $df04 - $df06 - REU Base Address Register (R/W)
+   $df07 - $df08 - Transfer Lenght Register  (R/W)
+   $df09 - Interrupt mask register (R/W)
+   $df0a - Address control register
+
+   !!! NOTE: REU registers are mirrored in whole IO_2 AREA!!!!
+   !!! Use some address decoders for decoding area $df00-$df0a!!!
+   
+</code>

@@ -1,0 +1,1524 @@
+# PAGE: base:nonrom_keyboard_v3.0
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:nonrom_keyboard_v3.0
+
+====== Keyboard Routine V3.0 ======
+
+===== What's new =====
+
+Basically a lot of improvements in terms of size and speed, basic functionality intact. The
+routine utilizes SMC, so any ROM adaptation has to take this into account.
+
+Major new feature is return of repetitive keys when a key is being held down along with an
+initialization routine to set timers to control this. NB! This is only valid for Alpha-numeric
+keys for now, Non-Alpha-Numeric [INST/DEL, C=, SHIFT, ...) are returned as flags in X/Y register.
+
+There are still features I'd like to implements (parameter controlled repeat keys of CRSR and
+RETURN keys f.ex), and parameter controlled return of Alpha-Numeric Keys in conjunction with
+SHIFT and C= for example. But for now the user must take care of this.
+
+I also included the test tool source which has been developed somewhat as well.
+
+
+===== Source Code for the Keyboard Routine =====
+
+<code>
+    /*=============================================================================================
+      Keyboard IO Routine                                                               By: TWW/CTR
+      -------------------
+        
+      Information:
+
+        Uses "2 Key rollover" or up to 3 if the key-combination doesen't induce shadowing.
+        If 2 or more keys are pressed simultaneously (within 1 scan) a "No Activity" state has to
+        occur before new valid keys are accepted.
+        RESTORE is not detectable and must be handled by NMI IRQ.
+        SHIFT LOCK is not detected due to unreliability.
+
+      How to use example:
+
+            jsr Keyboard
+            bcc !NoError+
+                // Handle errors
+        !NoError:
+            sta $0400  // Alphanumeric Keys (#$ff => same key(s) pressed, no new key)
+            stx $0401  // Non-Alphanumeric Keys #1
+            sty $0402  // Non-Alphanumeric Keys #2
+
+      Returned:
+
+        +===============================================================================+
+        |                            Returned in Accumulator                            |
+        +=========+=========+=========+=========+=========+=========+=========+=========+
+        | $00 - @ | $08 - h | $10 - p | $18 - x | $20 -   | $28 -   | $30 - 0 | $38 - 8 |
+        | $01 - a | $09 - i | $11 - q | $19 - y | $21 -   | $29 -   | $31 - 1 | $39 - 9 |
+        | $02 - b | $0a - j | $12 - r | $1a - z | $22 -   | $2a - * | $32 - 2 | $3a - : |
+        | $03 - c | $0b - k | $13 - s | $1b -   | $23 -   | $2b - + | $33 - 3 | $3b - ; |
+        | $04 - d | $0c - l | $14 - t | $1c - £ | $24 -   | $2c - , | $34 - 4 | $3c -   |
+        | $05 - e | $0d - m | $15 - u | $1d -   | $25 -   | $2d - - | $35 - 5 | $3d - = |
+        | $06 - f | $0e - n | $16 - v | $1e - ^ | $26 -   | $2e - . | $36 - 6 | $3e -   |
+        | $07 - g | $0f - o | $17 - w | $1f - < | $27 -   | $2f - / | $37 - 7 | $3f -   |
+        +---------+---------+---------+---------+---------+---------+---------+---------+
+
+        +================================================================================
+        |                             Return in X-Register                              |
+        +=========+=========+=========+=========+=========+=========+=========+=========+
+        |  Bit 7  |  Bit 6  |  Bit 5  |  Bit 4  |  Bit 3  |  Bit 2  |  Bit 1  |  Bit 0  |
+        +---------+---------+---------+---------+---------+---------+---------+---------+
+        | CRSR UD |   F5    |   F3    |   F1    |   F7    | CRSR RL | RETURN  |INST/DEL |
+        +---------+---------+---------+---------+---------+---------+---------+---------+
+
+        +================================================================================
+        |                             Return in Y-Register                              |
+        +=========+=========+=========+=========+=========+=========+=========+=========+
+        |  Bit 7  |  Bit 6  |  Bit 5  |  Bit 4  |  Bit 3  |  Bit 2  |  Bit 1  |  Bit 0  |
+        +---------+---------+---------+---------+---------+---------+---------+---------+
+        |RUN STOP | L-SHIFT |   C=    | R-SHIFT |CLR/HOME |  CTRL   |         |         |
+        +---------+---------+---------+---------+---------+---------+---------+---------+
+
+        CARRY:
+          - Set = Error Condition (Check A for code):
+              A = #$01 => No keyboard activity is detected.
+              A = #$02 => Control Port #1 Activity is detected.
+              A = #$03 => Key Shadowing / Ghosting is detected.
+              A = #$04 => 2 or 3 new keys is detected within one scan
+              A = #$05 => Awaiting "No Activity" state
+          - Clear = Valid input
+              A =  #$ff => No new Alphanumeric Keys detected
+                           Some key(s) being held down AND/OR
+                           Some Non-Alphanumeric key is causing valid return
+              A != #$ff => New Alphanumeric Key returned.
+                           Non-Alphanumeric keys may also be returned in X or Y Register
+
+      Speed / Size
+        - See KeyboardTest.asm
+
+
+
+        ┌──────────┐
+        │ Keyboard │
+        └────┬─────┘
+        ▄════╩═════▄
+        ║ Any Port ║ No  ┌───────────────────────────────────────┐
+        ║ activity?╠─────┤ Exit Error #1 & Clear Clear-State-Flag│
+        ▀════╦═════▀     └───────────────────────────────────────┘
+             │ Yes
+       ▄═════╩══════▄
+       ║ Awaiting   ║ Yes ┌───────────────┐
+       ║Clear State?╠─────┤ Exit Error #5 │
+       ▀═════╦══════▀     └───────────────┘
+             │ No
+        ▄════╩═════▄
+        ║  Port #1 ║ Yes
+        ║ activity?╠─────────────┐
+        ▀════╦═════▀             │
+             │ No                │
+        ┌────┴─────┐             │
+        │Scan Keyb.│     ┌───────┴───────┐
+        │Matrix in │     │ Exit Error #2 │
+        │ ZP Scan  │     └───────┬───────┘
+        └────┬─────┘             │
+        ▄════╩═════▄             │
+        ║  Port #1 ║ Yes         │
+        ║ activity?╠─────────────┘
+        ▀════╦═════▀
+             │ No
+      ┌──────┴───────┐
+      │   Reset ZP   │
+      │ Result (#$ff)│
+      └──────┬───────┘
+        ▄════╩═════▄
+        ║ Activity ║ Yes  ┌─────────────────────────┐   ▄═════════▄ Yes ┌───────────────┐
+        ║  Row #7? ╠──────┤Store Key(s) in ZP Result├───╣Overflow?╠─────┤ Exit Error #3 │
+        ▀════╦═════▀      └─────────────────────────┘   ▀════╦════▀     └───────────────┘
+             │ No                                            │ No
+             ├───────────────────────────────────────────────┘
+        ▄════╩═════▄
+        ║ Activity ║ Yes  ┌─────────────────────────┐   ▄═════════▄ Yes ┌───────────────┐
+        ║  Row ... ╠──────┤Store Key(s) in ZP Result├───╣Overflow?╠─────┤ Exit Error #3 │
+        ▀════╦═════▀      └─────────────────────────┘   ▀════╦════▀     └───────────────┘
+             │ No                                            │ No
+             ├───────────────────────────────────────────────┘
+        ▄════╩═════▄
+        ║ Activity ║ Yes  ┌─────────────────────────┐   ▄═════════▄ Yes ┌───────────────┐
+        ║  Row #0? ╠──────┤Store Key(s) in ZP Result├───╣Overflow?╠─────┤ Exit Error #3 │
+        ▀════╦═════▀      └─────────────────────────┘   ▀════╦════▀     └───────────────┘
+             │ No                                            │ No
+             ├───────────────────────────────────────────────┘
+       ┌─────┴─────┐
+       │   Flag    │
+       │ Non-Alpha │
+       └─────┬─────┘
+       ┌─────┴──────┐
+       │X = Quantity│
+       │  of keys   │
+       └─────┬──────┘
+       ▄═════╩═════▄
+       ║ Too many  ║ Yes ┌──────────────────────────────────────┐
+       ║ new keys? ╠─────┤ Exit Error #4 & Set Clear-State-Flag │
+       ▀═════╦═════▀     └──────────────────────────────────────┘
+             │ No
+       ▄═════╩═════▄
+       ║ New Alpha ║ Yes ┌────────────────────────────────────────────────────────────────────────┐
+       ║ Num. Key? ╠─────┤ Exit A = #SMC_NewAlphaKey, X & Y Flags = Non Alpha State & CARRY Clear │
+       ▀═════╦═════▀     └────────────────────────────────────────────────────────────────────────┘
+             │ No
+       ▄═════╩═════▄
+       ║   Repeat  ║ No  ┌────────────────────────────────────────────────────────────┐
+       ║  Flag Set ╠─────┤ Exit A = #$ff, X & Y Flags = Non Alpha State & CARRY Clear │
+       ▀═════╦═════▀     └────────────────────────────────────────────────────────────┘
+             │ Yes
+       ▄═════╩═════▄
+       ║ Alpha Num.║ No  ┌───────────────────────────────────────────────────────────────────────┐
+       ║ Key held? ╠─────┤ Exit A = #$ff, X & Y Flags = Non Alpha State CARRY Clear, Reset Timer1│
+       ▀═════╦═════▀     └───────────────────────────────────────────────────────────────────────┘
+             │ Yes
+       ▄═════╩═════▄ No  ┌────────────────────────────────────────────────────────────┐
+       ║ Timer = 0?╠─────┤ Exit A = #$ff, X & Y Flags = Non Alpha State & CARRY Clear │
+       ▀═════╦═════▀     └────────────────────────────────────────────────────────────┘
+             │ Yes
+       ┌─────┴──────┐
+       │Reset Timer2│
+       │Exit old key│
+       └────────────┘
+
+
+    History:
+    --------
+    V3.0 - Added error condition if keyboard table crosses page boundary.
+           Added Repeat Key timer delays for consequtive delays.
+           Fixed bug with non-alpha keys being repeated.
+           Added buffer output to test program
+           Added Flow diagram
+           Several minor fixes
+    V2.9 - Crude version of repeat character function is implmeneted. Needs some optimization.
+    V2.8 - Rewrote the Keyboard Scan Routine to use less cycles and space.
+           Got rid of the ugly 4 x PLA business. Uses SMC, so no good for ROM appications.
+           Restructured the routine to prepare it for V3.0 (Repeat keys / API revamp)
+           Flipped key-scan table for optimization
+    V2.7 - Upgraded Test Tool to count cycles to measure speed and show ACC result.
+           General update of test tool, removed a bug (raster-triggerpoint).
+           Updated header text & moved speed/Size history between versions int the test tool.
+           General update of code formatting
+           Re-aranged code and got rid of the JMP Main to make it more structurized.
+           Consolidated exit code section
+           Got rid of KeyQuantity ZP and replaced with Y-REG + #IMM
+           Minor optimizations
+    V2.6 - Fixed a bug (CMP #$ff)
+    V2.5 - New test tool.
+           Added return of error codes.
+           Fixed a bug causing Buffer Overflow.
+           Fixed a bug in Non Alphanumerical Flags from 2.0.
+    V2.1 - Shortened the source by adding .for loops & Updated the header and some comments.
+           Added "simultaneous keypress" check.
+    V2.0 - Added return of non-Alphanumeric keys into X & Y-Registers.
+           Small optimizations here and there.
+    V1.1 - Unrolled code to make it faster and optimized other parts of it.
+           Removed SHIFT LOCK scanning.
+    V1.0 - First Working Version along with test tool.
+
+    =============================================================================================*/
+
+    .pc = * "Keyboard Scan Routine"
+
+
+    // ZERO PAGE Varibles
+    .const ZP_ScanResult               = $50     // 8 bytes - Holds Raw IO data from keyboard scan
+    .const ZP_ScanKeyBuffer            = $58     // 3 bytes - Holds keys found during a valid scan
+    .const ZP_Temp                     = $5b     // 1 byte  - Holds temporary values
+    .const ZP_FLAG_NewKeyScanOverflow  = $5c     // 1 byte  - Flag - waiting for no activity state
+    .const ZP_NonAlphaFlagX            = $5d     // 1 byte  - Flag - Non-Alphanumerik Keys Detected
+    .const ZP_NonAlphaFlagY            = $5e     // 1 byte  - Flag - Non-Alphanumerik Keys Detected
+    .const ZP_RepeatFlag               = $5f     // 1 byte  - Flag - Repeat keys allowed
+    .const ZP_RepeatTimer              = $60     // 1 byte  - Timer Value
+    .const ZP_Temp2                    = $61     // Temp Value
+
+    // Operational Variables
+    .const MaxKeyRollover              = 3
+
+    // Error Codes
+    .namespace ERROR {
+        .label NoActivity              = 1       // No activity from Control Port at all
+        .label CtrlPortActivity        = 2       // Game Port Activity Detected
+        .label Shadowing               = 3       // More than 3 keys pressed simultaneously
+        .label KeyScanOverflow         = 4       // More than 1 new key found in one scan
+        .label KeyScanOverflowFlag     = 5       // Impossible to determine which was First,
+                                                 // only cleared by a "No Activity" flag clear.
+    }
+
+
+    //---------------------------------------------------------------------------------------------
+    // Keyboard Initialization
+    //
+    // Configures Data Direction Registers
+    // Configures Repeat Flag & Timer
+    //
+    // Parameters:
+    //   Accumulator: Postive  = Allow Repeat Keys
+    //                Negative = Don't allow Repeat Keys
+    //   X-Register:  Repeat Key Timer (duration to routine to report a held key again)
+    //---------------------------------------------------------------------------------------------
+
+
+KeyboardInit:
+
+    //-------------------------------------------
+    // Setup Repeat Flag & Timer
+    //
+    // The flag is used to determine if an alpha-
+    // Numeric key shall be repeated when being
+    // held down. Timer1 is the initial delay,
+    // Timer2 is the consecutive repetitions.
+    //-------------------------------------------
+
+    sta ZP_RepeatFlag
+    stx ZP_RepeatTimer
+    stx SMC_RepeatTimer1
+    sty SMC_RepeatTimer2
+
+    //-------------------------------------------
+    // Configure Data Direction Registers
+    //-------------------------------------------
+
+    ldx #$ff
+    stx $dc02                                    // Port A - Output
+    inx
+    stx $dc03                                    // Port B - Input
+    stx ZP_FLAG_NewKeyScanOverflow               // Clear Flag
+    rts
+
+    //---------------------------------------------------------------------------------------------
+    // Error routines
+    //---------------------------------------------------------------------------------------------
+
+!NoPortActivity:
+    ldx #$00
+    stx ZP_FLAG_NewKeyScanOverflow
+    dex
+    stx SMC_OldKey1
+    stx SMC_OldKey2
+    stx SMC_OldKey3
+    lda #ERROR.NoActivity
+    sec                                          // Can be replaced with a .byte BIT_ABS
+    rts
+
+!GameportActivityDetected:
+    lda #ERROR.CtrlPortActivity
+    sec
+    rts
+
+!KeyScanOverflowFlag:
+    lda #ERROR.KeyScanOverflowFlag
+    sec
+    rts
+
+
+    //---------------------------------------------------------------------------------------------
+    // Routine Start
+    //---------------------------------------------------------------------------------------------
+
+Keyboard:
+
+    //-------------------------------------------
+    // Check for any Port Activity
+    //-------------------------------------------
+
+    ldx #$00
+    stx $dc00                                    // Connect all Keyboard Rows
+    dex
+    cpx $dc01                                    // Any activity in any rows?
+    beq !NoPortActivity-
+
+    //-------------------------------------------
+    // Check 'too many keys detected' flag
+    //-------------------------------------------
+
+!:  bit ZP_FLAG_NewKeyScanOverflow
+    bne !KeyScanOverflowFlag-
+
+    //-------------------------------------------
+    // Check for Control Port #1 Activity
+    //-------------------------------------------
+
+    stx $dc00                                    // Disconnect all Keyboard Rows
+    cpx $dc01                                    // Only Control Port activity will be detected
+    bne !GameportActivityDetected-
+
+    //-------------------------------------------
+    // Scan Keyboard Matrix
+    // BNE => ZERO = 1 => CARRY = 1
+    //-------------------------------------------
+
+    ldy #%11111110
+    ldx #%11111101
+    lda #%11111011                               // This reduces the amount of rotations needed.
+    sty $dc00                                    // Read from Row #7
+
+    ldy $dc01                                    // The trick is to minimize cycles from here;
+    stx $dc00                                    // Read from Row #6
+    ldx $dc01
+    sta $dc00                                    // Read from Row #5
+    sty ZP_ScanResult + 7
+    stx ZP_ScanResult + 6
+    ldy $dc01
+    sty ZP_ScanResult + 5
+    rol
+    sta $dc00                                    // Read from Row #4
+    ldx $dc01
+    rol
+    sta $dc00                                    // Read from Row #3
+    ldy $dc01
+    stx ZP_ScanResult + 4
+    sty ZP_ScanResult + 3
+    rol
+    sta $dc00                                    // Read from Row #2
+    ldy $dc01
+    rol
+    sta $dc00                                    // Read from Row #1
+    ldx $dc01
+    rol
+    sta $dc00                                    // Read from Row #0
+    lda $dc01                                    // To here!
+
+    sty ZP_ScanResult + 2
+    stx ZP_ScanResult + 1
+    sta ZP_ScanResult + 0
+
+    //-------------------------------------------
+    // Check for Control Port #1 Activity (again)
+    //-------------------------------------------
+
+    ldx #$ff
+    stx $dc00
+    cpx $dc01
+    bne !GameportActivityDetected-
+
+    //-------------------------------------------
+    // Reset Key Scan Buffer
+    //-------------------------------------------
+
+    stx ZP_ScanKeyBuffer
+    stx ZP_ScanKeyBuffer + 1
+    stx ZP_ScanKeyBuffer + 2
+
+    //-------------------------------------------
+    // Identify which / how many keys are pressed
+    //-------------------------------------------
+
+    lda #MaxKeyRollover                          // This cen go into Y for speed, but will add size
+    sta ZP_Temp
+    cpx ZP_ScanResult + 7
+    bne !KeyInRow7+ ; !Return7:
+    cpx ZP_ScanResult + 6
+    bne !KeyInRow6+ ; !Return6:
+    cpx ZP_ScanResult + 5
+    bne !KeyInRow5+ ; !Return5:
+    cpx ZP_ScanResult + 4
+    bne !KeyInRow4+ ; !Return4:
+    cpx ZP_ScanResult + 3
+    bne !KeyInRow3+ ; !Return3:
+    cpx ZP_ScanResult + 2
+    bne !KeyInRow2+ ; !Return2:
+    cpx ZP_ScanResult + 1
+    bne !KeyInRow1+ ; !Return1:
+    cpx ZP_ScanResult + 0
+    beq !DoneFindingKeys+
+
+!KeyInRow0:
+    ldx #<KeyTable + $38                         // Index into Keyboar Matrix Table
+    ldy # !DoneFindingKeys+ - SMC_Return - 1     // Relative Return Address
+    lda ZP_ScanResult + 0                        // Fetch Row Scan Value
+    bne !ScanRow+                                // Branch Always (Row Value should never be #$00)!
+
+!KeyInRow1:
+    ldx #<KeyTable + $30
+    ldy # !Return1- - SMC_Return - 1
+    lda ZP_ScanResult + 1
+    bne !ScanRow+
+
+!KeyInRow2:
+    ldx #<KeyTable + $28
+    ldy # !Return2- - SMC_Return - 1
+    lda ZP_ScanResult + 2
+    bne !ScanRow+
+
+!KeyInRow3:
+    ldx #<KeyTable + $20
+    ldy # !Return3- - SMC_Return - 1
+    lda ZP_ScanResult + 3
+    bne !ScanRow+
+
+!KeyInRow4:
+    ldx #<KeyTable + $18
+    ldy # !Return4- - SMC_Return - 1
+    lda ZP_ScanResult + 4
+    bne !ScanRow+
+
+!KeyInRow5:
+    ldx #<KeyTable + $10
+    ldy # !Return5- - SMC_Return - 1
+    lda ZP_ScanResult + 5
+    bne !ScanRow+
+
+!KeyInRow6:
+    ldx #<KeyTable + $08
+    ldy # !Return6- - SMC_Return - 1
+    lda ZP_ScanResult + 6
+    bne !ScanRow+
+
+!KeyInRow7:
+    ldx #<KeyTable + $00
+    ldy # !Return7- - SMC_Return - 1
+    lda ZP_ScanResult + 7
+
+    //-------------------------------------------
+    // Common Routine for Key Row Scan - Uses SMC
+    //-------------------------------------------
+
+!ScanRow:
+    stx SMC_KeyTable
+    sty SMC_Return
+    ldx #$07
+!Loop:
+    asl
+    bcc !FoundKey+ ; !FoundKeyReturn:
+    dex
+    bpl !Loop-
+    bmi SMC_Return: *                            // Branch Always
+
+!FoundKey:
+    dec ZP_Temp
+    bmi !Shadowing+
+    ldy ZP_Temp
+    sta ZP_Temp2                                 // Preserve Accumulator
+    lda SMC_KeyTable: KeyTable,x                 // Must not cross page!
+    sta ZP_ScanKeyBuffer,y
+    lda ZP_Temp2
+    bcc !FoundKeyReturn-                         // BRA
+
+    //-------------------------------------------
+    // ERROR - Key Shadowing
+    //-------------------------------------------
+
+!Shadowing:
+    lda #ERROR.Shadowing
+    sec
+    rts
+
+    //-------------------------------------------
+    // ERROR - Too Many Keys
+    //-------------------------------------------
+
+!KeyScanOverflow:
+    dec ZP_FLAG_NewKeyScanOverflow
+    lda #ERROR.KeyScanOverflow
+    sec
+    rts
+
+    //---------------------------------------------------------------------------------------------
+    // Done Scanning for pressed keys.
+    //
+    // Valid keys stored in ZP_ScanKeyBuffer:
+    //   ZP_ScanKeyBuffer + 2 = 1st Key
+    //   ZP_ScanKeyBuffer + 1 = 2nd Key
+    //   ZP_ScanKeyBuffer + 2 = 3rd Key
+    // Quantity of pressed keys in ZP_Temp:
+    //   ZP_Temp = #$02 => 1 key pressed
+    //   ZP_Temp = #$01 => 2 keys pressed
+    //   ZP_Temp = #$00 => 3 keys pressed
+    // There is no danger of keys stored outside buffer range
+    // and there is no danger of ZP_Temp being outside 0 - 2 range.
+    //---------------------------------------------------------------------------------------------
+
+!DoneFindingKeys:
+
+    //---------------------------------------------------------------------------------------------
+    // Flag Non-Alphanumeric keys
+    //---------------------------------------------------------------------------------------------
+
+    lda ZP_ScanResult + 6
+    eor #$ff
+    and #%10000000                               // ARR is an issue due to CARRY
+    lsr                                          // Clears CARRY
+    sta ZP_NonAlphaFlagY
+    lda ZP_ScanResult + 0
+    eor #$ff
+    and #%10100100                               // RUN STOP - C= - CTRL
+    ora ZP_NonAlphaFlagY
+    sta ZP_NonAlphaFlagY
+    lda ZP_ScanResult + 1
+    eor #$ff
+    and #%00011000                               // Right SHIFT - CLR HOME
+    ora ZP_NonAlphaFlagY
+    sta ZP_NonAlphaFlagY
+    lda ZP_ScanResult + 7                        // The rest
+    eor #$ff
+    sta ZP_NonAlphaFlagX
+
+    //-------------------------------------------
+    // Check how many keys are pressed;
+    //   ZP_Temp = #$02 => 1 key pressed  {0}
+    //   ZP_Temp = #$01 => 2 keys pressed {1}
+    //   ZP_Temp = #$00 => 3 keys pressed {2}
+    // CARRY is Clear here
+    //-------------------------------------------
+
+    lda #$03
+    sbc ZP_Temp
+    tax                                          // X = many keys are being pressed (0, 1 or 2)
+
+    //-------------------------------------------
+    // Check if the key(s) were present last scan
+    // and check for simultaneous keypress.
+    //-------------------------------------------
+
+    ldy #$01
+    sty ZP_Temp
+    iny                                          // check 1st key
+!:  lda ZP_ScanKeyBuffer,y
+    cmp SMC_OldKey1: #$ff
+    beq !InLastScan+
+    cmp SMC_OldKey2: #$ff
+    beq !InLastScan+
+    cmp SMC_OldKey3: #$ff
+    beq !InLastScan+
+
+        dec ZP_Temp                              // Counter/Flag for too many keys in one scan
+        bmi !KeyScanOverflow-                    // Error stuff for simult. pressed keys
+        sta SMC_NewAlphaKey                      // Store key for return
+
+!InLastScan:
+    dey
+    dex
+    bpl !-
+
+    //-------------------------------------------
+    // Check if there are ANY new keys pressed
+    //-------------------------------------------
+
+    ldy SMC_RepeatTimer1: #$00
+    lda ZP_Temp
+    beq !Exit_NewKey+                           // New key should happen more rarely (so no BNE).
+
+        //---------------------------------------
+        // No new alphanumeric keys detected,
+        // will the held key be repeated?
+        //---------------------------------------
+
+        txa                                      // X = #$ff from loop above.
+        bit ZP_RepeatFlag
+        bmi !Exit_NoRepeatFlag+                  // TXA can be removed with designated exit routine
+
+            //-----------------------------------
+            // Are there any alpha-numeric keys?
+            //
+            // Do before timer is decreased!
+            //
+            // There must be a better way...
+            //-----------------------------------
+
+            lda ZP_ScanKeyBuffer
+            and ZP_ScanKeyBuffer + 1
+            and ZP_ScanKeyBuffer + 2
+            cmp #$ff
+            beq !Exit_NoAlphaKeys+               // If no alpha keys pressed, Reset Timer & Exit!
+
+                //-------------------------------
+                // Check timer
+                //-------------------------------
+
+                txa                              // X = #$ff from loop above.
+                dec ZP_RepeatTimer
+                bne !Exit_TimerNotZero+
+
+                    //---------------------------
+                    // Timer = 0:
+                    // Reset timer to value #2 &
+                    // Exit and return last key
+                    //---------------------------
+
+                    ldy SMC_RepeatTimer2: #$00
+//                    jmp !Exit_RepeatKey+        // Uncomment to skipp buffer update - Speed vs. Size
+
+    //-------------------------------------------
+    // New Key - Update old values.
+    //-------------------------------------------
+
+!Exit_NewKey:                                    // Reset Timer1 & A = New Key
+    ldx ZP_ScanKeyBuffer + 2
+    stx SMC_OldKey1
+    ldx ZP_ScanKeyBuffer + 1
+    stx SMC_OldKey2
+    ldx ZP_ScanKeyBuffer + 0
+    stx SMC_OldKey3
+
+    //-------------------------------------------
+    // Return new key or repeat key
+    //-------------------------------------------
+
+!Exit_RepeatKey:                                 // Reset Timer2 & A = Last Key
+    lda SMC_NewAlphaKey: #$00
+
+    //-------------------------------------------
+    // Reset timer to Value #1
+    //-------------------------------------------
+
+!Exit_NoAlphaKeys:                               // Reset Timer1 & A = #$ff
+    sty ZP_RepeatTimer
+
+    //-------------------------------------------
+    // Common Exit for Alpha, Non-Alpha and
+    // Repeat keys
+    //-------------------------------------------
+
+!Exit_NoRepeatFlag:
+!Exit_TimerNotZero:
+    ldx ZP_NonAlphaFlagX
+    ldy ZP_NonAlphaFlagY
+    clc
+    rts
+
+
+    //---------------------------------------------------------------------------------------------
+    // Must not cross page boundary
+    //---------------------------------------------------------------------------------------------
+
+    .pc = * "Table"
+
+    .errorif [$100 - [* & $ff]] < 64, "Keyboard Lookuptable crosses page boundary"
+
+KeyTable:
+    .byte $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff  // CD F5 F3 F1 F7 CR RT ID
+    .byte $33, $17, $01, $34, $1a, $13, $05, $ff  //  3  W  A  4  Z  S  E LS
+    .byte $35, $12, $04, $36, $03, $06, $14, $18  //  5  R  D  6  C  F  T  X
+    .byte $37, $19, $07, $38, $02, $08, $15, $16  //  7  Y  G  8  B  H  U  V
+    .byte $39, $09, $0a, $30, $0d, $0b, $0f, $0e  //  9  I  J  0  M  K  O  N
+    .byte $2b, $10, $0c, $2d, $2e, $3a, $00, $2c  //  +  P  L  -  .  :  @  ,
+    .byte $1c, $2a, $3b, $ff, $ff, $3d, $1e, $2f  //  £  *  ; HO RS  =  ^  /
+    .byte $31, $1f, $ff, $32, $20, $ff, $11, $ff  //  1 <- CT  2 SP C=  Q RS
+
+</code>
+
+NB! There is a bug in the exit code (repeat push of held shift'ed keys did not repeat single consequtive pushes (i.e. SHIFT + T + T);
+
+Replace last code lines (above table) and after:
+
+<code>
+//                    jmp !Exit_RepeatKey+        // Uncomment to skipp buffer update - Speed vs. Size
+</code>
+
+with the following:
+
+<code>
+!Exit_NewKey:
+!Exit_RepeatKey:
+    lda SMC_NewAlphaKey: #$00
+!Exit_NoAlphaKeys:                               // A = #$ff here!
+    ldx ZP_ScanKeyBuffer + 2
+    stx SMC_OldKey1
+    ldx ZP_ScanKeyBuffer + 1
+    stx SMC_OldKey2
+    ldx ZP_ScanKeyBuffer + 0
+    stx SMC_OldKey3                              // Update Old Keys
+    sty ZP_RepeatTimer                           // Set Timer
+!Exit_NoRepeatFlag:
+!Exit_TimerNotZero:
+    ldx ZP_NonAlphaFlagX
+    ldy ZP_NonAlphaFlagY
+    clc
+    rts
+</code>
+
+Will be updated in next version. Does not change size or performance in the test tool below.
+
+
+===== Test Tool Source =====
+
+<code>
+    /*=============================================================================================
+      Keyboard Test Routine                                                             By: TWW/CTR
+      ---------------------
+
+      Speed / Size Comparisons (in Cycles / Bytes):
+
+                                 V2.5    V2.6    V2.7    V2.8    V2.9*   V3.0*
+        Idle (No Keys):         #$003c  #$003c  #$0038  #$0032! #$0032! #$0032!
+        1 key("A"):             #$037d  #$0205  #$01fb  #$01b5! #$01b8  #$01b5!
+        2 keys == Row("A"+"S"): #$03ac  #$0234  #$0226  #$01e2! #$01ea  #$01e6
+        2 keys != Row("A"+"B"): #$03ac  #$0275  #$0267  #$024a  #$024b  #$0247!
+        3 keys Valid(ABC):      #$03d5  #$02df  #$02cd  #$02e3  #$02e2  #$02dd!
+        3 keys Shadowing(ASD):  #$0203  #$0207  #$01f2  #$01c6! #$01ca  #$01c6!
+        ------------------------------------------------------------------------
+        Size:                   #$0206  #$0214  #$0212  #$01ce! #$0200  #$01eb
+
+        * This is with repeat keys, but with flag set to false (no repeat). But size and flag
+          check are included.
+
+    =============================================================================================*/
+
+
+    //---------------------------------------------------------------------------------------------
+    // Parameters
+    //---------------------------------------------------------------------------------------------
+
+    .const RepeatKeys          = true
+    .const RepeatTimerInit     = 20
+    .const RepeatTimerRepeat   = 2
+
+
+    //---------------------------------------------------------------------------------------------
+    // Supporting Functions
+    //---------------------------------------------------------------------------------------------
+
+
+    // Function to calculate color memory @ (x, y)
+    .function colMem(x,y) {
+        .return $d800 + 40 * y + x
+    }
+    // Function to calculate screen memory @ (x, y)
+    .function scrMem(x,y) {
+        .return $0400 + 40 * y + x
+    }
+
+    //---------------------------------------------------------------------------------------------
+    // Support Macros
+    //---------------------------------------------------------------------------------------------
+
+    .macro PrintHex(x, y) {
+        ldx #x
+        ldy #y
+        jsr PrintHex
+    }
+
+    //---------------------------------------------------------------------------------------------
+    // Zero Page definitions
+    //---------------------------------------------------------------------------------------------
+
+    .namespace ZP {
+        .label Temp            = $02
+        .label ScrPtr          = $fb
+            .label ScrPtrLo    = ScrPtr
+            .label ScrPtrHi    = ScrPtr + 1
+        .label Reg1            = $fd
+            .label Reg1Lo      = Reg1
+            .label Reg1Hi      = Reg1 + 1
+    }
+
+    //---------------------------------------------------------------------------------------------
+    // BASIC Startup Snippet
+    //---------------------------------------------------------------------------------------------
+
+    :BasicUpstart2(Start)
+Start:
+
+    //---------------------------------------------------------------------------------------------
+    // Colorize the screen
+    //---------------------------------------------------------------------------------------------
+
+    ldx #BLACK
+    stx $d021
+    lda #BLUE
+    sta $d020
+
+    //-------------------------------------------
+    // Base Screen Color (Same as border)
+    //-------------------------------------------
+
+!:  .for(var i = 0 ; i < 4 ; i++) {
+        sta colMem(256 * i, 0),x
+    }
+    inx
+    bne !-
+
+    //-------------------------------------------
+    // Matrix Digits
+    //-------------------------------------------
+
+    ldx #7 * 2
+    lda #LIGHT_GREEN
+!:  .for(var i = 0 ; i < 8 ; i++) {
+        sta colMem(80 * i, 0),x
+    }
+    dex ; dex
+    bpl !-
+
+    //-------------------------------------------
+    // IO Addresses ($dc00, $dc01)
+    //-------------------------------------------
+
+    ldx #$04
+    lda #WHITE
+!:  sta colMem(20,  7),x
+    sta colMem( 5, 20),x
+    dex
+    bpl !-
+
+    //-------------------------------------------
+    // Bit Numbers
+    //-------------------------------------------
+
+    .for(var i = 0 ; i < 8 ; i++) {
+        sta colMem(18 + [80 * i], 0)
+    }
+    .for(var i = 0 ; i < 8 ; i++) {
+        sta colMem([i * 2], 18)
+    }
+
+    //-------------------------------------------
+    // CARRY, Accumulator & Cycles Text
+    //-------------------------------------------
+
+    ldx #39
+!:  lda #BLUE
+    sta colMem( 0, 23),x
+    lda #LIGHT_GREY
+    sta colMem( 0, 24),x
+    dex
+    bpl !-
+    lda #BLUE
+    sta colMem( 8, 24)
+    sta colMem(25, 24)
+
+    //-------------------------------------------
+    // CARRY, Accumulator & Cycles Values
+    //-------------------------------------------
+
+    lda #WHITE
+    sta colMem(7 ,24)
+    sta colMem(23 ,24)
+    sta colMem(24 ,24)
+    sta colMem(35 ,24)
+    sta colMem(36 ,24)
+    sta colMem(37 ,24)
+    sta colMem(38 ,24)
+
+    //-------------------------------------------
+    // Found Key Buffer
+    //-------------------------------------------
+
+    lda #YELLOW
+    sta colMem(17, 16)
+    sta colMem(17, 18)
+    sta colMem(17, 20)
+
+    //-------------------------------------------
+    // Copy the character map to the screen
+    //-------------------------------------------
+
+    ldx #$00
+!:  .for(var i = 0 ; i < 4 ; i++) {
+        lda ScreenDisplay + 256 * i,x
+        sta scrMem(256 * i, 0),x
+    }
+    inx
+    bne !-
+
+    //---------------------------------------------------------------------------------------------
+    // Disable Interrupts
+    //---------------------------------------------------------------------------------------------
+
+    sei
+    lda #$7f
+    sta $dc0d
+    sta $dd0d
+    lda $dc0d
+    lda $dd0d
+    lda #$00
+    sta $d01a
+    lda #$01
+    sta $d019
+
+    //-------------------------------------------
+    // Initialize Keyboard Routine
+    //-------------------------------------------
+
+    .if(RepeatKeys) {lda #$00} else {lda #$ff}   // Pos = Enable / Neg = Disable repeat keys
+    ldx #RepeatTimerInit                         // Initial Repeat Key timer
+    ldy #RepeatTimerRepeat                       // Triggered Repeat Timer
+    jsr KeyboardInit
+
+
+    //---------------------------------------------------------------------------------------------
+    // Main program loop
+    //---------------------------------------------------------------------------------------------
+
+Main:
+
+    //-------------------------------------------
+    // V-Sync
+    //-------------------------------------------
+
+!:  bit $d011
+    bmi !-
+!:  bit $d011
+    bpl !-
+
+    //-------------------------------------------
+    // Fancy Color Fader
+    //-------------------------------------------
+
+    jsr ColorCheck
+
+    //-------------------------------------------
+    // Reset the scan matrix in case if the
+    // keyboard don't scan it
+    //
+    // Only done for visualization, not normal
+    // activity.
+    //-------------------------------------------
+
+    lda #$ff
+    .for(var i = 0 ; i < 8 ; i++) {
+        sta $50 + i
+    }
+
+    //-------------------------------------------
+    // Reset Found Key Buffer
+    //
+    // Only done for visualization, not normal
+    // activity.
+    //-------------------------------------------
+
+    .const ZP_ScanKeyBuffCopy  = $58             // This may need to be changed if routine changes.
+    lda #$ff
+    sta ZP_ScanKeyBuffCopy
+    sta ZP_ScanKeyBuffCopy + 1
+    sta ZP_ScanKeyBuffCopy + 2
+
+    //-------------------------------------------
+    // Remove Error Indications before new check
+    //-------------------------------------------
+
+    jsr NoError
+
+    //-------------------------------------------
+    // Remove Non-Alphanumeric indications
+    //-------------------------------------------
+
+    jsr NonAlpha
+
+    //-------------------------------------------
+    // Reset and fire off CIA #1 Timer A
+    //-------------------------------------------
+
+    lda #$ff
+    sta $dc04
+    sta $dc05
+    lda #$11
+    sta $dc0e
+
+    //-------------------------------------------
+    // Check for input from Keyboard and Port #1
+    //-------------------------------------------
+
+    jsr Keyboard
+
+    //-------------------------------------------
+    // Temporary storage of SR and A/X/Y
+    //-------------------------------------------
+
+    php
+    sta TempA
+    stx TempX
+    sty TempY
+
+    //-------------------------------------------
+    // Stop CIA #1 Timer A and calculate cycles
+    //-------------------------------------------
+
+    lda #$00
+    sta $dc0e
+    lda $dc04
+    eor #$ff
+    sec
+    sbc #20                                      // Overhead + 1
+    sta TimerTemp
+    lda $dc05
+    eor #$ff
+    sbc #$00
+
+    //-------------------------------------------
+    // Print timer value (Hi-Byte in A)
+    //-------------------------------------------
+
+    :PrintHex(35, 24)
+    lda TimerTemp
+    :PrintHex(37, 24)
+
+    //-------------------------------------------
+    // Print CARRY Status
+    //-------------------------------------------
+
+    plp
+    php                                          // Fetch Status Register and push it right back
+    ldx #'0'
+    bcc !+
+        inx
+!:  stx scrMem( 7, 24)
+
+    //-------------------------------------------
+    // Print Found Key Buffer
+    //-------------------------------------------
+
+    lda ZP_ScanKeyBuffCopy
+    sta scrMem(17, 16)
+    lda ZP_ScanKeyBuffCopy + 1
+    sta scrMem(17, 18)
+    lda ZP_ScanKeyBuffCopy + 2
+    sta scrMem(17, 20)
+
+    //---------------------------------------------------------------------------------------------
+    // Handle visualizing IO results
+    //---------------------------------------------------------------------------------------------
+
+    lda TempA
+    plp
+    bcs Error                                    // Error Code in Accumulator
+!:  cmp #$ff
+    beq NoNewAlphanumericKey
+
+        //-----------------------------------
+        // New Alphanumeric Key registered
+        //-----------------------------------
+
+        :PrintHex(23, 24)                        // Print Alphanumeric value to the screen
+
+        //-----------------------------------
+        // Colorize the Alphanumeric key
+        //-----------------------------------
+
+        lda TempA
+        jsr Colorize
+
+        //-----------------------------------
+        // Pull Text and print lst char
+        //-----------------------------------
+
+        ldx #$00
+    !:  lda scrMem( 1, 22),x
+        sta scrMem( 0, 22),x
+        inx
+        cpx #$28
+        bne !-
+        lda TempA
+        sta scrMem(39,22)
+
+    //---------------------------------------
+    // Restore A/X/Y & handle non alpha keys
+    //---------------------------------------
+
+NoNewAlphanumericKey:
+
+    lda TempA
+    ldx TempX
+    ldy TempY
+    jsr colorize2
+
+ErrorReturn:
+    jsr DisplayResult
+    jmp Main
+
+    //---------------------------------------------------------------------------------------------
+
+TimerTemp:
+    .word $0000
+TempA:
+    .byte $00
+TempX:
+    .byte $00
+TempY:
+    .byte $00
+
+    //---------------------------------------------------------------------------------------------
+    // Colorize Error Messages
+    //---------------------------------------------------------------------------------------------
+
+Error:
+    cmp #ERROR.NoActivity
+    bne !+
+        lda #$ff
+        :PrintHex(23, 24)
+        lda #<colMem(20,16)
+        sta ZP.Reg1Lo
+        lda #>colMem(20,16)
+        sta ZP.Reg1Hi
+        lda #WHITE
+        jmp ErrorColor
+
+!:  cmp #ERROR.CtrlPortActivity
+    bne !+
+        lda #<colMem(20,17)
+        sta ZP.Reg1Lo
+        lda #>colMem(20,17)
+        sta ZP.Reg1Hi
+        lda #YELLOW
+        jmp ErrorColor
+
+!:  cmp #ERROR.Shadowing
+    bne !+
+        lda #<colMem(20,18)
+        sta ZP.Reg1Lo
+        lda #>colMem(20,18)
+        sta ZP.Reg1Hi
+        lda #RED
+        jmp ErrorColor
+
+!:  cmp #ERROR.KeyScanOverflow
+    bne !+
+        lda #<colMem(20,19)
+        sta ZP.Reg1Lo
+        lda #>colMem(20,19)
+        sta ZP.Reg1Hi
+        lda #YELLOW
+        jmp ErrorColor
+
+!:  cmp #ERROR.KeyScanOverflowFlag
+    bne !+
+        lda #<colMem(20,20)
+        sta ZP.Reg1Lo
+        lda #>colMem(20,20)
+        sta ZP.Reg1Hi
+        lda #PURPLE
+
+ErrorColor:
+    ldy #$13
+!Loop:
+    sta (ZP.Reg1),y
+    dey
+    bpl !Loop-
+!:  jmp ErrorReturn
+
+    //---------------------------------------------------------------------------------------------
+    // Print 8 bit hex value passed in Accumulator to screen position (X, Y)
+    //---------------------------------------------------------------------------------------------
+
+PrintHex:
+    sta ZP.Temp                                  // Temp storage of value to print
+    lda #$00
+    sta ZP.ScrPtrHi                              // Reset Screen Memory Pointer
+    tya                                          // Max #24 = %00011000
+    // myltiply with 40
+    asl                                          // x 2
+    asl                                          // x 4
+    asl                                          // x 8 - So far no risk of overflow!
+    sta ZP.ScrPtrLo                              // Temporary store x 8
+    asl
+    rol ZP.ScrPtrHi                              // x 16
+    asl
+    rol ZP.ScrPtrHi                              // x 32
+    adc ZP.ScrPtrLo                              // Add x 8
+    bcc !+
+        inc ZP.ScrPtrHi
+!:  sta ZP.ScrPtrLo                              // ZP.ScrPtr = Y x 40
+    lda ZP.ScrPtrHi
+    clc
+    adc #$04
+    sta ZP.ScrPtrHi
+    txa
+    tay                                          // Flip X to Y
+
+    // Print it
+    lda ZP.Temp
+    lsr
+    lsr
+    lsr
+    lsr
+    tax
+    lda HexTable,x
+    sta (ZP.ScrPtr),y
+    iny
+    lda ZP.Temp
+    and #%00001111
+    tax
+    lda HexTable,x
+    sta (ZP.ScrPtr),y
+    rts
+
+HexTable:
+    .text "0123456789abcdef"
+
+    //---------------------------------------------------------------------------------------------
+    // Non-AlphaNumeric Keys
+    //---------------------------------------------------------------------------------------------
+
+colorize2:
+    sty SMC
+    txa
+    asl
+    bcc !+
+        pha
+        lda #$1b                                 // CRSR Down
+        jsr Colorize
+        pla
+!:  asl
+    bcc !+
+        pha
+        lda #$1d                                 // F5
+        jsr Colorize
+        pla
+!:  asl
+    bcc !+
+        pha
+        lda #$21                                 // F3
+        jsr Colorize
+        pla
+!:  asl
+    bcc !+
+        pha
+        lda #$22                                 // F1
+        jsr Colorize
+        pla
+!:  asl
+    bcc !+
+        pha
+        lda #$23                                 // F7
+        jsr Colorize
+        pla
+!:  asl
+    bcc !+
+        pha
+        lda #$24                                 // CRSR Right
+        jsr Colorize
+        pla
+!:  asl
+    bcc !+
+        pha
+        lda #$25                                 // RETURN
+        jsr Colorize
+        pla
+!:  asl
+    bcc !+
+        lda #$26                                 // INST DEL
+        jsr Colorize
+
+!:  lda SMC: #$00
+    asl
+    bcc !+
+        pha
+        lda #$27                                 // RUN STOP
+        jsr Colorize
+        pla
+!:  asl
+    bcc !+
+        pha
+        lda #$28                                 // Left SHIFT
+        jsr Colorize
+        pla
+!:  asl
+    bcc !+
+        pha
+        lda #$29                                 // C=
+        jsr Colorize
+        pla
+!:  asl
+    bcc !+
+        pha
+        lda #$3c                                 // Right SHIFT
+        jsr Colorize
+        pla
+!:  asl
+    bcc !+
+        pha
+        lda #$3e                                 // CLR HOME
+        jsr Colorize
+        pla
+!:  asl
+    bcc !+
+        lda #$3f                                 // CTRL
+        jsr Colorize
+!:  rts
+
+    //---------------------------------------------------------------------------------------------
+    // Remove error indication
+    //---------------------------------------------------------------------------------------------
+
+NoError:
+    ldx #$13
+    lda #DARK_GREY
+!:  .for(var i = 0 ; i < 5 ; i++) {
+        sta colMem(20, 16 + i),x
+    }
+    dex
+    bpl !-
+    rts
+
+
+    //---------------------------------------------------------------------------------------------
+    // Remove Non-Alphanumeric indication
+    //---------------------------------------------------------------------------------------------
+
+NonAlpha:
+    ldx #$0a
+    lda #BROWN
+!:  .for(var i = 0 ; i < 9 ; i++) {
+        sta colMem(29 ,i),x
+    }
+    dex
+    bpl !-
+
+    ldx #$03
+!:  .for(var i = 0 ; i < 5 ; i++) {
+        sta colMem(23, i),x
+    }
+    dex
+    bpl !-
+    rts
+
+    //---------------------------------------------------------------------------------------------
+    // Routine to fade colors put on the screen.
+    //---------------------------------------------------------------------------------------------
+
+ColorCheck:
+    ldx #$0e
+!:  .for(var i = 0 ; i < 5 ; i++) {
+        lda colMem(22, 10 + i),x
+        and #%00001111
+        tay
+        lda ColorTable,y
+        sta colMem(22, 10 + i),x
+    }
+    dex
+    bne !-
+    rts
+
+    //-------------------------------------------
+
+ColorTable:
+    .byte BLUE                                   // Black
+    .byte YELLOW                                 // White
+    .byte BLACK                                  // Red
+    .byte LIGHT_GREEN                            // Cyan
+    .byte LIGHT_BLUE                             // Purple
+    .byte GREEN                                  // Green
+    .byte PURPLE                                 // Blue
+    .byte LIGHT_GREY                             // Yellow
+    .byte DARK_GREY                              // Brown
+    .byte BLACK                                  // Orange
+    .byte GREY                                   // Light Red
+    .byte BROWN                                  // Dark Grey
+    .byte ORANGE                                 // Grey
+    .byte GREEN                                  // Light Green
+    .byte LIGHT_GREEN                            // Light Blue
+    .byte LIGHT_RED                              // Light Grey
+ 
+    //---------------------------------------------------------------------------------------------
+    // Colorize key being pushed
+    // Index to key passed via Accumulator
+    //---------------------------------------------------------------------------------------------
+
+Colorize:
+    sta ZP.Temp                                  // Index x 1
+    asl                                          // Index x 2
+    clc
+    adc ZP.Temp
+    tax                                          // Index x 3 (64 x 3 = 192 (Max!))
+    lda Table_Destination,x
+    sta ZP.Reg1Lo
+    lda Table_Destination + 1,x
+    sta ZP.Reg1Hi
+    ldy Table_Destination + 2,x
+    lda #WHITE
+!:  sta (ZP.Reg1),y
+    dey
+    bne !-
+    rts
+
+    //-------------------------------------------
+
+Table_Destination:
+    .word colMem(33, 11) ; .byte $01             // #$00 - @            [ALT GR + 2 - keys]
+    .word colMem(23, 12) ; .byte $01             // #$01 - a
+    .word colMem(28, 13) ; .byte $01             // #$02 - b
+    .word colMem(26, 13) ; .byte $01             // #$03 - c
+    .word colMem(25, 12) ; .byte $01             // #$04 - d
+    .word colMem(25, 11) ; .byte $01             // #$05 - e
+    .word colMem(26, 12) ; .byte $01             // #$06 - f
+    .word colMem(27, 12) ; .byte $01             // #$07 - g
+    .word colMem(28, 12) ; .byte $01             // #$08 - h
+    .word colMem(30, 11) ; .byte $01             // #$09 - i
+    .word colMem(29, 12) ; .byte $01             // #$0a - j
+    .word colMem(30, 12) ; .byte $01             // #$0b - k
+    .word colMem(31, 12) ; .byte $01             // #$0c - l
+    .word colMem(30, 13) ; .byte $01             // #$0d - m
+    .word colMem(29, 13) ; .byte $01             // #$0e - n
+    .word colMem(31, 11) ; .byte $01             // #$0f - o
+    .word colMem(32, 11) ; .byte $01             // #$10 - p
+    .word colMem(23, 11) ; .byte $01             // #$11 - q
+    .word colMem(26, 11) ; .byte $01             // #$12 - r
+    .word colMem(24, 12) ; .byte $01             // #$13 - s
+    .word colMem(27, 11) ; .byte $01             // #$14 - t
+    .word colMem(29, 11) ; .byte $01             // #$15 - u
+    .word colMem(27, 13) ; .byte $01             // #$16 - v
+    .word colMem(24, 11) ; .byte $01             // #$17 - w
+    .word colMem(25, 13) ; .byte $01             // #$18 - x
+    .word colMem(28, 11) ; .byte $01             // #$19 - y
+    .word colMem(24, 13) ; .byte $01             // #$1a - z
+    .word colMem(29, 08) ; .byte $09             // #$1b - CRSR Down
+    .word colMem(35, 10) ; .byte $01             // #$1d - £            [Backslash]
+    .word colMem(23, 02) ; .byte $02             // #$1d - F5
+    .word colMem(35, 11) ; .byte $01             // #$1e - ^            [Page Down]
+    .word colMem(22, 10) ; .byte $01             // #$1f - <-           [End]
+    .word colMem(26, 14) ; .byte $05             // #$20 - SPACE
+    .word colMem(23, 01) ; .byte $02             // #$21 - F3
+    .word colMem(23, 00) ; .byte $02             // #$22 - F1
+    .word colMem(23, 03) ; .byte $02             // #$23 - F7
+    .word colMem(28, 07) ; .byte $0a             // #$24 - CRSR Right
+    .word colMem(30, 03) ; .byte $06             // #$25 - RETURN
+    .word colMem(29, 01) ; .byte $08             // #$26 - INST DEL     [Del or inst (incl. shift)]
+    .word colMem(29, 02) ; .byte $08             // #$27 - RUN STOP
+    .word colMem(28, 05) ; .byte $0a             // #$28 - Left SHIFT
+    .word colMem(29, 04) ; .byte $09             // #$29 - C=           [TAB-Key]
+    .word colMem(34, 11) ; .byte $01             // #$2a - *
+    .word colMem(33, 10) ; .byte $01             // #$2b - +
+    .word colMem(31, 13) ; .byte $01             // #$2c - ,
+    .word colMem(34, 10) ; .byte $01             // #$2d - -
+    .word colMem(32, 13) ; .byte $01             // #$2e - .
+    .word colMem(33, 13) ; .byte $01             // #$2f - /
+    .word colMem(32, 10) ; .byte $01             // #$30 - 0
+    .word colMem(23, 10) ; .byte $01             // #$31 - 1
+    .word colMem(24, 10) ; .byte $01             // #$32 - 2
+    .word colMem(25, 10) ; .byte $01             // #$33 - 3
+    .word colMem(26, 10) ; .byte $01             // #$34 - 4
+    .word colMem(27, 10) ; .byte $01             // #$35 - 5
+    .word colMem(28, 10) ; .byte $01             // #$36 - 6
+    .word colMem(29, 10) ; .byte $01             // #$37 - 7
+    .word colMem(30, 10) ; .byte $01             // #$38 - 8
+    .word colMem(31, 10) ; .byte $01             // #$39 - 9
+    .word colMem(32, 12) ; .byte $01             // #$3a - :
+    .word colMem(33, 12) ; .byte $01             // #$3b - ;
+    .word colMem(28, 06) ; .byte $0b             // #$3c - Right SHIFT
+    .word colMem(34, 12) ; .byte $01             // #$3d - =
+    .word colMem(29, 00) ; .byte $08             // #$3e - CLR HOME
+    .word colMem(22, 04) ; .byte $04             // #$3f - CTRL
+
+
+    //---------------------------------------------------------------------------------------------
+
+DisplayResult:
+    .for (var j = 0 ; j < 8 ; j++) {
+        lda $50 + j
+        .for (var i = 0 ; i < 8 ; i++) {
+            ldy #$30
+            asl
+            bcc !+
+                iny
+        !:  sty scrMem(i * 2, j * 2)
+        }
+    }
+    rts
+
+    //---------------------------------------------------------------------------------------------
+
+ScreenDisplay:
+    .import binary "KeyBoardTestMap.raw"
+
+    //---------------------------------------------------------------------------------------------
+
+    .pc = $2000 "Keyboard Routine"
+
+    .import source "keyboardV3.0.asm"
+
+    //---------------------------------------------------------------------------------------------
+</code>
+
+
+

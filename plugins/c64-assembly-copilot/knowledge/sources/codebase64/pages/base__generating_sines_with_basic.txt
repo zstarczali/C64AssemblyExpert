@@ -1,0 +1,56 @@
+# PAGE: base:generating_sines_with_basic
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:generating_sines_with_basic
+
+====== Generating Sines through BASIC ======
+By Doynax
+
+Generating sines in BASIC is slow, but might be suitable for programs that need to be small. Improve if you can!
+
+The routine is currently 28 bytes long and takes 5.9 seconds to execute:
+<code>
+table	= $0400		;; The output is a set of negated (phase-shifted by 180°)
+			;; sines between -128 and +127.
+			;; Preferably a low page. Must be paged aligned!
+
+loop	lda #<index	;; Load 5-byte float at 'index' into FAC, the fraction of
+	ldy #>index	;; which is stepped between -0/256..-255/256.
+	jsr $bba2	;; However an integer bias is also added in order to fix
+			;; the exponent and make hence it possible to increment the
+			;; fraction as a normal binary byte, e.g. a version of the
+			;; classic x86 float-to-int conversion trick.
+	
+	jsr $e277	;; Now calculate sine of FAC. Except skip the initial part
+			;; of the BASIC function which divides by 2*PI to get
+			;; a fraction out of radians since we've already got one.
+			;; The integer bias is taken care by BASIC since sin()
+			;; is supposed to be periodic.
+
+	lda #<bias	;; Convert the output in FAC from a float in -1..+1 to a
+	ldy #>bias	;; fixed-point value in -128..+127 at the LSB of the
+	jsr $b867	;; mantissa by employing the same trick as before of
+	lda $65		;; adding a high integer bias.
+
+index	.byte $88	;; This is both a float *and* a piece of code. The exponent
+	sta table	;; ($88 corresponds to 2^8) fixes our 8-bit fraction as the
+			;; second byte of the mantissa and the STA address' LSB
+			;; (don't forget that BASIC floats are big-endian!). And $88
+			;; when interpreted as code corresponds to a harmless DEY.
+			;; Note that the STA's opcode is an integer part which only
+			;; has the effect of negating the index (the sign bit is set).
+			;; However the table address' high byte and the subsequent
+			;; INC opcode *do* serve as a small offset, shifting the
+			;; result by up to one index value. Some might even argue
+			;; that placing the table at $8000 would produce the 'proper'
+			;; rounding.
+	inc *-2
+	bne loop
+
+bias	= $befa		;; A float with an exponent of $99 (2^25) and an LSB of
+;;	.byte $99	;; zero is used to convert the output to binary. Such byte
+;;	.byte $02	;; sequences can be found in six places in the BASIC/Kernal
+;;	.byte $01	;; ROMs, at $befa/$bf04/$bf09/$fd53/$fd56/$ff38.
+;;	.byte $a9	;; A version with an LSB of $80 would have been useful to
+;;	.byte $00	;; create unsigned output (e.g. between $00 and $ff with the
+			;; origin at $80) but unfortunately doesn't seem to exist.
+			;; Values with different exponents and offsets might be found
+			;; to better suit your particular application.</code>

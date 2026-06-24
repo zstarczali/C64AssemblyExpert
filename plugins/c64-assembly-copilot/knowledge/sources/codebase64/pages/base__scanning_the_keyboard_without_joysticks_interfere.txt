@@ -1,0 +1,99 @@
+# PAGE: base:scanning_the_keyboard_without_joysticks_interfere
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:scanning_the_keyboard_without_joysticks_interfere
+
+====== Scanning the keyboard without joysticks interfere ======
+
+Converts keycode ($00-$3F) to $DC00-$DC01 values and scans without interfering from joysticks at port 1 or 2. Also keeps history, to detect key press & hold.
+
+<code>
+
+;64tass format
+;with default $dc02 - $dc03 values ($ff and $00)
+;taken from Platoon game, shortened and key history integrated.
+;code to key conversion table below, from c64-wiki.com
+
+;to use inside irq, below code is enough :
+;	lda #$keycode
+;	jsr keyscan
+;	bcc +
+;	inc $d020
+;+	rts 
+
+;$00	Inst/Del	$10	5	$20	9	$30	£
+;$01	Return		$11	R	$21	I	$31	*
+;$02	Crsr ←→		$12	D	$22	J	$32	]
+;$03	F7/F8		$13	6	$23	0	$33	Clr/Home
+;$04	F1/F2		$14	C	$24	M	$34	R.Shift
+;$05	F3/F4		$15	F	$25	K	$35	=
+;$06	F5/F6		$16	T	$26	O	$36	↑
+;$07	Crsr ↑↓		$17	X	$27	N	$37	?
+;$08	3		$18	7	$28	+	$38	1
+;$09	W		$19	Y	$29	P	$39	←
+;$0A	A		$1A	G	$2A	L	$3A	Ctrl
+;$0B	4		$1B	8	$2B	−	$3B	2
+;$0C	Z		$1C	B	$2C	>	$3C	Space
+;$0D	S		$1D	H	$2D	[	$3D	Commodore
+;$0E	E		$1E	U	$2E	@	$3E	Q
+;$0F	L.Shift		$1F	V	$2F	<	$3F	Run/Stop
+
+
+	* = $1000
+		
+	lda #$3e		;scan for key "Q"
+	jsr keyscan
+	bcc +
+	inc $d020		;C=1, this code executed if key is pressed
++		
+-	lda $d011
+	bpl -
+-	lda $d011
+	bmi -
+		
+	jmp $1000	
+		
+keyscan	
+;	sty backy+1		;remove comment if you need .Y preserved
+	pha
+	lsr
+	lsr
+	lsr
+	tay
+	lda row,y
+	sta $dc00
+	pla
+	and #$07
+	tay
+	lda $dc01
+	and column,y
+	bne nokey
+	lda #$ff		;key is checked 2nd time, to be sure of
+	sta $dc00		;joy #1 and #2 are not interfering
+	lda $dc01
+	and column,y
+	beq nokey
+		
+	cmp histv		;history value ?
+	bne +								
+	clc		        ;case #3, key is held down. keep history & set C=0
+	bcc backy
+		
+nokey	asl			;case #1, no keypress, update history value 2x & set C=0
+	clc									
+	.byte $24							
++	sec			;case #2, key pressed&released. update history & set C=1
+	sta histv
+		
+backy	
+;	ldy #$00		;remove comment if you need .Y preserved
+	lda #$ff
+	sta $dc00		;set default value
+	lda #$7f
+	sta $dc01		;set default value
+	rts
+
+		
+row	.byte $fe,$fd,$fb,$f7,$ef,$df,$bf,$7f
+column	.byte $01,$02,$04,$08,$10,$20,$40,$80		
+histv	.byte $00
+
+</code>

@@ -1,0 +1,8 @@
+# PAGE: base:xfli
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:xfli
+
+====== XFLI ======
+
+XFLI is based on [[base:hires_fli|Hires FLI]] and a low-priority multicolor sprite-layer, resulting in a 192x168 pixels screen of faked hires, (since the sprite-layer is still in multicolor). Further there is the possibility to add one sprite-color split every 2:nd line (correct if wrong) to gain more colorfullness. This gfx mode falls in somewhere between [[base:ufli|UFLI]] and MUFLI i would say. The introduction of sprite-color splits makes it no longer possible to purely divide the picture into graphics and code, since part of the picture is actually stored within the code.
+
+Checkout XFLI here: [[http://noname.c64.org/csdb/release/?id=12042|Digital Magic / Crest]]. Here are also more versions of XFLI, like full screen hight, interlace and avoiding FLI-bug.

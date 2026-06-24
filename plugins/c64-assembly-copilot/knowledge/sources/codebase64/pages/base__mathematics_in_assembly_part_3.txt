@@ -1,0 +1,109 @@
+# PAGE: base:mathematics_in_assembly_part_3
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:mathematics_in_assembly_part_3
+
+====== Prologue ======
+
+Hello dear sceners, this is the third chapter of my tutorial on maths in assembly,
+first published in "GO64!" magazine. The first two chapters of this turorial were
+re-published in "Attitude #4" and "Domination #17". Have a nice read!
+
+====== Mathematics in Assembly, Part 3 ======
+
+After increasing the precision of our numbers we're going to have a look at a
+slightly more difficult topic, namely the multiplication. But take it easy, this
+a bit more complex mathematic operation can be done in many different ways,
+depending on the memory an execution time requirements. The simplest implementation
+of the multiplication would of course be a simple loop which just increases a zero-
+initialised counter by the first multiplication factor as often as the absolute
+value of factor 2 demands. This extremely inelegant brute force method is naturally
+very inefficient and slow, that's why it's just mentioned in passing here and not
+going to be discussed in any more detail. let's take a look at some more elegant
+approaches:
+
+====== Multiplication by Constants ======
+
+A kind of multiplication relatively often needed is to multiply by constants, as it
+just takes quite a small and fast algoritm. As an example constant we just take 11
+($0B, %00001011). Using our knowledge about binary arithmetic, we can easily reduce
+this number to powers of two:
+
+<code>
+11 =  8  +  2  +  1
+   = 2^3 + 2^1 + 2^0
+</code>
+
+If we wanted to multiply this number with let's say 25 ($19, %00011001), it would
+look like this if written on paper:
+
+<code>
+11 * 25 = 2^3 * 25 + 2^1 * 25 + 2^0 * 25
+        =  8  * 25 +  2  * 25 +  1  * 25
+</code>
+
+What's all this needed for, you might ask. Very simple: the seperate summands of
+the created expression are all shifted 25's. So it's as easy as this: the accu
+contains an arbitrary number to be multiplied by the given constant. The number is
+shifted by the needed positions an buffered. Afterwards, all summands are added.
+Just a small pice of example code:
+
+<code>
+LDA #$19    ; arbitrary factor
+STA BUFFER0 ; some byte in the memory, 2^0 * factor
+ASL         ; doubling of the factor
+STA BUFFER1 ; buffer 2^1 * factor
+ASL         ; doubling
+ASL         ; doubling, all in all 8 * factor
+CLC         ; clear carry for addition (whithout overflow, like here, actually
+            ; unnecessary)
+ADC BUFFER0 ; 2^3 * factor + 2^0 * factor
+ADC BUFFER1 ; 2^3 * factor + 2^0 * factor + 2^1 * factor
+</code>
+
+Simple. Oh, all examples will, just like this one, for the sake of simplicity,
+refer to unsigned 8-bit integers to be multiplied. By the way, there are some
+"factors" to be aware of with the multiplication.
+
+====== Whats to be paid attention of ======
+
+#1: After multilying two factors, the result has the double size, for instance
+16 bits with two 8-bit factors. Quite obvious, as for example
+255^2 = $FF * $FF = $FE01. Nevertheless, for the sake of simplicity, I'll take
+appropriately small values in order not to cause any overflows.
+
+#2: Also with computers, the exact result of multiplying two fractions has as
+many decimals as both the factors have together. So the product of two fixed
+point numbers with let's say one fraction byte each has two fraction bytes.
+Together with the squaring of the number range this means, for instance: the
+product of two 16-bit fixed point numbers with one fraction byte each is
+32 bits in size, 16 bits left hand of the point, 16 bits right hand of it.
+
+#3: in order to multiply signed numbers, the signs of both factors are
+buffered and the absolute value of the result is calculated by multiplying
+the absolute values of the factors. Afterwards, the buffered signs are
+avaluated and the result is signed accordingly. Of course, the common rules
+also apply here, so plus my minus is minus and minus by minus is plus.
+
+Good. The multiplication in general and in particular with constants can also
+done in another way, the magic word here is tables.
+
+Tables? Correct. More exactly "Look Up Tables". Using these tables, it's
+possible to calculate products extremely fast, or let's better say "to find
+them out" extremely fast. For tha, a table has to be generated at the
+beginning of the program, in this case containing the multiplies of the
+constant in rising order. With the constant 3 ($03, %00000011), it would look
+like this:
+
+<code>
+$00, $03, $06, $09, $0c, ...
+</code>
+
+This table is just read out, using the arbitrary factor as index. On
+principle, this table is as large as the range of the factor is, i.e. 256
+bytes with a 1-byte-sized factor. By the way, generating this table, the
+above mentioned brute force method can be used, as with the initialisation
+speed plays a minor role compared to memory efficiency.
+
+That's it for the first couple of possibilities to multiply. The next three
+chapters will be published in "Vandalism News Ruby Edition", discussing some
+more ways to multibly assembly, starting with the most flexible kind of
+multiplication, the bit-wise multiplication. See You!

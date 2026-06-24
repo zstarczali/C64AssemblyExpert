@@ -1,0 +1,60 @@
+# PAGE: base:supercpu_stz
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:supercpu_stz
+
+====== STZ ======
+
+<code>
+    /*-------------------------------------------------------------------------
+    OP CODE: STZ (STore Zero to memory)
+    ===================================
+    
+    Addressing Modes:
+        Absolute                        ($9c - 3 bytes, 4 cycles¹)
+        Direct Page                     ($64 - 2 bytes, 3 cycles¹²)
+        Absolute Indexed,x              ($9e - 3 bytes, 5 cycles¹)
+        Direct Page Indexed,x           ($74 - 2 bytes, 4 cycles¹²)
+        ¹ - Add 1 cycle if m=0 (16-bit memory/accumulator)
+        ² - Add 1 cycle if lo-byte of DP register is other than zero (DL< >0)
+    Flags Affected:
+        N/A
+
+    Description:
+        The STZ instructions, introduced on the 65C02, lets you clear either a
+        single or double byte memory word zero, depending, as usual, on the
+        current memory/accumulator select flag word size. Zero has long been
+        recognized as one of the most commonly stored values, so a “dedicated”
+        instruction to store zero to memory can improve the efficiency of many
+        65x programs. Furthermore, the STZ instruction lets you clear memory
+        without having to first load one of the registers with zero. Using STZ
+        results in fewer bytes of code, faster execution, and undisturbed
+        registers.
+        Store zero to the effective address specified by the operand.
+        8-bit accumulator (all processors): Zero is stored at the effective
+        address.
+        16-bit accumulator/memory (65802/65816 only, m = 0): Zero is stored at
+        the effective address and at the effective address plus one.
+        The 65x store zero instruction does not affect the flags.
+    Notes:
+        The Pseudo don't recognize ZP / ZP,x commands (< 256), so a workaround
+        is done by checking the actual value which is passed.
+
+    -------------------------------------------------------------------------*/
+
+    .pseudocommand stz val {
+        .if (val.getType()==AT_ABSOLUTE) {
+            .if (val.getValue()<256) {
+                .byte $64, <val.getValue()
+            } else {
+                .byte $9c, <val.getValue(), >val.getValue()
+            }
+        }
+        .if (val.getType()==AT_ABSOLUTEX) {
+            .if (val.getValue()<256) {
+                .byte $74, <val.getValue()
+            } else {
+                .byte $9e, <val.getValue(), >val.getValue()
+            }
+        }
+    }
+
+</code>

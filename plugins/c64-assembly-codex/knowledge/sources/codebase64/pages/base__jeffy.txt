@@ -1,0 +1,1532 @@
+# PAGE: base:jeffy
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:jeffy
+
+==== Jeffy ====
+This game source is in TASS format. Sorry for no explanation as this code is old. Hope it will be some use though.
+<code>
+;jeffy game, by richard bayliss
+
+sync     = $05
+
+objpos   = $0370
+collision = $03f0
+animtime = $0340
+spiderdir1 = $06
+spiderdir2 = $07
+spiderdir3 = $08
+spiderdir4 = $09
+spiderdir5 = $0a
+spiderdir6 = $0b
+walkframe = $0360
+dead = $0313
+
+delay    = $0d
+randxptr = $0502
+randyptr = $0504
+p1dir    = $0510
+clockdelay = $0512
+
+         *= $c000
+         sei
+         
+         lda #$08
+         jsr $ffd2
+         lda #252
+         sta 808         
+title    lda #$00
+         sta read+1
+         lda #$43
+         sta read+2
+         lda #$03
+         sta $dd00
+         lda #$30
+         sta $886b
+         lda #$31
+         sta $886a
+         lda #$0b
+         sta $d011
+         lda #$00
+         
+         sta $17
+         sta $18
+         sta $19
+         sta $1a
+loopd         inc $17
+         lda $17
+         cmp #$fc
+         bne loopd
+         lda #$00
+         sta $17
+         inc $18
+         lda $18
+         cmp #$fc
+         bne loopd
+         lda #$1b
+         sta $d011
+titles    ldx #$00
+screen   lda $8000,x         
+		  sta $0400,x
+		  lda $8100,x
+		  sta $0500,x
+		  lda $8200,x
+		  sta $0600,x
+		  lda $82e8,x
+		  sta $06e8,x
+		  lda #$0b
+		  sta $d800,x
+		  sta $d900,x
+		  sta $da00,x
+		  sta $dae8,x
+		  inx
+		  bne screen
+		  ldx #$00
+dologo	  lda $1000,x
+         sta $0428+$03,x
+         lda $1020,x
+         sta $0450+$03,x
+         lda $1040,x
+         sta $0478+$03,x
+         lda $1060,x
+         sta $04a0+$03,x
+         lda $1080,x
+         sta $04c8+$03,x
+         lda $10a0,x
+         sta $04f0+$03,x
+         lda $10c0,x
+         sta $0518+$03,x
+         inx
+         cpx #$20
+         bne dologo
+         ldx #$00
+clrline1  lda #$20
+         sta $0770,x
+         inx
+         cpx #$28
+         bne clrline1
+         
+         lda #$06
+         sta $d022
+         lda #$0e
+         sta $d023
+         lda #$00
+         sta $d020
+         sta $d021
+         lda #<irq1
+         sta $0314
+         lda #>irq1
+         sta $0315
+         lda #$7f
+         sta $dc0d
+         sta $dd0d
+         lda #$1b
+         sta $d011
+         lda #$01
+         sta $d01a
+         lda $886b
+         sta $06c7
+         lda $886a
+         sta $06c6 
+         lda #$02
+         jsr $2800
+         cli
+hold     jmp hold
+irq1     inc $d019
+		  lda #$00
+         sta $d012
+         lda #$18
+         sta $d018
+         lda $0c
+         sta $d016
+         lda #<irq2
+         sta $0314
+         lda #>irq2
+         sta $0315
+         jmp $ea31
+irq2     inc $d019
+         lda #$78
+         sta $d012
+         lda #$12
+         sta $d018
+         lda #$18
+         sta $d016
+         lda #<irq3
+         sta $0314
+         lda #>irq3
+         sta $0315
+         jsr colroll
+         jsr doscroll
+         jmp $ea31
+irq3	  inc $d019
+         lda #$d8
+         sta $d012
+         lda #$18
+         sta $d018
+         lda #$08
+         sta $d016
+         lda #<irq1
+         sta $0314
+         lda #>irq1
+         sta $0315
+         jsr $2803
+         
+         lda $dc00
+         lsr
+         lsr
+         lsr
+         bcs tright
+         jsr optup
+         jmp playirq
+tright   lsr
+         bcs tfire
+         jsr optdown
+         jmp playirq
+tfire    lsr
+         bcs playirq
+         sei
+         lda #$31
+         sta $0314
+         lda #$ea
+         sta $0315
+         lda #$81
+         sta $dc0d
+         sta $dd0d
+         lda #$00
+         sta $d01a
+         sta $d019
+         sta $d418
+         jmp game
+playirq jmp $ea31
+
+optup	 inc $19
+        lda $19
+        cmp #$0b
+        bne nono1
+        lda #$00
+        sta $19
+        dec $886a
+        lda $886a
+        cmp #$30
+        bne notup
+        
+over    lda #$31
+notup   sta $886a
+        lda $886a
+        sta $06c6
+nono1   rts
+optdown inc $1a
+		 lda $1a
+		cmp #$0b
+		bne nono1
+		lda #$00
+		sta $1a
+		inc $886a
+		lda $886a
+		cmp #$36
+		bne notdown
+		lda #$35
+notdown sta $886a
+		lda $886a
+		sta $06c6
+       rts
+       
+doscroll lda $0c
+		  sec
+		  sbc #$01
+		  and #$07
+		  sta $0c
+		  bcs endscroll
+		  ldx #$00
+wrapscroll lda $0771,x
+           sta $0770,x
+           inx
+           cpx #$28
+           bne wrapscroll
+read		lda $0797
+			cmp #$00
+			bne noendbyte
+			lda #$00
+			sta read+1
+			lda #$43
+			sta read+2
+			jmp read
+noendbyte  sta $0797
+			inc read+1
+			lda read+1
+			cmp #$00
+			bne endscroll
+			inc read+2
+endscroll  rts
+
+		
+		
+		
+
+colroll  inc delay
+         lda delay
+         cmp #$02
+         bne sx
+         lda #$00
+         sta delay
+		  lda coldata1+$00
+         sta coldata1+$28
+         lda coldata2+$28
+         sta coldata2+$00
+         ldx #$00
+washcols lda coldata1+$01,x
+         sta coldata1+$00,x
+         inx
+         cpx #$28
+         bne washcols
+        
+         lda coldata2+$28
+         sta coldata2+$01
+wash2    ldx #$27
+washloop lda coldata2+$00,x
+         sta coldata2+$01,x
+         dex
+         bne washloop
+         ldx #$00
+pastecols lda coldata1+$00,x
+		  sta $d990,x
+		  sta $da08,x
+		  sta $daa8,x
+		  sta $db20,x
+		  lda coldata2+$00,x
+		  sta $da30,x
+		  sta $da58,x
+		  sta $daf8,x
+		  sta $db70,x
+		inx
+		cpx #$28
+		bne pastecols
+sx		rts
+         
+
+coldata1 .byte $00,$00,$09,$09,$02,$02
+		 .byte $08,$08,$0a,$0a,$0f,$0f
+		 .byte $07,$07,$01,$01,$01,$01
+		.byte $01,$01,$01,$01,$01,$01
+		.byte $01,$01,$01,$01,$07,$07
+		.byte $0f,$0f,$0a,$0a,$08,$08
+		.byte $02,$02,$09,$09,$00,$00
+		
+coldata2 .byte $00,$00,$09,$09,$02,$02
+		 .byte $08,$08,$0a,$0a,$0f,$0f
+		 .byte $07,$07,$01,$01,$01,$01
+		.byte $01,$01,$01,$01,$01,$01
+		.byte $01,$01,$01,$01,$07,$07
+		.byte $0f,$0f,$0a,$0a,$08,$08
+		.byte $02,$02,$09,$09,$00,$00
+		
+
+         
+          
+game         lda #$00
+         sta $d020
+         sta $d021
+         sta p1dir
+         sta clockdelay
+         sta sync
+         ldx #$00
+copycol  lda $5800,x
+         sta $d800,x
+         lda $5900,x
+         sta $d900,x
+         lda $5a00,x
+         sta $da00,x
+         lda $5ae8,x
+         sta $dae8,x
+         inx
+         bne copycol
+         ldx #$00
+copysc   lda $8820,x
+         sta $0400,x
+         inx
+         cpx #$50
+         bne copysc
+         lda #$00
+         sta $d020
+         sta $d021
+         sta delay
+         sta dead
+         sta randxptr
+         sta randyptr
+         
+;position all sprites (jeffy & spiders)
+
+         lda #$0a
+         sta $d027
+         lda #$07
+         sta $d025
+         lda #$09
+         sta $d026
+
+         lda #$ff
+         sta $d015
+         sta $d01c       
+
+         lda #$00
+         sta $5ff8
+         lda #$06
+         sta $5ff9
+         lda #$04
+         sta $5ffa
+         sta $5ffb
+         sta $5ffc
+         sta $5ffd
+         sta $5ffe
+         sta $5fff
+         lda #$0a
+         sta $d028
+         lda #$0e
+         sta $d029
+         sta $d02a
+         sta $d02b
+         sta $d02c
+         sta $d02d
+         sta $d02e
+
+
+
+         ldx #$00
+position lda startpos,x
+         sta objpos+$00,x
+         inx
+         cpx #$10
+         bne position
+
+
+
+         lda #$00
+         jsr $2800
+
+         lda #$30
+         sta spiderdir1
+         sta spiderdir2
+         sta spiderdir3
+         sta spiderdir4
+         sta spiderdir5
+         sta spiderdir6
+
+         lda #<int1
+         sta $0314
+         lda #>int1
+         sta $0315
+         lda #$7f
+         sta $dc0d
+         sta $dd0d
+         lda #$1b
+         sta $d011
+         lda #$01
+         sta $d01a
+         lda #$07
+         sta $5fff
+         lda #$0c
+         sta $d02e
+         lda #$30
+         sta level
+         ldx #$00
+clrline  lda #$20
+         sta $0770,x
+         inx
+         cpx #$28
+         bne clrline
+         cli
+mainbody lda $886b
+         sta $044b
+         lda $886a
+         sta $044a
+         jsr checklev
+         
+main     lda #$00
+         sta sync
+         lda sync
+syncwait cmp sync
+         beq syncwait
+         jsr expand
+         jsr chkspider1
+         jsr chkspider2
+         jsr chkspider3
+         jsr chkspider4
+         jsr chkspider5
+         jsr joyread
+         jsr animate
+         jsr randomx
+         jsr randomy
+         jsr starcol
+         jsr potcol
+         jsr spidercol
+         jsr clock
+         lda dead
+         cmp #$01
+         bne nodead
+         jsr p1dead
+nodead   jsr $2803
+
+         jmp main
+         
+p1dead   lda #$08
+		 sta $5ff8
+		 lda #$00
+		 sta p1dir
+		 ldx objpos+$01
+		 dex
+		 cpx #$02
+		 bcs stilldead
+		
+		 dec $0428+19
+		 lda $0428+19
+		
+		 cmp #$30
+		 beq gameover
+		
+		 lda #$00
+		 sta $5ff8
+		 sta dead
+		 
+		 lda startpos+$00
+		 sta objpos+$00
+		 ldx startpos+$01
+stilldead stx objpos+$01
+         rts
+         
+gameover sei
+		 lda #$31
+		 sta $0314
+		 lda #$ea
+		 sta $0315
+		 lda #$81
+		 sta $dc0d
+		 sta $dd0d
+		 lda #$00
+		 sta $d015
+		 sta $d019
+		 sta $d01a
+		 lda #$03
+		 sta $dd00
+		 lda #$18
+		 sta $d018
+		 lda #$08
+		 sta $d016
+		 lda #$1b
+		 sta $d011
+		 ldx #$00
+loopg   lda #$20
+		sta $0450,x
+		sta $0550,x
+		sta $0650,x
+		sta $06e8,x
+		inx
+		bne loopg
+		ldx #$00
+copymsg lda gameovermess,x
+		cmp #$5b
+		bcc messok
+		lda gameovermess,x
+		sec
+		sbc #$60
+messok	sta $05e0,x
+		lda #$0a
+		sta $d9e0,x
+		inx
+		cpx #$28
+		bne copymsg
+		
+		
+		 lda #$03
+		 jsr $2800
+loopend	 lda #$80
+looped   cmp $d012
+         bne looped
+         jsr $2803
+         lda $dc00
+         lsr
+         lsr
+         lsr
+         lsr
+         lsr
+         bcs loopend
+         jmp title
+         
+         
+		  
+         jsr $2800
+         rts
+         
+clock	inc clockdelay
+		lda clockdelay
+		cmp #$60
+		beq doclock
+		rts
+doclock lda #$00
+		sta clockdelay
+		dec $0443
+		lda $0443
+		cmp #$2f
+		bne clockok
+		lda #$39
+		sta $0443
+		dec $0442
+		lda $0442
+		cmp #$2f
+		bne clockok
+		lda #$30
+		sta $0442
+		sta $0443
+		
+		lda #$01
+		sta dead
+		lda #$39
+		sta $0442
+		sta $0443
+clockok rts
+		
+
+		 
+		 
+
+chkspider1 lda spiderdir1
+         cmp #$30
+         beq s1down
+         cmp #$31
+         beq s1up
+         rts
+
+s1down   lda objpos+$05
+         clc
+         adc speedtbl+$00
+         sta objpos+$05
+         lda objpos+$05
+         cmp #$cc
+         bcc sp1goa
+         lda #$31
+         sta spiderdir1
+sp1goa   rts
+
+s1up     lda objpos+$05
+         sec
+         sbc speedtbl+$00
+         sta objpos+$05
+         lda objpos+$05
+         cmp #$4c
+         bcs sp1gob
+         lda #$30
+         sta spiderdir1
+sp1gob   rts
+
+chkspider2 lda spiderdir2
+         cmp #$30
+         beq s2down
+         cmp #$31
+         beq s2up
+         rts
+
+s2down   lda objpos+$07
+         clc
+         adc speedtbl+$01
+         sta objpos+$07
+         lda objpos+$07
+         cmp #$cc
+         bcc sets2a
+         lda #$31
+         sta spiderdir2
+sets2a   rts
+
+s2up     lda objpos+$07
+         sec
+         sbc speedtbl+$01
+         sta objpos+$07
+         lda objpos+$07
+         cmp #$4c
+         bcs sets2b
+         lda #$30
+         sta spiderdir2
+sets2b   rts
+
+chkspider3   lda spiderdir3
+         cmp #$30
+         beq s3down
+         cmp #$31
+         beq s3up
+         rts
+
+s3down   lda objpos+$09
+         clc
+         adc speedtbl+$02
+         sta objpos+$09
+         lda objpos+$09
+         cmp #$cc
+         bcc sets3a
+         lda #$31
+         sta spiderdir3
+sets3a   rts
+
+s3up     lda objpos+$09
+         sec
+         sbc speedtbl+$02
+         sta objpos+$09
+         lda objpos+$09
+         cmp #$4c
+         bcs sets3b
+         lda #$30
+         sta spiderdir3
+sets3b   rts
+
+chkspider4  lda spiderdir4
+         cmp #$30
+         beq s4down
+         cmp #$31
+         beq s4up
+         rts
+
+s4down   lda objpos+$0b
+         clc
+         adc speedtbl+$03
+         sta objpos+$0b
+         lda objpos+$0b
+         cmp #$cc
+         bcc set4a
+         lda #$31
+         sta spiderdir4
+set4a    rts
+s4up     lda objpos+$0b
+         sec
+         sbc speedtbl+$03
+         sta objpos+$0b
+         lda objpos+$0b
+         cmp #$4c
+         bcs set4b
+         lda #$30
+         sta spiderdir4
+set4b    rts
+
+chkspider5  lda spiderdir5
+         cmp #$30
+         beq s5down
+         cmp #$31
+         beq s5up
+         rts
+
+s5down   lda objpos+$0d
+         clc
+         adc speedtbl+$04
+         sta objpos+$0d
+         lda objpos+$0d
+         cmp #$cc
+         bcc set5a
+         lda #$31
+         sta spiderdir5
+set5a    rts
+
+s5up     lda objpos+$0d
+         sec
+         sbc speedtbl+$04
+         sta objpos+$0d
+         lda objpos+$0d
+         cmp #$4c
+         bcs set5b
+         lda #$30
+         sta spiderdir5
+set5b    rts
+
+joyread  lda dead
+		 cmp #$00
+		 beq alivep1
+		 rts
+alivep1	 jsr checkdir
+         lda $dc00
+         lsr a
+         bcs down
+         lda #$31
+         sta p1dir
+         rts
+down     lsr a
+         bcs left
+         lda #$32
+         sta p1dir
+         rts
+left     lsr a
+         bcs right
+         lda #$33
+         sta p1dir
+         rts
+right    lsr a
+         bcs nojoy
+         lda #$34
+         sta p1dir
+nojoy    rts
+
+checkdir lda p1dir
+         cmp #$31
+         beq mvup
+         cmp #$32
+         beq mvdown
+         cmp #$33
+         beq mvleft
+         cmp #$34
+         beq mvright
+         rts
+mvup     ldx objpos+$01
+         dex
+         dex
+         cpx #$4e
+         bcs setup
+         ldx #$4e
+setup    stx objpos+$01
+         lda walkframe
+         sta $5ff8
+         rts
+mvdown   ldx objpos+$01
+         inx
+         inx
+         cpx #$cc
+         bcc setdown
+         ldx #$cc
+setdown  stx objpos+$01
+         lda walkframe
+         sta $5ff8
+         rts
+mvleft   ldx objpos+$00
+         dex
+         cpx #$14
+         bcs setleft
+         ldx #$14
+setleft  stx objpos+$00
+         lda walkframe
+         sta $5ff8
+         rts
+mvright  ldx objpos+$00
+         inx
+         cpx #$9a
+         bcc setright
+         ldx #$9a
+setright stx objpos+$00
+         lda walkframe
+         sta $5ff8
+         rts
+
+
+
+
+
+
+animate  ldy animtime
+         lda spiderframe,y
+         sta $5ffa
+         sta $5ffb
+         sta $5ffc
+         sta $5ffd
+         sta $5ffe
+         lda jeffyframe,y
+         sta walkframe
+         lda colours,y
+         sta $d028
+         iny
+         cpy #$0c
+         beq rsettime
+         inc animtime
+         rts
+rsettime ldy #$00
+         sty animtime
+         rts
+
+
+
+
+int1     inc $d019
+         lda #$00
+         sta $d012
+         lda #$02
+         sta $dd00
+         lda #$3b
+         sta $d011
+         lda #$78
+         sta $d018
+         lda #$18
+         sta $d016
+         lda #$00
+         sta $d01b
+         lda #$ff
+         sta $d01c
+         lda #$0a
+         sta $d027
+         lda #<int2
+         sta $0314
+         lda #>int2
+         sta $0315
+         jmp $ea31
+int2     inc $d019
+         lda #$40
+         sta $d012
+         lda #$03
+         sta $dd00
+         lda #$1b
+         sta $d011
+         lda #$08
+         sta $d016
+         lda #$18
+         sta $d018
+         lda #$00
+         sta $d01c
+         lda #$ff
+         sta $d01b
+         lda #$00
+         sta $d027
+         
+         lda #<int1
+         sta $0314
+         lda #>int1
+         sta $0315
+         lda #$01
+         sta sync
+         jmp $ea31
+
+expand   ldx #$00
+exploop  lda objpos+$01,x
+         sta $d001,x
+         lda objpos+$00,x
+         asl a
+         ror $d010
+         sta $d000,x
+         inx
+         inx
+         cpx #$10
+         bne exploop
+         rts
+
+random   rts
+
+
+starcol  lda dead
+         cmp #$00
+         beq stars2
+         rts
+stars2	 lda objpos+$00
+         sec
+         sbc #$06
+         sta collision+$00
+         clc
+         adc #$0c
+         sta collision+$01
+         lda objpos+$01
+         sec
+         sbc #$0c
+         sta collision+$02
+         clc
+         adc #$18
+         sta collision+$03
+         lda objpos+$02
+         cmp collision+$00
+         bcc nostarc
+         cmp collision+$01
+         bcs nostarc
+         lda objpos+$03
+         cmp collision+$02
+         bcc nostarc
+         cmp collision+$03
+         bcs nostarc
+         lda objpos+$00
+         sta objpos+$02
+         lda objpos+$01
+         sta objpos+$03
+
+nostarc  rts
+
+randomx  ldx randxptr
+         lda randxtbl+$00,x
+         sta xpos
+         inx
+         cpx #$1f
+         beq resetr1
+         inc randxptr
+         rts
+resetr1  ldx #$00
+         stx randxptr
+         rts
+
+randomy  ldy randyptr
+         lda randytbl+$00,x
+         sta ypos
+         iny
+         cpy #$1f
+         beq resetr2
+         inc randyptr
+         rts
+resetr2  ldy #$00
+         sty randyptr
+         rts
+
+potcol   lda objpos+$02
+         sec
+         sbc #$06
+         sta collision+$04
+         clc
+         adc #$0c
+         sta collision+$05
+         lda objpos+$03
+         sec
+         sbc #$0c
+         sta collision+$06
+         clc
+         adc #$18
+         sta collision+$07
+         lda objpos+$0e
+         cmp collision+$04
+         bcc nopotcol
+         cmp collision+$05
+         bcs nopotcol
+         lda objpos+$0f
+         cmp collision+$06
+         bcc nopotcol
+         cmp collision+$07
+         bcs nopotcol
+         lda xpos
+         sta objpos+$02
+         lda ypos
+         sta objpos+$03
+         jsr score
+nopotcol rts
+
+
+
+score    inc $042c
+         ldx #$04
+scloop   lda $0428,x
+         cmp #$3a
+         bne scok
+         lda #$30
+         sta $0428,x
+         inc $0427,x
+scok     dex
+         bne scok
+         dec $044b
+         lda $044b
+         cmp #$2f
+         bne notover
+         lda #$39
+         sta $044b
+         dec $044a
+notover  lda $044a
+         cmp #$30
+         bne ok2
+         lda $044b
+         cmp #$30
+         bne ok2
+         inc $0433
+         lda $0433
+         cmp #$3a
+         bne ok
+         lda #$30
+         sta $0433
+         inc $0432
+ok 		 lda #$39
+        sta $044b
+        sta $044a
+		 jmp bonus
+		        
+ok2      rts
+ 
+bonus    lda #$00
+         sta $0c
+         sta $23
+bonusloop1 inc $0c
+         lda $0c
+         cmp #$fc
+         bne bonusloop1
+         lda #$00
+         sta $0c
+         inc $23
+         lda $23
+         cmp #$05
+         bne bonusloop1
+         lda #$00
+         sta $23
+         
+		  inc $042c
+		  jsr $2803
+         ldx #$04
+bonusloop lda $0428,x
+			cmp #$3a
+			bne bonusok
+			lda #$30
+			sta $0428,x
+			inc $0427,x
+bonusok		dex
+			bne bonusloop
+			dec $0443
+			lda $0443
+			cmp #$2f
+			bne bonus
+			lda #$39
+			sta $0443
+			dec $0442
+			lda $0442
+			cmp #$2f
+			bne bonus
+			lda #$39
+			sta $0442
+			sta $0443
+			jmp mainbody
+			
+          
+
+spidercol lda dead
+          cmp #$00
+          beq detect
+          rts
+detect		 lda objpos+$00
+         sec
+         sbc #$06
+         sta collision+$08
+         clc
+         adc #$0c
+         sta collision+$09
+         lda objpos+$01
+         sec
+         sbc #$0c
+         sta collision+$0a
+         clc
+         adc #$18
+         sta collision+$0b
+         ldx #$00
+colidloop lda objpos+$04,x
+         cmp collision+$08
+         bcc nospdcol
+         cmp collision+$09
+         bcs nospdcol
+         lda objpos+$05,x
+         cmp collision+$0a
+         bcc nospdcol
+         cmp collision+$0b
+         bcs nospdcol
+         lda #$01
+         sta dead
+         rts
+nospdcol inx
+         inx
+         cpx #$0a
+         bne colidloop
+         rts
+
+
+
+
+
+checklev lda #$39
+		sta $0443
+		sta $0442
+		inc level
+		lda level
+		cmp #$31
+		beq level1
+		cmp #$32
+		beq level2
+		cmp #$33
+		beq level3
+		cmp #$34
+		beq level4
+		cmp #$35 
+		beq level5
+		cmp #$36
+		beq level6
+		cmp #$37
+		beq level7
+		cmp #$38
+		beq level8
+		cmp #$39
+		beq level9
+		cmp #$3a
+		beq level10
+		cmp #$3b
+		beq level11
+		cmp #$3c
+		beq level12
+		cmp #$3d
+		beq level13
+		cmp #$3e
+		beq level14
+		cmp #$3f
+		beq level15
+		cmp #$40
+		beq level16
+		cmp #$41
+		bne h
+		jmp end
+h      inc $d020 ;error in code
+		jmp main		
+		
+level1   jmp dolevel1
+level2   jmp dolevel2
+level3   jmp dolevel3
+level4   jmp dolevel4
+level5   jmp dolevel5
+level6   jmp dolevel6
+level7   jmp dolevel7
+level8   jmp dolevel8
+level9   jmp dolevel9
+level10  jmp dolevel10
+level11  jmp dolevel11
+level12  jmp dolevel12
+level13  jmp dolevel13
+level14  jmp dolevel14
+level15  jmp dolevel15
+level16  jmp dolevel16
+
+
+
+dolevel1 ldx #$00
+copyspd1 lda l1speed+$00,x
+         sta speedtbl,x
+         inx
+         cpx #$05
+         bne copyspd1
+         jmp main
+
+dolevel2 ldx #$00
+copyspd2 lda l2speed+$00,x
+         sta speedtbl,x
+         inx
+         cpx #$05
+         bne copyspd2
+         jmp main
+         
+dolevel3 ldx #$00
+copyspd3 lda l3speed+$00,x
+         sta speedtbl,x
+         inx
+         cpx #$05
+         bne copyspd3
+         rts
+         
+dolevel4 ldx #$00
+copyspd4 lda l4speed+$00,x
+         sta speedtbl,x
+         inx
+         cpx #$05
+         bne copyspd4
+         rts
+         
+dolevel5 ldx #$00
+copyspd5 lda l5speed+$00,x
+         sta speedtbl,x
+         inx
+         cpx #$05
+         bne copyspd5
+         rts
+         
+dolevel6 ldx #$00
+copyspd6 lda l6speed+$00,x
+         sta speedtbl,x
+         inx
+         cpx #$05
+         bne copyspd6
+         rts
+         
+dolevel7 ldx #$00
+copyspd7 lda l7speed+$00,x
+         sta speedtbl,x
+         inx
+         cpx #$05
+         bne copyspd7
+         rts
+         
+dolevel8 ldx #$00
+copyspd8 lda l8speed+$00,x
+         sta speedtbl,x
+         inx
+         cpx #$05
+         bne copyspd8
+         rts
+         
+dolevel9 ldx #$00
+copyspd9 lda l9speed+$00,x
+         sta speedtbl,x
+         inx
+         cpx #$05
+         bne copyspd9
+         rts
+         
+dolevel10 ldx #$00
+copyspd10 lda l10speed+$00,x
+         sta speedtbl,x
+         inx
+         cpx #$05
+         bne copyspd10
+         rts
+         
+dolevel11 ldx #$00
+copyspd11 lda l11speed+$00,x
+         sta speedtbl,x
+         inx
+         cpx #$05
+         bne copyspd11
+         rts
+         
+dolevel12 ldx #$00
+copyspd12 lda l12speed+$00,x
+         sta speedtbl,x
+         inx
+         cpx #$05
+         bne copyspd12
+         rts
+         
+dolevel13 ldx #$00
+copyspd13 lda l13speed+$00,x
+         sta speedtbl,x
+         inx
+         cpx #$05
+         bne copyspd13
+         rts
+         
+dolevel14 ldx #$00
+copyspd14 lda l14speed+$00,x
+         sta speedtbl,x
+         inx
+         cpx #$05
+         bne copyspd14
+         rts
+         
+dolevel15 ldx #$00
+copyspd15 lda l15speed+$00,x
+         sta speedtbl,x
+         inx
+         cpx #$05
+         bne copyspd15
+         rts
+
+dolevel16 ldx #$00
+copyspd16 lda l16speed+$00,x
+         sta speedtbl,x
+         inx
+         cpx #$05
+         bne copyspd16
+         rts
+
+end      sei
+		 lda #$00
+		 sta $d418
+		 lda #$31
+		 sta $0314
+		 lda #$ea
+		 sta $0315
+		 lda #$81
+		 sta $dc0d
+		 lda #$00
+		 sta $d019
+		 sta $d01a
+		 lda #$00
+		 sta $d015
+		sta $d021
+		sta $d020
+		 ldx #$00
+buildcol lda $5400,x
+         sta $d800,x
+         lda $5500,x
+         sta $d900,x
+         lda $5600,x
+         sta $da00,x
+         lda $56e8,x
+         sta $dae8,x
+         inx
+         bne buildcol
+         lda #<endirq1
+         sta $0314
+         lda #>endirq2
+         sta $0315
+         lda #$7f
+         sta $dc0d
+         sta $dd0d
+         lda #$1b
+         sta $d011
+         lda #$01
+         sta $d01a
+         lda #$01
+         jsr $2800
+         lda #$00
+         sta read2+1
+         lda #$49
+         sta read2+2
+         
+         cli
+endhold  jmp endhold
+endirq1  inc $d019
+		  lda #$00
+		  sta $d012
+		  lda #$03
+		  sta $dd00
+		  lda #$04
+		  sta $d020
+		  sta $d021
+		  lda #$1b
+		  sta $d011
+		  lda #$18
+		  sta $d018
+		
+		  ;lda $0c
+		lda $0c
+		  sta $d016
+		  lda #<endirq2
+		  sta $0314
+		  lda #>endirq2
+		  sta $0315
+		  jmp $ea31
+endirq2  inc $d019
+		  lda #$e0
+		  sta $d012
+		  lda #$00
+		  sta $d020
+		  sta $d021
+		  lda #$01
+		  sta $dd00
+		  lda #$3b
+		  sta $d011
+		  lda #$18
+		  sta $d018
+		  lda #$18
+		  sta $d016
+		  lda #<endirq1
+		  sta $0314
+		  lda #>endirq1
+		  sta $0315
+		  jsr doendscroll
+		  ;sr colroll
+		  lda $dc00
+		  lsr
+		  lsr
+		  lsr
+		  lsr
+		  lsr
+		  bcs endplay
+		  lda #$31
+		  sta $0314
+		  lda #$ea
+		  sta $0315
+		  lda #$81
+		  sta $dc0d
+		  sta $dd0d
+		  lda #$00
+		  sta $d418
+		  sta $d019
+		  sta $d01a
+		  jmp title
+endplay  jsr $2803
+		  jmp $ea31
+		
+doendscroll lda $0c
+			sec
+			sbc #$02
+			and #$07
+			sta $0c
+			bcs endscrollend
+			ldx #$00
+loop2   lda $0799,x
+           sta $0798,x
+           lda #$01
+           sta $db98,x
+           inx
+           cpx #$28
+           bne loop2
+read2      lda $07bf
+           cmp #$00
+           bne endbyteset
+           lda #$00
+           sta read2+1
+           lda #$49
+           sta read2+2
+           jmp read2
+endbyteset sta $07bf
+           inc read2+1
+           lda read2+1
+           cmp #$00
+           bne endscrollend
+           inc read2+2
+endscrollend rts
+
+randytbl .byte $4c,$50,$54,$58,$5c,$60
+         .byte $64,$68,$6c,$70,$74,$78
+         .byte $7c,$80,$84,$88,$8c,$90
+         .byte $94,$98,$9c,$a0,$a4,$a8
+         .byte $ac,$b0,$b4,$b8,$bc,$c0
+         .byte $c4,$c8,$cc
+
+randxtbl .byte $20,$40,$20,$24,$8c,$28
+         .byte $28,$2c,$30,$34,$38,$3c
+         .byte $40,$44,$48,$4c,$50,$54
+         .byte $58,$5c,$60,$64,$68,$6c
+         .byte $70,$78,$7c,$80,$84,$88
+         .byte $8c,$90,$94,$98,$9c,$a0
+         .byte $a0,$94,$84
+
+xpos     .byte $60
+ypos     .byte $60
+
+startpos .byte $18,$70 ;player
+         .byte $98,$c0 ;magic star
+         .byte $24,$60 ;spider1
+         .byte $3c,$70 ;spider2
+         .byte $54,$80 ;spider3
+         .byte $6c,$90 ;spider4
+         .byte $84,$a0 ;spider5
+         .byte $18,$50 ;cauldron
+
+jeffyframe .byte $00,$00,$00,$01,$01,$01
+         .byte $02,$02,$02,$01,$01,$01
+         .byte $00
+
+starcols .byte $02,$0a,$07,$01,$07,$0a
+         .byte $02
+
+
+
+spiderframe
+         .byte $03,$03,$03,$04,$04,$04
+         .byte $05,$05,$05,$04,$04,$04
+         .byte $00
+
+colours  .byte $00,$09,$02,$08,$0a,$07
+         .byte $01,$07,$0a,$08,$02,$09
+
+speedtbl .byte $01,$01,$01,$01,$01,$01
+
+l1speed  .byte $01,$01,$01,$01,$01,$01,$01
+l2speed  .byte $01,$02,$01,$01,$02,$01,$01
+l3speed  .byte $02,$01,$01,$02,$02,$01,$01
+l4speed  .byte $01,$02,$02,$01,$02,$01,$01
+l5speed  .byte $02,$02,$01,$02,$02,$02,$01
+l6speed  .byte $02,$02,$02,$02,$02,$02,$01
+l7speed  .byte $01,$02,$03,$02,$01,$03,$01
+l8speed  .byte $01,$02,$03,$02,$02,$03,$01
+l9speed  .byte $02,$03,$02,$03,$01,$01,$01
+l10speed .byte $01,$02,$03,$03,$02,$01,$01
+l11speed .byte $03,$03,$02,$02,$03,$02,$01
+l12speed .byte $02,$03,$03,$03,$02,$02,$01
+l13speed .byte $03,$03,$02,$02,$03,$03,$01
+l14speed .byte $03,$03,$03,$03,$02,$02,$01
+l15speed .byte $03,$03,$03,$03,$03,$03,$01
+l16speed .byte $02,$03,$04,$03,$02,$03,$01
+
+level .byte $00
+
+
+temptextmess .text "1234567890123456789012345678901234567890!"
+gameovermess .text "              game over                  "
+
+hiscore      .byte $30,$30,$30,$30,$30,$30,0
+oldscore     .byte $30,$30,$30,$30,$30,$30,0
+initials     .text "rcb"
+
+hitext       .text "todays best score: 000000 by richard      "
+
+himess			  .text " great, you have beaten the high score "
+			  .text "        please key in your name.             "
+			.text  "                                                           "
+			
+
+
+
+
+			  
+
+
+
+</code>

@@ -1,0 +1,39 @@
+# PAGE: base:saving_a_file
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:saving_a_file
+
+====== Saving a memory range to a file ======
+<code>
+file_start = $2000    ; example addresses
+file_end   = $4000
+
+        LDA #fname_end-fname
+        LDX #<fname
+        LDY #>fname
+        JSR $FFBD     ; call SETNAM
+        LDA #$00
+        LDX $BA       ; last used device number
+        BNE .skip
+        LDX #$08      ; default to device 8
+.skip   LDY #$00
+        JSR $FFBA     ; call SETLFS
+
+        LDA #<file_start
+        STA $C1
+        LDA #>file_start
+        STA $C2
+
+        LDX #<file_end
+        LDY #>file_end
+        LDA #$C1      ; start address located in $C1/$C2
+        JSR $FFD8     ; call SAVE
+        BCS .error    ; if carry set, a load error has happened
+        RTS
+.error
+        ; Akkumulator contains BASIC error code
+
+        ... error handling ...
+        RTS
+
+fname:  .TEXT "JUST A FILENAME"
+fname_end:
+</code>

@@ -1,0 +1,61 @@
+# PAGE: base:supercpu_inc
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:supercpu_inc
+
+====== INC ======
+
+<code>
+    //---------------------------------------------------------------------------------------------
+    // PseudoCommand-OPC: INC16 (INCrement)
+    //
+    // Addressing Modes:
+    //   Accumulator                             ($1a - 1 bytes, 2 cycles)
+    //   Absolute                                ($ee - 3 bytes, 6 cycles¹)
+    //   Direct Page (Also DP)                   ($e6 - 2 bytes, 5 cycles¹²)
+    //   Absolute Indexed,X                      ($fe - 3 bytes, 7 cycles¹³)
+    //   DP Indexed,X                            ($f6 - 2 bytes, 6 cycles¹²)
+    //   ¹ - Add 2 cycles if m = 0 (16-bit memory/accumulator)
+    //   ² - Add 1 cycle if low byte of Direct Page register is other than zero (DL<>0)
+    //   ³ - Subtract 1 cycle if 65C02 and no page boundary crossed
+    //
+    // Flags Affected:
+    //   n Set if most significant bit of result is set; else cleared.
+    //   z Set if result is zero; else cleared.
+    //
+    // Description:
+    //   Increment by one the contents of the location specified by the operand (add one to the
+    //   value).
+    //
+    //   Unlike adding a one with the ADC instruction, however, the increment instruction is
+    //   neither affected by nor affects the carry flag. You can test for wraparound only by
+    //   testing after every increment to see if the result is zero or positive. On the other hand,
+    //   you don’t have to clear the carry before incrementing.
+    //
+    //   The INC instruction is unaffected by the d (decimal) flag.
+    //
+    //   8-bit accumulator/memory (all processors): Data incremented is eight-bit.
+    //
+    //   16-bit accumulator/memory (65802/65816 only, m=0): Data incremented is sixteen-bit:
+    //    - if in memory, the low-order eight bits are located at the effective address;
+    //    - the high-order eight-bits are located at the effective address plus one.
+    //---------------------------------------------------------------------------------------------
+
+    .pseudocommand inc16 val {
+        .if (val.getType()==AT_NONE) {
+            .byte $1a
+        }
+        .if (val.getType()==AT_ABSOLUTE) {
+            .if (val.getValue()<256) {
+                .byte $e6, <val.getValue()       // Direct Page
+            } else {
+                .byte $ee, <val.getValue(), >val.getValue()
+            }
+        }
+        .if (val.getType()==AT_ABSOLUTEX) {
+            .if (val.getValue()<256) {
+                .byte $f6, <val.getValue()       // Direct Page
+            } else {
+                .byte $fe, <val.getValue(), >val.getValue()
+            }
+        }
+    }
+</code>

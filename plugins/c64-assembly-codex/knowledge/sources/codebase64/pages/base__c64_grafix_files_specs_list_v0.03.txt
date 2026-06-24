@@ -1,0 +1,695 @@
+# PAGE: base:c64_grafix_files_specs_list_v0.03
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:c64_grafix_files_specs_list_v0.03
+
+====== C64 Graphics File Format Specs ======
+
+Based on the c64 grafix files specs list v0.03 by groepaz/hitmen, 14.06.2003. There are quite some info added to this document since it was added to the codebase64 wiki though which means that this is the most complete version around.
+
+===== Standard Hires =====
+
+Hires Bitmap + Screen RAM
+
+=== Interpaint Hires (pc-ext: .ip64h) ===
+
+^ load address: $4000 - $6327 ^^
+| $4000 - $5f3f |  Bitmap      |
+| $5f40 - $6327 |  Screen RAM  |
+
+=== Image System (Hires) (pc-ext: .ish) ===
+
+^ load address: $4000 - $63e7 ^^
+| $4000 - $5f3f | Bitmap       |
+| $6000 - $63e7 | Screen RAM   |
+
+
+=== Hi-Eddi (by Markt & Technik Verlag) (pc-ext: .hed) ===
+
+^ load address: $2000 - $43ff ^^
+| $2000 - $3f3f | Bitmap       |
+| $4000 - $43e7 | Screen RAM   |
+
+
+=== Doodle (by OMNI) (pc-ext: .dd;.ddl;.jj) ===
+
+^ load address: $5c00 - $7fff ^^
+| $5c00 - $5fe7 | Screen RAM   |
+| $7000 - $7f3f | Bitmap       |
+
+Doodle images might also load at $1c00-$3fff, and $5c00-$807f.
+(For more information on the Doodle format, see C= Hacking issue 11).
+Doodle images with extension .jj are RLE compressed. Escape code is $FE and is followed by one byte indicating the value to repeat and another byte indicating how many repetitions of that byte are to be generated.
+
+=== Art Studio 1.0-1.1 (by OCP) (pc-ext: .aas;.art;.hpi) ===
+
+^ load address: $2000 - $432E  ^^
+| $2000 - $3f3f | Bitmap        |
+| $3f40 - $4327 | Screen RAM    |
+| $4328         | Border        |
+
+Some files are 9002 bytes, some are 9009 bytes - $4328 might be border color?
+
+
+
+===== Hires Interlace =====
+
+2 x Hires Bitmap, 2 x Screen RAM
+
+
+=== Hires-Lace v1.5 (by Oswald/COMA) (pc-ext: .hil) ===
+
+^ load address: $4000 - $bf3f ^^
+| $4000 - $5f3f | Bitmap 1     |
+| $6000 - $63e7 | Screen RAM 1 |
+| $8000 - $83e7 | Screen RAM 2 |
+| $a000 - $bf3f | Bitmap 2     |
+
+
+=== Hires-Interlace v1.0 (Feniks) (pc-ext: .hlf) ===
+
+^ load address: $4000 - $7f3f ^^
+| $2000 - $3f3f | Bitmap 1     |
+| $4400 - $47e7 | Screen RAM 1 |
+| $4800 - $4be7 | Screen RAM 2 |
+| $6000 - $7f3f | Bitmap 2     |
+
+
+
+===== "Crippled" Multicolor =====
+
+Multicolor Bitmap, Screen RAM, Color RAM (ONE byte for whole color RAM only!)
+
+
+=== Paint Magic (pc-ext: .pmg) ===
+
+^ load address: $3F8E - $63FF    ^^
+| $3F8E - $3FFF | Display Routine |
+| $4000 - $5F3F | Bitmap          |
+| $5F40         | Background      |
+| $5F43         | Color RAM Byte  |
+| $5F44         | Border          |
+| $6000 - $63E7 | Screen RAM      |
+
+
+
+===== Standard Multicolor =====
+
+Bitmap, Screen RAM, Color RAM
+
+
+=== Koala Painter 2 (by AUDIO LIGHT) (pc-ext: .koa;.kla;.gg) ===
+
+^ load address: $6000 - $8710 ^^
+| $6000 - $7F3F | Bitmap       |
+| $7F40 - $8327 | Screen RAM   |
+| $8328 - $870F | Color RAM    |
+| $8710         | Background   |
+
+Koala images with extension .gg are RLE compressed. Escape code is $FE and is followed by one byte indicating the value to repeat and another byte indicating how many repetitions of that byte are to be generated. That's the exact same stuff used for Doodle.
+
+Please note that the load address may differ for other programs which also support this format. Amica Paint uses $4400 and Interpaint uses $4000. Another program using a variation of this format is "Create with Garfield", which uses a load address of $8000 but also has 4 extra bytes appended to the file.
+
+
+=== RunPaint (pc-ext: .rpm) ===
+
+^ load address: $6000 - $8710 ^^
+| $6000 - $7F3F | Bitmap       |
+| $7F40 - $8327 | Screen RAM   |
+| $8328 - $870F | Color RAM    |
+| $8710         | Background   |
+
+
+=== Advanced Art Studio 2.0 (by OCP) (pc-ext: .ocp;.art) ===
+
+^ load address: $2000 - $471F ^^
+| $2000 - $3F3F | Bitmap       |
+| $3F40 - $4327 | Screen RAM   |
+| $4328         | Border       |
+| $4329         | Background   |
+| $4338 - $471F | Color RAM    |
+
+
+=== Saracen Paint (by IDEA) (pc-ext: .sar) ===
+
+^ load address: $7800 - $9FE7 ^^
+| $7800 - $7BE7 | Screen RAM   |
+| $7BF0         | Background   |
+| $7C00 - $9B3F | Bitmap       |
+| $9C00 - $9FE7 | Color RAM    |
+
+
+=== Blazing Paddles (by BAUDEVILLE) (pc-ext: .blp;.pi) ===
+
+^ load address: $A000 - $C7FF ^^
+| $A000 - $BF3F | Bitmap       |
+| $BF80         | Background   |
+| $C000 - $C3E7 | Screen RAM   |
+| $C400 - $C7E7 | Color RAM    |
+
+
+=== CDU-Paint (pc-ext: .cdu) ===
+
+^ load address: $7EEF - $a711    ^^
+| $7FEF - $7FFF | Display routine |
+| $8000 - $9F3F | Bitmap          |
+| $9F40 - $A328 | Screen RAM      |
+| $A328 - $A710 | Color RAM       |
+| $A710         | Background      |
+
+
+=== Wigmore Artist64 (by wigmore) (pc-ext: .a64) ===
+
+^ load address: $4000 - $67FF ^^
+| $4000 - $5F3F | Bitmap       |
+| $6000 - $63E7 | Screen RAM   |
+| $6400 - $67E7 | Color RAM    |
+| $67FF         | Background   |
+
+
+=== Vidcom 64 (by OMEGA) (pc-ext: .vid) ===
+
+^ load address: $5800 - $7F3F ^^
+| $5800 - $5BE7 | Color RAM    |
+| $5C00 - $5FE7 | Screen RAM   |
+| $5FE8         | Background   |
+| $6000 - $7F3F | Bitmap       |
+
+
+=== Image System (Multicolor) (pc-ext: .ism;.ims) ===
+
+^ load address: $3C00 - $63E8 ^^
+| $3C00 - $3FE7 | Color RAM    |
+| $4000 - $5F3F | Bitmap       |
+| $5FFF         | Background   |
+| $6000 - $63E7 | Screen RAM   |
+
+
+=== Amica Paint (by OLIVER STILLER/MDG) (pc-ext: .ami) ===
+
+Packed format: $C2 is the escape byte, $C2,COUNT,BYTE for RLE, $C2,$00 means EOF
+
+^ load address: $6000                 ^^
+| $6000 - $7F3F | Bitmap               |
+| $7F40 - $8327 | Screen RAM           |
+| $8328 - $870F | Color RAM            |
+| $8710         | Background           |
+| $8711 - $8810 | Color rotation table |
+
+
+=== Zoomatic (by Olav Mørkrid) (pc-ext: .???) ===
+
+Packed format: $03 is the escape byte, which comes *after* byte, length. Length 0 == 256.
+
+^ load address: $6000                 ^^
+| $6000 - $7F3F | Bitmap               |
+| $7F40 - $8327 | Screen RAM           |
+| $8328 - $870F | Color RAM            |
+| $8710         | Background?          |
+
+
+=== Draz Paint (pc-ext: .drz) ===
+
+^ load address: $5800 - $7F40 or $5800 - $7FFE ^^
+| $5800 - $5BE7 | Color RAM            |
+| $5C00 - $5FE7 | Screen RAM           |
+| $6000 - $7F3F | Bitmap               |
+| $7F40         | Background           |
+
+Draz Paint 1.3 stores files from $5800 to $7ffe, while Draz Paint 2.0 stores files from $5800 to $7f40.
+
+===== "Crippled" Multicolor Interlaced =====
+
+2 x Multicolor Bitmap, shared Screen RAM and Color RAM
+
+
+=== Drazlace (pc-ext: .drl) ===
+
+^ load address: $5800 - $9f3f ^^
+| $5800 - $5be7 | Color RAM    |
+| $5c00 - $5fe7 | Screen RAM   |
+| $6000 - $7f3f | Bitmap 1     |
+| $7f40         | Background   |
+| $7f42         | $d016 flag   |
+| $8000 - $9f3f | Bitmap 2     |
+
+If packed the file starts with petscii header 'DRAZLACE! 1.0' followed by the escape byte. RLE sequences are ESCAPE,COUNT,BYTE.
+
+The flag in $7f42 determines if $d016 is shifted, but which bit means what? FIXME
+
+
+
+===== Multicolor Interlaced =====
+
+2 x Multicolor Bitmap, 2 x Screen RAM, shared Color RAM, $d016 shifting
+
+
+=== True Paint (by Fatum) (pc-ext: .mci) ===
+
+^ load address: $9C00 - $E7E7 ^^
+| $9C00 - $9FE7 | Screen RAM 1 |
+| $9FE8         | Background   |
+| $A000 - $BF3F | Bitmap 1     |
+| $C000 - $DF3F | Bitmap 2     |
+| $E000 - $E3E7 | Screen RAM 2 |
+| $E400 - $E7E7 | Color RAM    |
+
+
+
+===== AFLI =====
+
+Hires Bitmap, 8 x Screen RAM
+
+
+=== Hires FLI (by Crest) (pc-ext: .hfc) ===
+
+^ load address: $4000 - $7fff ^^
+| $4000 - $5f3f | Bitmap       |
+| $6000 - $7fe7 | Screen RAMs  |
+
+
+=== Hires Manager (by Cosmos) (pc-ext: .him) ===
+
+Unpacked format:
+
+^ load address: $4000 - $7ffe                  ^^
+| $4000 - $5f3f | Bitmap                        |
+| $4001         | format marker, $ff = unpacked |
+| $6000 - $7fe7 | Screen RAMs                   |
+
+Packed format:
+
+^ load address: $4000                                        ^^
+| $4000 - $4001 | Pointer to end of packed data               |
+| $4002 - $4003 | Pointer to end of unpacked data + 1 ($7ff2) |
+
+Data is packed backwards. $00 is the escape byte, RLE sequences are $00,COUNT,BYTE, and literal sequences are COUNT+1,DATA,DATA... Literal sequences are buggy and overlap with the next sequence.
+
+Hires Manager images are only 192 lines tall, and the packed format only saves $4140 - $5f3f of the bitmap.
+
+
+=== AFLI-editor v2.0 (by Topaz Beerline) (pc-ext: .afl) ===
+
+^ load address: $4000 - $7fff ^^
+| $4000 - $5fe7 | Screen RAMs  |
+| $6000 - $7f3f | Bitmap       |
+
+
+===== FLI =====
+
+Multicolor Bitmap, 8 x Screen RAM, Color RAM
+
+
+=== FLI Designer 1.1 & 2.0 (by FBI Crew) (pc-ext: .fd2) ===
+
+^ load address: $3c00 - $7ffe ^^
+| $3c00 - $3fe7 | Color RAM    |
+| $4000 - $5fe7 | Screen RAMs  |
+| $6000 - $7f3f | Bitmap       |
+
+
+=== FLI Designer 2 (pc-ext: .fli) ===
+
+^ load address: $3ff0 - $83ee ^^
+| $3ff0 - $43d7 | Color RAM    |
+| $43f0 - $63d7 | Screen RAMs  |
+| $63f0 - $832f | Bitmap       |
+
+
+
+===== FLI + $d021 =====
+
+Multicolor Bitmap, 8 x Screen RAM, Color RAM, $d021 for each line
+
+
+=== FLI Graph 2.2 (by blackmail) (pc-ext: .bml) ===
+
+Unpacked format:
+
+^ load address: $3b00 - $7f3f ^^
+| $3b00-  $3bc7 | $d021 colors |
+| $3c00 - $3fe7 | Color RAM    |
+| $4000 - $5fe7 | Screen RAMs  |
+| $6000 - $7f3f | Bitmap       |
+
+Packed format:
+
+^ load address: $38f0                         ^^
+| $38f0         | Escape byte                  |
+| $38f1 - $38f2 | Packed end address           |
+| $38f3 - $38f4 | Unpacked end address ($7f3f) |
+
+Images are packed backwards, and RLE sequences are ESCBYTE,COUNT,BYTE (though actually BYTE,COUNT,ESCBYTE in memory).
+
+===== ECI (interlaced AFLI) =====
+
+2 x Hires Bitmap, 2 x 8 x Screen RAM
+
+
+=== ECI Graphic Editor v1.0 (by PROACHER) (pc-ext: .eci) ===
+
+^ load address: $4000 - $bfff  ^^
+| $4000 - $5f3f | Bitmap 1      |
+| $6000 - $7fe7 | Screen RAMs 1 |
+| $8000 - $9f3f | Bitmap 2      |
+| $A000 - $bfe7 | Screen RAMs 2 |
+
+
+
+===== IFLI =====
+
+2 x Multicolor Bitmap, 2 x 8 x Screen RAM, shared Color RAM, $d021 for each line, $d016 shifting
+
+
+=== Funpaint 2 (by Manfred Trenz) (pc-ext: .fp2;.fun) ===
+
+^ load address: $3ff0 - $c38b               ^^
+| $3ff0 - $3fff | 'FUNPAINT (MT) ' NB: space |
+| $3ffe         | Flag: packed if non-zero   |
+| $3fff         | Escape byte for unpacking  |
+| $4000 - $5fe7 | Screen RAMs 1              |
+| $6000 - $7f3f | Bitmap 1                   |
+| $7f48 - $7fab | 100 x $d021 color          |
+| $8000 - $83e7 | Color RAM                  |
+| $83e8 - $a3e7 | Screen RAMs 2              |
+| $a3e8 - $c327 | Bitmap 2                   |
+| $c328 - $c38b | 100 x $d021 color          |
+
+RLE sequences are ESCAPE,COUNT,BYTE. 
+
+Addresses might not be correct. FIXME
+
+A lot of tools (e.g. Gunpaint) seem to use wrong locations for
+the $d021 colors, some ignore them completely (e.g. GoDot).
+
+
+=== Gunpaint (pc-ext: .gun,.ifl) ===
+
+^ load address: $4000 - $c340                 ^^
+| $4000 - $5fe7 | Screen RAMs 1                |
+| $43e8 - $43f7 | header db 'GUNPAINT (JZ)   ' |
+| $6000 - $7f3f | Bitmap 1                     |
+| $7f4f - $7fff | 177 x $d021 colors           |
+| $8000 - $83e7 | Color RAM                    |
+| $8400 - $a3e7 | Screen RAMs 2                |
+| $87e8 - $87fb | 20 x $d021 colors            |
+| $a400 - $c33f | Bitmap 2                     |
+| $c340         | ???                          |
+
+The $d021 display code is buggy - the last four lines have the same color
+
+
+=== Generic IFLI RAW format (pc-ext:.raw) =====
+
+^loadaddress: $4000 - $ff3f  ^^
+| $4000 - $5fe7 | Screen RAMs 1  |
+| $6000 - $7f3f | Bitmap 1       |
+| $8000 - $83e7 | Color RAM 1    |
+| $8400 - $84c7 | $D021 colors 1 |
+| $8800 - $8be7 | Color RAM 2    |
+| $8c00 - $8cc7 | $D021 colors 2 |
+| $c000 - $dfe7 | Screen RAMs 2  |
+| $e000 - $ff3f | Bitmap 2       |
+
+
+
+===== FLINT =====
+
+2 x Multicolor Bitmap, 2 x 8 x Video, 2 x Color RAM, **no** $d016 shifting
+
+
+=== Flinterlacer v1.0 (by Digital Excess) (pc-ext:.fin) ===
+
+^ load address: $284e - $bfe7                                  ^^
+| $284e - $3fff | speedcode sequences for interlacing color RAM |
+| $4000 - $5f3f | Bitmap 1                                      |
+| $5f40 - $5fff | message                                       |
+| $6000 - $7fe7 | Screen RAMs 1                                 |
+| $8000 - $9f3f | Bitmap 2                                      |
+| $9f40 - $9fff | message                                       |
+| $b000 - $bfe7 | Screen RAMs 2                                 |
+
+
+
+===== FLI-Profi =====
+
+Multicolor Bitmap, 8 x Screen RAM, Color RAM, Y-expanded sprite layer covering fli-bug
+
+
+=== FLI-Profi (by Crest) (pc-ext:.fpr) ===
+
+^ load address: $3780 - $7f3f           ^^
+| $3780 - $37be | Sprite data (=> $7000) |
+| $37c0 - $37fe | Sprite data (=> $7040) |
+| $38c0 - $38fe | Sprite data (=> $f000) |
+| $3900 - $393e | Sprite data (=> $f040) |
+| $3c00 - $3fe7 | Color RAM              |
+| $4000 - $5fe7 | Screen RAMs            |
+| $6000 - $7f3f | Bitmap                 |
+
+
+
+===== UFLI =====
+
+Hires Bitmap, 4 x Screen RAM, X-expanded hires sprite-layer
+
+
+=== UFLI Editor v1.0 (by Xbow/Crest) (pc-ext:.ufl) ===
+
+| $1000 - $12c7 | Display Routine                          |
+| $4000 - $4efe | 60 Sprites                               |
+| $4f00 - $4f3e | 1 Sprite (Covers FLI Bug)                |
+| $4f40 - $4f7e | 1 blank sprite                           |
+| $4ff0         | sprite-color                             |
+| $4ff1         | border-color ($d020 and fli-bug)         |
+| $4ff8 - $4fff | Spritepointer Screen RAM 4 (all = $3D ^^ |
+| $5000 - $53e7 | Screen RAM 1+2                           |
+| $5400 - $57e7 | Screen RAM 3+4                           |
+| $5800 - $5be7 | Screen RAM 5+6                           |
+| $5c00 - $5fe7 | Screen RAM 7+8                           |
+| $6000 - $7f3f | Bitmap                                   |
+
+Load address unknown. FIXME
+
+
+
+===== SHFLI-XL =====
+
+Hires Bitmap, 8 x Screen RAM, 6x8 hires sprite layer
+
+
+=== SHF-XL edit v1.0 (pc-ext:.shx) ===
+
+^ load address: $4000 - $7f3f                              ^^
+| $4000 - $43e7 | Video 1                                   |
+| $43f8 - $43ff | Sprite-Pointer 1  ef 80 84 85 89 8A 8E 00 |
+| $4400 - $47e7 | Video 2                                   |
+| $47f8 - $47ff | Sprite-Pointer 2  ef 8f 93 94 98 99 9d 00 |
+| $4800 - $4be7 | Video 3                                   |
+| $4bf8 - $4bff | Sprite-Pointer 3  ef 9e a2 a3 a7 a8 ac 00 |
+| $4c00 - $4fe7 | Video 4                                   |
+| $4ff8 - $4fff | Sprite-Pointer 4  ef ad b1 b2 b6 b7 bB 00 |
+| $5000 - $53e7 | Video 5                                   |
+| $53f8 - $53ff | Sprite-Pointer 5  ef bc c0 c1 c5 c6 ca 00 |
+| $5400 - $57e7 | Video 6                                   |
+| $57f8 - $57ff | Sprite-Pointer 6  ef cb cf d0 d4 d5 d9 00 |
+| $5800 - $5be7 | Video 7                                   |
+| $5bf8 - $5bff | Sprite-Pointer 7  ef da de df e3 e4 e8 00 |
+| $5c00 - $5fe7 | Video 8                                   |
+| $5ff8 - $5fff | Sprite-Pointer 8  ef e9 ea eb ec ed ee 00 |
+| $6000 - $7f3f | Bitmap 1                                  |
+
+How are the sprites stored? FIXME
+
+
+
+===== EAFLI =====
+
+Hires Bitmap, 8 x Screen RAM, hires sprite layer
+
+
+=== EAFLI edit v1.0 (by Graham/Oxyron) (pc-ext:.eaf) ===
+
+^ load address: $8000 - $bf3f                              ^^
+| $8000 - $83e7 | Video 1                                   |
+| $83f8 - $83ff | Sprite-Pointer 1  07 08 09 0a 0b 0c 0d 0e |
+| $8400 - $87e7 | Video 2                                   |
+| $87f8 - $87ff | Sprite-Pointer 2  17 18 19 1a 1b 1c 1d 1e |
+| $8800 - $8be7 | Video 3                                   |
+| $8bf8 - $8bff | Sprite-Pointer 3  07 08 09 0a 0b 0c 0d 0e |
+| $8c00 - $8fe7 | Video 4                                   |
+| $8ff8 - $8fff | Sprite-Pointer 4  17 18 19 1a 1b 1c 1d 1e |
+| $9000 - $93e7 | Video 5                                   |
+| $93f8 - $93ff | Sprite-Pointer 5  07 08 09 0a 0b 0c 0d 0e |
+| $9400 - $97e7 | Video 6                                   |
+| $97f8 - $97ff | Sprite-Pointer 6  17 18 19 1a 1b 1c 1d 1e |
+| $9800 - $9be7 | Video 7                                   |
+| $9bf8 - $9bff | Sprite-Pointer 7  07 08 09 0a 0b 0c 0d 0e |
+| $9c00 - $9fe7 | Video 8                                   |
+| $9ff8 - $9fff | Sprite-Pointer 8  17 18 19 1a 1b 1c 1d 1e |
+| $a000 - $bf3f | Bitmap 1                                  |
+
+How are the sprites stored? FIXME
+
+
+
+===== SHFLI =====
+
+Hires Bitmap, 8 x Screen RAM, 2 x hires sprite layers
+
+
+=== SHFLI Editor v1.0 (by Xbow/Crest) (pc-ext:.shf) ===
+
+| $4000 - $43e7 | Video 1                                   |
+| $43f8 - $43ff | Sprite-Pointer 1  80 84 85 89 8A 8E 8F 93 |
+| $4400 - $47e7 | Video 2                                   |
+| $47f8 - $47ff | Sprite-Pointer 2  94 98 99 9D 9E A2 A3 A7 |
+| $4800 - $4be7 | Video 3                                   |
+| $4bf8 - $4bff | Sprite-Pointer 3  A8 AC AD B1 B2 B6 B7 BB |
+| $4c00 - $4fe7 | Video 4                                   |
+| $4ff8 - $4fff | Sprite-Pointer 4  BC C0 C1 C5 C6 CA CB CF |
+| $5000 - $53e7 | Video 5                                   |
+| $53f8 - $53ff | Sprite-Pointer 5  D0 D4 D5 D9 DA DE DF E3 |
+| $5400 - $57e7 | Video 6                                   |
+| $57f8 - $57ff | Sprite-Pointer 6  E4 E8 E9 EA EB EC ED EE |
+| $5800 - $5be7 | Video 7                                   |
+| $5bf8 - $5bff | Sprite-Pointer 7  EF F0 F1 F2 F3 F4 F5 F6 |
+| $5c00 - $5fe7 | Video 8                                   |
+| $5ff8 - $5fff | Sprite-Pointer 8  F7 1E 2E 3E 4E 5E 6E 7E |
+| $6000 - $7f3f | Bitmap 1                                  |
+
+Packed format unknown. FIXME
+
+How are the sprites stored? FIXME
+
+
+
+===== SHIFLI =====
+
+2 x Hires Bitmap, 2 x 8 x Screen RAM, 2 x 2 x hires sprite layers
+
+
+=== SHIFLI Editor v1.0 (by Xbow/Crest) (pc-ext:.shi) ===
+
+runable image file:
+
+^ load address: $0801-$855b                                                              ^^
+| $0801-$080c | Basic Run                                                                 |
+| $080d-$0860 | Init-Routine that copies gfx-data to its proper locations                 |
+| $0861-$095b | Routine that sets I/O Registers and creates display-routine ($085F-$10FB) |
+| $095c-$475b | Data pic 1. (gets moved to $4000)                                         |
+| $475c-$855b | Data pic 2. (gets moved to $C000)                                         |
+
+after moved to $4000/$c000 the layout is like this:
+
+| $4000 - $43e7 | Video 1/1                                   |
+| $43f8 - $43ff | Sprite-Pointer 1/1  80 84 85 89 8A 8E 8F 93 |
+| $4400 - $47e7 | Video 2/1                                   |
+| $47f8 - $47ff | Sprite-Pointer 2/1  94 98 99 9D 9E A2 A3 A7 |
+| $4800 - $4be7 | Video 3/1                                   |
+| $4bf8 - $4bff | Sprite-Pointer 3/1  A8 AC AD B1 B2 B6 B7 BB |
+| $4c00 - $4fe7 | Video 4/1                                   |
+| $4ff8 - $4fff | Sprite-Pointer 4/1  BC C0 C1 C5 C6 CA CB CF |
+| $5000 - $53e7 | Video 5/1                                   |
+| $53f8 - $53ff | Sprite-Pointer 5/1  D0 D4 D5 D9 DA DE DF E3 |
+| $5400 - $57e7 | Video 6/1                                   |
+| $57f8 - $57ff | Sprite-Pointer 6/1  E4 E8 E9 EA EB EC ED EE |
+| $5800 - $5be7 | Video 7/1                                   |
+| $5bf8 - $5bff | Sprite-Pointer 7/1  EF F0 F1 F2 F3 F4 F5 F6 |
+| $5c00 - $5fe7 | Video 8/1                                   |
+| $5ff8 - $5fff | Sprite-Pointer 8/1  F7 1E 2E 3E 4E 5E 6E 7E |
+| $6000 - $7f3f | Bitmap 1                                    |
+
+| $c000 - $c3e7 | Video 1/2                                   |
+| $c3f8 - $c3ff | Sprite-Pointer 1/2  80 84 85 89 8A 8E 8F 93 |
+| $c400 - $c7e7 | Video 2/2                                   |
+| $c7f8 - $c7ff | Sprite-Pointer 2/2  94 98 99 9D 9E A2 A3 A7 |
+| $c800 - $cbe7 | Video 3/2                                   |
+| $cbf8 - $cbff | Sprite-Pointer 3/2  A8 AC AD B1 B2 B6 B7 BB |
+| $cc00 - $cfe7 | Video 4/2                                   |
+| $cff8 - $cfff | Sprite-Pointer 4/2  BC C0 C1 C5 C6 CA CB CF |
+| $d000 - $d3e7 | Video 5/2                                   |
+| $d3f8 - $d3ff | Sprite-Pointer 5/2  D0 D4 D5 D9 DA DE DF E3 |
+| $d400 - $d7e7 | Video 6/2                                   |
+| $d7f8 - $d7ff | Sprite-Pointer 6/2  E4 E8 E9 EA EB EC ED EE |
+| $d800 - $dbe7 | Video 7/2                                   |
+| $dbf8 - $dbff | Sprite-Pointer 7/2  EF F0 F1 F2 F3 F4 F5 F6 |
+| $dc00 - $dfe7 | Video 8/2                                   |
+| $dff8 - $dfff | Sprite-Pointer 8/2  F7 1E 2E 3E 4E 5E 6E 7E |
+| $e000 - $ff3f | Bitmap 2                                    |
+
+Packed format unknown. FIXME
+
+How are the sprites stored? FIXME
+
+
+
+===== UIFLI =====
+
+2 x Hires Bitmap, 2 x 4 x Screen RAM, 2 x X-expanded hires sprite layer
+
+
+=== UIFLI Editor v1.0 (by Xbow/Crest) (pc-ext:.ufi;.uf2) ===
+
+| $1000 - $12c7 | Display Routine                        |
+
+| $4000 - $43ff | Screen RAM 1+2                         |
+| $4400 - $47ff | Screen RAM 3+4                         |
+| $4800 - $4bff | Screen RAM 5+6                         |
+| $4c00 - $4fff | Screen RAM 7+8                         |
+| $5000 - $5eff | 60 Sprites                             |
+| $5f00 - $5f3f | 1 Sprite (Covers FLI Bug)              |
+| $5f40 - $5f7f | 1 blank sprite                         |
+| $5ff0         | sprite-color                           |
+| $5ff1         | border-color ($d020 and fli-bug)       |
+| $5ff8 - $5fff | Spritepointer Screen RAM 4 (all = $3D) |
+| $6000 - $7f37 | Bitmap                                 |
+
+| $c000 - $c3ff | Screen RAM 1+2                         |
+| $c400 - $c7ff | Screen RAM 3+4                         |
+| $c800 - $cbff | Screen RAM 5+6                         |
+| $cc00 - $cfff | Screen RAM 7+8                         |
+| $d000 - $deff | 60 Sprites                             |
+| $df00 - $df3f | 1 Sprite (Covers FLI Bug)              |
+| $df40 - $df7f | 1 blank sprite                         |
+| $dff0         | sprite-color                           |
+| $dff1         | border-color ($d020 and fli-bug)       |
+| $dff8 - $dfff | Spritepointer Screen RAM 4 (all = $3D) |
+| $e000 - $ff37 | Bitmap                                 |
+
+Load address unknown. FIXME
+
+
+
+===== Undocumented Formats =====
+
+  * advanced fli (by topaz beerline) (pc-ext: .aft)
+  * Art Studio v1.2b (pc-ext: .mpi)
+  * Drazpaint v1.5/2.0 -Packed/Unpacked- (pc-ext: .drp)
+  * emc (by master design group)(pc-ext: .emc)
+  * facespainter 1.0 (by faces) (pc-ext: .fcs;.fcp)
+  * flying colors (pc-ext: .fly)
+  * hipic creator (by oxyron) (pc-ext: .hpc)
+  * hires editor (by topaz beerline) (pc-ext: .het)
+  * logo editor 1.2 (by centauri) (pc-ext: .lec)
+  * MCI Editor v1.0 (by Fatum)
+  * mega gfx utilities bitmap(by the Dolphins) (pc-ext: .mgb)
+  * mega gfx utilities fli (by the Dolphins) (pc-ext: .mgf)
+
+
+
+===== Other Generic Formats =====
+
+  * 4-bit godot (pc-ext: .4bt;.clp)
+  * GEOS (pc-ext: .geo;.frx)
+
+
+
+===== Misc Designer/Publishing Formats =====
+
+  * pagefox/printfox (pc-ext: .bs;.pg;.gb)
+  * printshop (pc-ext: .ps)
+  * printmaster (pc-ext: .pm)
+  * game graphics designer (pc-ext: .ggd)
+  * gigacad (by Markt&Technik Verlag?!) (pc-ext: .gcd)
+  * garry kitchen's gamemaker (by activision) (pc-ext: .gkg)
+  * realtime drawer (by samar) (pc-ext: .rtd)
+  * create with garfield (unsure about this one) (pc-ext: .cwg)

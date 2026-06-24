@@ -1,0 +1,57 @@
+# PAGE: base:supercpu_inx
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:supercpu_inx
+
+====== INX ======
+
+Not neccessary, only for conveniance.
+
+<code>
+    //---------------------------------------------------------------------------------------------
+    // PseudoCommand-OPC: inx16
+    //
+    // DESCRIPTION:
+    //   Pseudocommand which allows to pass a value on how much to increase X with.
+    //
+    // SYNTAX:
+    //   inx16 Value
+    //
+    // EXAMPLE:
+    //   inx
+    //   inx 8
+    //
+    // PARAMETERS:
+    //                       Value     Min       Max
+    //   Value                U16       0       65535
+    //---------------------------------------------------------------------------------------------
+
+    .pseudocommand inx16 val {
+        .if (val.getType()==AT_NONE) {
+            inx
+        } else {
+            .if (val.getValue()==1) {
+                inx
+            }
+            .if (val.getValue()==2){
+                inx
+                inx
+            }
+            .if (val.getValue()==3){
+                inx
+                inx
+                inx
+            }
+            .if (val.getValue()==4){
+                inx
+                inx
+                inx
+                inx
+            }
+            .if (val.getValue()>4){
+                txa
+                clc
+                adc16 #val.getValue()
+                tax
+            }
+        }
+    }
+</code>

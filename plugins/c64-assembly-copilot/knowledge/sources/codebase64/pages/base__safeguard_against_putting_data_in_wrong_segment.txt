@@ -1,0 +1,32 @@
+# PAGE: base:safeguard_against_putting_data_in_wrong_segment
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:safeguard_against_putting_data_in_wrong_segment
+
+Especially in macros, you often want to put data into a specific segments. After that is done, afaik, there's no way to go back to "previous segment" automatically.
+The next best thing would be to make current segment "undefined", which isn't possible either.
+
+One good safeguard for this is to create an empty segment.
+
+Add to your config file:
+<code>
+MEMORY
+{
+	EMPTY: start=$07FF,  size=$0000, file=%O;
+	...
+}
+SEGMENTS
+{
+	EMPTY:             load=EMPTY, type=ro;
+	...
+}
+</code>
+
+Then, whenever you want to make sure that developer HAS to define a segment, do:
+<code>
+.segment "EMPTY"
+</code>
+If you don't:
+<code>
+ld65: Warning: config.cfg(4): Memory area overflow in `EMPTY', segment `EMPTY' (1 bytes)
+ld65: Error: Cannot generate output due to memory area overflow
+Makefile:62: recipe for target 'example' failed
+</code>

@@ -1,0 +1,28 @@
+# PAGE: base:charpack
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:charpack
+
+====== CharPack ======
+
+===== History =====
+
+CharPack is a quick tool designed to take a 24bit BMP file and convert it to a charset, colour and screen RAM. This is different to the usual bitmap screen mode conversion tools.
+
+The compiled EXE can be found at C64\bin\CharPack.exe
+
+===== Usage =====
+
+CharPack [-h] <input 24bit BMP> [bg colour] [colour 1] [colour 2] [chars file] [screen file] [colours file]
+
+Examples:
+
+To show what colours are used: CharPack TestScreen3.bmp
+
+Note colours 0 (black), 10 (light red) and 1 (white) are often used so pick those for the three colours.
+
+To compress characters with the colours: CharPack TestScreen3.bmp 0 10 1 chars.bin screen.bin colours.bin
+
+The code in C64\C64RasterTest has been updated to display this data.
+
+===== Source code =====
+
+Source code and supporting libraries are available from [[projects:resurrection|the large archive here]].

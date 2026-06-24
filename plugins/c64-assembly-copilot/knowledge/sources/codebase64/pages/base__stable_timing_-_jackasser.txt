@@ -1,0 +1,11 @@
+# PAGE: base:stable_timing_-_jackasser
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:stable_timing_-_jackasser
+
+====== "Stable timing approaches" - Article series ======
+
+Ongoing project by JackAsser/Instinct
+  * [[Introduction to stable timing]]
+  * [[The polling method]] using the half variance technique
+  * [[The double irq method]]
+  * [[Using a timer as an inverted raster x-pos register method]]
+  * [[NMIs and distributed jitter-correction routines|The Ninja-Method: NMIs and distributed jitter-correction routines]] - by St0fF/Neoplasia^theObsessedManiacs

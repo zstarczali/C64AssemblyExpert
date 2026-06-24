@@ -1,0 +1,76 @@
+# PAGE: base:scpu_memcpy
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:scpu_memcpy
+
+====== MemCopy ======
+
+Uses the SuperCPU Memory transfer OPC. Automatically chooses the correct Copy Up or Copy Down OPC based on parameters.
+
+| SYNTAX:        | MemCopy src : dst : qty                 |||
+| EXAMPLE1:      | :MemCopy CopyFrom : CopyTo : Quantity-1 |||
+| EXAMPLE2:      | :MemCopy $200000 : $2000 : 8000-1       |||
+| PARAMETERS:    | Type  | Minimum | Maximum                 |
+|  src           | U16   | $000000 | $ffffff                 |
+|  dst           | U16   | $000000 | $ffffff                 |
+|  qty           | U8    | $000000 | $ffffff                 |
+
+The MVN instruction uses X and Y to specify the bottom (or beginning) addresses of the two blocks of memory. The first byte is moved from the address in X to the address in Y; then X and Y are incremented, C is decremented, and the next byte is moved, and so on, until the number of bytes specified by the value in C is moved (that is, until C
+reaches $FFFF). If C is zero, a single first byte is moved, X and Y are each incremented once, and C is decremented to $FFFF.
+
+The MVP instruction assumes X and Y specify the top (or ending) addresses of the two blocks of memory. The first byte is moved from the address in X to the address in Y; the X, Y and C are decremented, the next byte is moved, and so on, until the number of bytes specified by the value in C is moved (until C reaches $FFFF).
+
+The need for two distinct block move instructions becomes apparent when the problem of memory overlap is considered. Typically, when a block of memory starting at location X is to be moved to location Y, the intention is to replace the memory locations from Y to Y + C with the identical contents of the range X through X + C. However, if these two ranges overlap, it is possible that as the processor blindly transfers memory one byte at a time, it may overwrite a value in the source range before that value has been transferred.
+
+The rule of thumb is, when the destination range is a lower memory address than the source range, the MVN instruction should be used (thus “Move Next”) to avoid overwriting source bytes before they have been copied to the destination. When the destination range is a higher memory location than the source range, the MVP instruction should be used (“Move Previous”).
+
+While you could conceivably move blocks with the index registers set to eight bits (your only option in emulation mode), you could only move blocks in page zero to other page zero location. For all practical purposes, you must reset the x mode flag to sixteen bits before setting up and executing a block move.
+
+Notice that assembling an MVN or MVP instruction generates not only an opcode, but also two bytes of operand. The operand bytes specify the 64K bank from which and to which data is moved. When operating in the 65816’s sixteen-megabyte memory space, this supports the transfer of up to 64K of memory from one bank to another. In the object code, the first byte following the opcode is the bank address of the destination and the second byte is the bank address of the source.
+
+But while this order provides microprocessor efficiency, assembler syntax has always been the more logical left to right, source to destination (TAY, for example, transfers the accumulator to the Y index register). As a result, the recommended assembler syntax is to follow the mnemonic first with a 24-bit source address then with a 24-bit destination address - or more commonly with labels representing code or data addresses. The assembler strips the bank byte from each address (ignoring the rest) and inserts them in the correct object code sequence. (Destination bank, source bank.) For example:
+
+$44 $01 $02 MVP SOURCE, DEST - move from bank of source(02) to bank of dest(01)
+
+The bank byte of the label SOURCE is 02 while the bank byte of the label DEST is 01. As always, the assembler does the work of converting the more human-friendly assembly code to the correct object code format for the processor.
+
+If the source and destination banks are not specified, some assemblers will provide a user-specified default bank value.
+
+The assembler will translate the opcode to object code, then supply its bank value for both of the operand bytes:
+
+$44 $00 $00 MVP
+
+If either bank is different from the default value, both must be specified.
+
+NOTE:
+Does not allow "cross bank copy". Can be implemented if (really) neccessary.
+
+
+<code>
+    .pseudocommand MemCopy src : dst : qty {
+
+        :lda #qty.getValue()
+        :phb
+
+        // Determine if src & dst is in the same bank
+//        .if([src.getValue() & $ffff0000] == [dst.getValue() & $ffff0000]) {
+            // src & dst in same bank, Check if src < dst and select mvp/mvn accordingly
+            .if([src.getValue() & $0000ffff] < [dst.getValue() & $0000ffff]) {
+                // src < dst, use MVP
+                :ldx #[src.getValue() & $0000ffff] + qty.getValue()
+                :ldy #[dst.getValue() & $0000ffff] + qty.getValue()
+                :mvp src.getValue() >> 16 : dst.getValue() >> 16
+            } else {
+                // dst < src, use MVN
+                :ldx #src.getValue() & $0000ffff
+                :ldy #dst.getValue() & $0000ffff
+                :mvn src.getValue() >> 16 : dst.getValue() >> 16
+            }
+//        } else {
+//            // src & dst in different banks
+//            :ldx #src.getValue() & $0000ffff
+//            :ldy #dst.getValue() & $0000ffff
+//            :mvn src.getValue() >> 16 : dst.getValue() >> 16
+//        }
+        :plb
+    }
+
+</code>

@@ -1,0 +1,35 @@
+# PAGE: base:c64gs_detection
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:c64gs_detection
+
+===== C64 Game System (C64GS) detection =====
+
+If you're developing a cartridge-based game and want to setup the controls differently on C64GS (since it doesn't have any physical keyboard), here is how to detect it.
+
+<code>
+check_c64gs			; returns 1 in x-register if true, otherwise 0.
+
+                lda $01		; save $01 temporarily
+                pha
+
+		lda #$36	; kernal will now be visible at $e000
+		sta $01
+
+		ldx #$00
+
+		lda #$43	; check bytes from kernal
+		cmp $fc00	; equals 'C' from 'COPYRIGHT 1990' in C64GS ROM
+		bne cc_break
+		cmp $fc0f	; equals 'C' from 'COMMODORE'
+		bne cc_break
+		cmp $fc1c	; equals first 'C' from 'ELECTRONICS'
+		bne cc_break
+
+		inx
+
+cc_break	pla		; load old $01-value again
+		sta $01
+
+		rts
+</code>
+
+How to use: Call the routine with 'jsr check_c64gs' and check the x-register afterwards.

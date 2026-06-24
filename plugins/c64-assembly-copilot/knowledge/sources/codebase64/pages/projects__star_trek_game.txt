@@ -1,0 +1,20 @@
+# PAGE: projects:star_trek_game
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=projects:star_trek_game
+
+====== StarTrek shooter game (beta). ======
+
+Shoot the Borg cubes with photon torpedoes.
+This is the unlimited lives version.
+Check out the starry background with three different speed of stars.
+After you reach 100 points, two enemies will come.
+My top score with one life is 25000.
+
+Developed with TMPx cross assembler.
+
+{{:projects:startrek.zip|}}
+
+{{:projects:st00.png?300|}}
+
+{{:projects:st01.png?300|}}
+
+{{:projects:st02.png?300|}}

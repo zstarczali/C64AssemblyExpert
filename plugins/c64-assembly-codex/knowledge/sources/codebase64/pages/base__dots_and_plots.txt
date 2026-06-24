@@ -1,0 +1,504 @@
+# PAGE: base:dots_and_plots
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:dots_and_plots
+
+====== Plotting Pixels in HiRes Bitmap ======
+
+By: TWW/Creators
+
+This article will cover the most flexible method to Plott a Pixel on a HiRes Bitmap Screen. As a general purpose Plotter routine, there's no known optimalizations. However if you wish to plott 1024 plots in realtime moving only in 1 axis, this routine would not cut it. Same goes for drawing lines, you could get away with much less cycles using specialized optimizations for the specific task at hand.
+
+So with that matter sorted, it's time to get cracking;
+
+===== BitMap Memory Layout =====
+
+The BitMap Memory can be displayed from several memory locations. For this Article we'll use the RAM area from $2000 - $3f3f in the default VIC Bank. The screen resolution is 320x200 and one pixel is represented by 1 bit. 320x200/8 = #8000/$14f0 bytes. Screen Memory for colors is irrelevant in this case but can offcourse be set to whatever you wish.
+
+The 8 first horizontal pixels in the top left corner is represented by the byte at $2000. Then the second 8 bits directly below it, is represented by $2001. This goes on including $2007 which then totally covers the first 8 x 8 pixel block of the HiRes Image. $2008 begins at the 9th pixel on the top line and represents another 8 horizontal pixels (pixels 9 to 16 of the first line). $2009 is then the next 8 pixels directly below.
+
+^ ^column 1^column 2^column 3^column 4^column ...^column 40^
+^Line 1|$2000|$2008|$2010|$2018|...|$2138|
+^Line 2|$2001|$2009|$2011|$201a|...|$2139|
+^Line ...|...|...|...|...|...|...|
+^Line 8|$2007|$200f|$2017|$201f|...|$213f|
+^Line 9|$2140|$2148|$2150|$2158|...|$2278|
+^Line ...|...|...|...|...|...|...|
+^Line 200|$3e07|$3e0f|$3e17|$3e1f|...|$3f3f|
+
+As we can see, the format is not entirely straight forward and will require table usage as deriving the memory position based on coordinates using math will be too slow.
+
+The biggest problem is the fact that the screen is 320 pixels wide which is not possible to cover using 8 bit indexing. So we need to go 9 bits if we wish to cover the whole screen.
+
+===== 256 pixel wide plotter =====
+
+Good, Let's start with the easiest one.
+
+==== Manually Plotting a Pixel ====
+
+First off all, what is the simplest and direct way to set a pixel on the screen? Let's do an example where we set the upper left pixel on the screen:
+
+<code>
+    lda #%10000000
+    sta $2000
+</code>
+
+Good, that was easy... We did make one assumption though, and that was that none of the other 7 pixels would be set. This would be a problem if we are doing anything else than 1 Plott so we'll need to retain any other set Pixels. So let's try again:
+
+<code>
+    lda #%10000000
+    ora $2000
+    sta $2000
+</code>
+
+There we go, 1 Pixel Plotted and nothing else disturbed.
+
+==== Plotting in Y ====
+
+Now this is very cool but not very helpfull if we want to plott this pixel based on a (X, Y) coordinate. Obviously, indexing directly wouldn't work due to the way the graphics memory is organized. So we need to precalculate possible startingpoints into tables and use indexing to get the correct memory pointer set up. We can do this by using self modifying code but since the address is used twice (ORA/STA) it's better to use indirect addressing.
+
+So let's create a table containing the addresses for the 200 lines:
+
+<code>
+Y_Table_Hi:
+    .byte $20, $20, $20, $20, $20, $20, $20, $20  // Line 1   -> 8:   $2000
+    .byte $21, $21, $21, $21, $21, $21, $21, $21  // Line 9   -> 16:  $2140
+    .byte $22, $22, $22, $22, $22, $22, $22, $22  // Line 17  -> 24:  $2280
+    .byte ...
+    .byte $3e, $3e, $3e, $3e, $3e, $3e, $3e, $3e  // Line 193 -> 200: $3e00
+
+Y_Table_Lo:
+    .byte $00, $01, $02, $03, $04, $05, $06, $07  // Line 1   -> 8:   $2000 -> $2007
+    .byte $40, $41, $42, $43, $44, $45, $46, $47  // Line 9   -> 16:  $2140 -> $2147
+    .byte $80, $81, $82, $83, $84, $85, $86, $87  // Line 17  -> 24:  $2280 -> $2287
+    .byte ...
+    .byte $00, $01, $02, $03, $04, $05, $06, $07  // Line 193 -> 200: $3e00 -> $3e07
+</code>
+
+It is offcourse easy to script a table in kickass based on what ever memory location your graphics has.
+
+Now onwards to finding the correct row and preparing a vector pointer to that memory address. We'll use $fb:$fc on the zero page to make it as snappy as possible:
+
+<code>
+    ldy #Y_POS
+    lda Y_Table_Hi,y
+    sta $fc
+    lda Y_Table_lo,y
+    sta $fb
+</code>
+
+There we go, $fc:$fb now points towards the memory position indicated by Y_POS. To use indirect addressing to actually plot a pixel, we would do something like this:
+
+<code>
+    ldy #Y_POS
+    lda Y_Table_Hi,y
+    sta $fc
+    lda Y_Table_lo,y
+    sta $fb
+
+    ldy #$00
+    lda #%10000000
+    ora ($fb),y
+    sta ($fb),y
+</code>
+
+If Y_POS = 0, the $fc:fb vector would point towards $2000 and we would set the upper left pixel as in our previous example. However it's worth noting that the code grows quickly when it needs to be "realtime adaptive". But we have it nailed so far and we can now plott to any line we want.
+
+==== Plotting in X ====
+
+Next up, we need to compensate for the X-Position which will add #8 the $fc:$fb pointer vector for each 8 pixel we move towards the right. this can also be 'table'ized' as follows:
+
+<code>
+X_Table
+    .byte $00, $00, $00, $00, $00, $00, $00, $00  // Column 1
+    .byte $08, $08, $08, $08, $08, $08, $08, $08  // Column 2
+    .byte $10, $10, $10, $10, $10, $10, $10, $10  // Column 3
+    .byte ...
+    .byte $f8, $f8, $f8, $f8, $f8, $f8, $f8, $f8  // Column 40
+</code>
+
+To implement this into the code, we can do it as follows:
+
+<code>
+    ldx #X_POS
+    ldy #Y_POS
+    lda Y_Table_Hi,y
+    sta $fc
+    lda Y_Table_lo,y
+    sta $fb
+
+    ldy X_Table,x
+    lda #%10000000
+    ora ($fb),y
+    sta ($fb),y
+</code>
+
+Smashing! It now plotts to any 8 pixel block on the entire screen!
+
+==== Plotting in any pixel ====
+
+One detail remaining, and that is the 8 pixel accuracy when plotting. You guessed it, more tables!
+
+<code>
+BitMask:
+    .byte $80, $40, $20, $10, $08, $04, $02, $01
+    .byte $80, $40, $20, $10, $08, $04, $02, $01
+    .byte $80, $40, $20, $10, $08, $04, $02, $01
+    .byte ...
+    .byte $80, $40, $20, $10, $08, $04, $02, $01
+</code>
+
+
+This will give us the final code:
+
+<code>
+    ldx #X_POS
+    ldy #Y_POS
+    lda Y_Table_Hi,y
+    sta $fc
+    lda Y_Table_lo,y
+    sta $fb
+
+    ldy X_Table,x
+    lda BitMask,x
+    ora ($fb),y
+    sta ($fb),y
+</code>
+
+Perfect!
+
+
+==== Plott Subroutine ====
+
+We can easilly make this into a subroutine and call it with X and Y preset to the plotting coordinates as in the following example:
+
+
+<code>
+    ldx #X_POS
+    ldy #Y_POS
+    jsr Plott
+    rts
+
+Plott:
+    lda Y_Table_Hi,y
+    sta $fc
+    lda Y_Table_lo,y
+    sta $fb
+
+    ldy X_Table,x
+    lda BitMask,x
+    ora ($fb),y
+    sta ($fb),y
+    rts
+</code>
+
+The plotter itself will net us a blitzing 33/34 cycles (vaires due to indirect ORA) if all tables are Page-Aligned and disregarding the setup and subroutine call.
+
+
+This example will only plott to the first 256 Pixels on the left side of the screen. If you wish to move the plotting area, simply adjust your Y_Table's accordingly (Add 8 for each column you wish to move the plotting area to the right).
+
+==== KickAssembler Table Scripts ====
+
+Quick and Brutal:
+
+<code>
+    .align $100
+BitMask:
+    .fill 256, pow(2,7-i&7)
+X_Table:
+    .fill 256, floor(i/8)*8
+Y_Table_Hi:
+    .fill 200, >GFX_MEM+[320*floor(i/8)]+[i&7]
+    .align $100
+Y_Table_Lo:
+    .fill 200, <GFX_MEM+[320*floor(i/8)]+[i&7]
+</code>
+
+==== Table Generators ====
+
+The tables needed in this routine should pack fairly well but there probably is some bytes to be saved on generating the tables realtime if memory is an issue (When isn't it?)
+
+The following code snippet generates the X_Table, Y_Table_Lo, Y_Table_Hi and BitMask tables (total of 912 bytes squeezed into 54 bytes):
+
+<code>
+  /*╔════════════════════════════════════════════════════════════════════════════╗
+    ║╔══════════════════════╗                         ┌──────┐                   ║
+    ║║  BitMap Plotter      ║                         │AUTHOR├─┐ TWW / CREATORS  ║
+    ║╚══════════════════════╝                         └──────┘ └════════════════ ║
+    ║                                                                            ║
+    ║┌──────────────────────┐                                                    ║
+    ║│▓▓▓▓ DESCRIPTION ▓▓▓▓▓│                                                    ║
+    ║├──────────────────────┴───────────────────────────────────────────────────┐║
+    ║│Will create 4 tables to plott a pixel on a Hires Bitmap screen;           │║
+    ║│- BitMask    - $80, $40, $20, $10, $08, $04, $02, $01                     │║
+    ║│- X_Table    - $00 x 8, $08 x 8, $10 x 8, ...                             │║
+    ║│- Y_Table_Lo - <GFX_MEM x 8, <GFX_MEM + $140 x 8, ...                     │║
+    ║│- Y_Table_Hi - >GFX_MEM x 8, >GFX_MEM + $140 x 8, ...                     │║
+    ║│                                                                          │║
+    ║│GFX_MEM must be set to the correct Graphics Bank.                         │║
+    ║└──────────────────────────────────────────────────────────────────────────┘║
+    ║┌──────────────────────┐                                                    ║
+    ║│▓▓▓▓▓ FOOTPRINT ▓▓▓▓▓▓│                                                    ║
+    ║├──────────────────────┴─────────────┐                                      ║
+    ║│54 Bytes                            │                                      ║
+    ║└────────────────────────────────────┘                                      ║
+    ╚════════════════════════════════════════════════════════════════════════════╝*/
+
+    .const GFX_MEM    = $2000
+
+    .const BitMask    = $0a00
+    .const X_Table    = $0b00
+    .const Y_Table_Lo = $0c00
+    .const Y_Table_Hi = $0d00
+
+    ldx #$00
+    lda #$80
+Loop1:
+    sta BitMask,x
+    ror
+    bcc Skip1
+        ror
+Skip1:
+    tay
+    txa
+    and #%11111000
+    sta X_Table,x
+    tya
+    inx
+    bne Loop1
+
+    lda #<GFX_MEM  // Can be replaced with a TXA if GFX_MEM is page aligned
+Loop2:
+    ldy #$07
+Loop3:
+    sta Y_Table_Lo,x
+    pha
+SMC1:
+    lda #>GFX_MEM
+    sta Y_Table_Hi,x
+    pla
+    inx
+    dey
+    bpl Loop3
+    inc SMC1+1
+    clc
+    adc #$40
+    bcc Skip2
+        inc SMC1+1
+Skip2:
+    cpx #8*25
+    bne Loop2
+</code>
+
+===== 320 pixel wide plotter =====
+
+Assuming you have read and understood the 256 pixel plotter above, the next step is to enlarge the plotter to plott across the whole screen (320 pixels). For Y, nothing has changed though as Y_Max = 199.
+
+This can as always be done in many ways, but we actually only need 1 bit (same as the sprites) to indicate if we are crossing the 256th border.
+
+So let's for the sake of simplicity say that CARRY = the 9th X-Bit. Then when the routine is called, simply add 256 to the Y-Position calculation if the CARRY is set at the cost of 2 bytes / cycles:
+
+<code>
+    lda Y_Table_Hi,y
+    adc #$00             // Adds 1 to HiByte (256 pixels) if CARRY is set
+    sta $fc
+    lda Y_Table_lo,y
+    sta $fb
+    ldy X_Table,x
+    lda BitMask,x
+    ora ($fb),y
+    sta ($fb),y
+    rts
+</code>
+
+The indexing into the Bitmask and X_Table does not need any additional handling as once you add 256 pixels, the X-index will wrap around and fetch legit values again (i.e position $100 means Index X = 0 which will give #%10000000 as bitmask and #$00 as X_Table (offset)) and plott correctly at the 256th pixel.
+
+====== Plotting Pixels in HiRes Charmap ======
+
+By: TWW/Creators
+
+This article will explain how to use a Character map to plott pixels. This technique is used for a lot of the graphical effects seen in demos (BOBs, Line Vectors, Plots etc.). The routine we will end up with will be very versitile and be as fast as a subroutine can be in order to plott a pixel freely inside the Character map. If You're doing lines or other effects, You would be better off with speedcode or tailored application without the use of sub routine calls.
+
+So then, let's take a look;
+
+===== Charactermap Memory Layout =====
+
+The Charactermap Memory can be displayed from several memory locations. For this Article we'll use the RAM area from $2000 - $2800 in the default VIC Bank. The map resolution is 128x128 and one pixel is represented by 1 bit. 128x128/8 = #2048/$800 bytes. Screen Memory for collors is irrelevant in this case but can offcourse be set to whatever you wish.
+
+The trick of this routine is that we can have the memory laid out depending on the setup of the characters. We will put @ (#$00) in the top left corner and "A" directly below it untill we reac 16 characters. The we start from the top again and do the next column.
+
+The 8 first horizontal pixels in the top left corner is represented by the byte at $2000. Then the second 8 bits directly below it, is represented by $2001. This goes on untill the last pixel (127) at $207f. $2080 begins at the 9th pixel on the top line and represents another 8 horizontal pixels (pixels 9 to 16 of the first line). $2009 is then the next 8 pixels directly below untill $20ff.
+
+^ ^column 1^column 2^column 3^column 4^column ...^column 16^
+^Line 1|$2000|$2080|$2100|$2180|...|$2780|
+^Line 2|$2001|$2009|$2011|$201a|...|$2139|
+^Line ...|...|...|...|...|...|...|
+^Line 128|$207f|$20ff|$217f|$21ff|...|$27ff|
+
+This format is not very straight forward easy to use tables to derive the memory position based on coordinates.
+
+Since we only have a 128 pixels, one byte for X and Y is all we need.
+
+==== Creating the Charactermap matrix ====
+
+This part is very simple. We do as follows:
+
+<code>
+    .const ScreenMem = $0400
+    .const Offset = [40-16]/2
+
+    ldx #$00
+    clc
+    txa
+Loop:
+    sta ScreenMem+Offset+[40*0],x
+    adc #$01
+    sta ScreenMem+Offset+[40*1],x
+    adc #$01
+    sta ScreenMem+Offset+[40*2],x
+    adc #$01
+    sta ScreenMem+Offset+[40*3],x
+    adc #$01
+    sta ScreenMem+Offset+[40*4],x
+    adc #$01
+    sta ScreenMem+Offset+[40*5],x
+    adc #$01
+    sta ScreenMem+Offset+[40*6],x
+    adc #$01
+    sta ScreenMem+Offset+[40*7],x
+    adc #$01
+    sta ScreenMem+Offset+[40*8],x
+    adc #$01
+    sta ScreenMem+Offset+[40*9],x
+    adc #$01
+    sta ScreenMem+Offset+[40*10],x
+    adc #$01
+    sta ScreenMem+Offset+[40*11],x
+    adc #$01
+    sta ScreenMem+Offset+[40*12],x
+    adc #$01
+    sta ScreenMem+Offset+[40*13],x
+    adc #$01
+    sta ScreenMem+Offset+[40*14],x
+    adc #$01
+    sta ScreenMem+Offset+[40*15],x
+    inx
+    bne Loop
+</code>
+
+
+==== Manually Plotting a Pixel ====
+
+First off all, what is the simplest and direct way to set a pixel on the charactermap? Let's do an example where we set the upper left pixel on the map:
+
+<code>
+    lda #%10000000
+    sta $2000
+</code>
+
+Good, that was easy... We did make one assumption though, and that was that none of the other 7 pixels would be set. This would be a problem if we are doing anything else than 1 Plott so we'll need to retain any other set Pixels. So let's try again:
+
+<code>
+    lda #%10000000
+    ora $2000
+    sta $2000
+</code>
+
+There we go, 1 Pixel Plotted and nothing else disturbed.
+
+==== Plotting in Y ====
+
+If we want to move the plot in Y - Direction we could easilly add indexing.
+
+<code>
+    lda #%10000000
+    ora $2000,y
+    sta $2000,y
+</code>
+
+Now we can plot this pixel at any Y in the column.
+
+==== Plotting in X ====
+
+To move in X-Direction we need to add #$80 to get to the next column. The most straight forward way to do that would be to use indirect indexin with some tables:
+
+<code>
+    lda LoByte,x
+    sta $fb
+    lda HiByte,x
+    sta $fc
+    lda #%10000000
+    ora ($fb),y
+    sta ($fb),y
+    rts
+
+    // tables
+LoByte:
+    .byte $00, $00, $00, $00, $00, $00, $00, $00, $80, $80, $80, $80, $80, $80, $80, $80
+    .byte $00, $00, $00, $00, $00, $00, $00, $00, $80, $80, $80, $80, $80, $80, $80, $80
+    .byte $00, $00, $00, $00, $00, $00, $00, $00, $80, $80, $80, $80, $80, $80, $80, $80
+    .byte $00, $00, $00, $00, $00, $00, $00, $00, $80, $80, $80, $80, $80, $80, $80, $80
+    .byte $00, $00, $00, $00, $00, $00, $00, $00, $80, $80, $80, $80, $80, $80, $80, $80
+    .byte $00, $00, $00, $00, $00, $00, $00, $00, $80, $80, $80, $80, $80, $80, $80, $80
+    .byte $00, $00, $00, $00, $00, $00, $00, $00, $80, $80, $80, $80, $80, $80, $80, $80
+    .byte $00, $00, $00, $00, $00, $00, $00, $00, $80, $80, $80, $80, $80, $80, $80, $80
+HiByte:
+    .byte $20, $20, $20, $20, $20, $20, $20, $20, $20, $20, $20, $20, $20, $20, $20, $20
+    .byte $21, $21, $21, $21, $21, $21, $21, $21, $21, $21, $21, $21, $21, $21, $21, $21
+    .byte $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22
+    .byte $23, $23, $23, $23, $23, $23, $23, $23, $23, $23, $23, $23, $23, $23, $23, $23
+    .byte $24, $24, $24, $24, $24, $24, $24, $24, $24, $24, $24, $24, $24, $24, $24, $24
+    .byte $25, $25, $25, $25, $25, $25, $25, $25, $25, $25, $25, $25, $25, $25, $25, $25
+    .byte $26, $26, $26, $26, $26, $26, $26, $26, $26, $26, $26, $26, $26, $26, $26, $26
+    .byte $27, $27, $27, $27, $27, $27, $27, $27, $27, $27, $27, $27, $27, $27, $27, $27
+</code>
+
+We could use SMC but as we have to ORA before we STA this will add time to the execution.
+
+==== Plotting in any pixel ====
+
+One detail remaining, and that is the 8 pixel accuracy when plotting. More tables!
+
+<code>
+    // Subroutine to plot any pixel in a 16 x 16 character map
+    // X and Y Registered preloaded with the coordinates.
+
+Plott:
+    lda LoByte,x
+    sta $fb
+    lda HiByte,x
+    sta $fc
+    lda ($fb),y
+    ora BitMask,x
+    sta ($fb),y
+    rts
+
+    // tables
+BitMask:
+    .byte $80, $40, $20, $10, $08, $04, $02, $01, $80, $40, $20, $10, $08, $04, $02, $01
+    .byte $80, $40, $20, $10, $08, $04, $02, $01, $80, $40, $20, $10, $08, $04, $02, $01
+    .byte $80, $40, $20, $10, $08, $04, $02, $01, $80, $40, $20, $10, $08, $04, $02, $01
+    .byte $80, $40, $20, $10, $08, $04, $02, $01, $80, $40, $20, $10, $08, $04, $02, $01
+    .byte $80, $40, $20, $10, $08, $04, $02, $01, $80, $40, $20, $10, $08, $04, $02, $01
+    .byte $80, $40, $20, $10, $08, $04, $02, $01, $80, $40, $20, $10, $08, $04, $02, $01
+    .byte $80, $40, $20, $10, $08, $04, $02, $01, $80, $40, $20, $10, $08, $04, $02, $01
+    .byte $80, $40, $20, $10, $08, $04, $02, $01, $80, $40, $20, $10, $08, $04, $02, $01
+LoByte:
+    .byte $00, $00, $00, $00, $00, $00, $00, $00, $80, $80, $80, $80, $80, $80, $80, $80
+    .byte $00, $00, $00, $00, $00, $00, $00, $00, $80, $80, $80, $80, $80, $80, $80, $80
+    .byte $00, $00, $00, $00, $00, $00, $00, $00, $80, $80, $80, $80, $80, $80, $80, $80
+    .byte $00, $00, $00, $00, $00, $00, $00, $00, $80, $80, $80, $80, $80, $80, $80, $80
+    .byte $00, $00, $00, $00, $00, $00, $00, $00, $80, $80, $80, $80, $80, $80, $80, $80
+    .byte $00, $00, $00, $00, $00, $00, $00, $00, $80, $80, $80, $80, $80, $80, $80, $80
+    .byte $00, $00, $00, $00, $00, $00, $00, $00, $80, $80, $80, $80, $80, $80, $80, $80
+    .byte $00, $00, $00, $00, $00, $00, $00, $00, $80, $80, $80, $80, $80, $80, $80, $80
+HiByte:
+    .byte $20, $20, $20, $20, $20, $20, $20, $20, $20, $20, $20, $20, $20, $20, $20, $20
+    .byte $21, $21, $21, $21, $21, $21, $21, $21, $21, $21, $21, $21, $21, $21, $21, $21
+    .byte $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22
+    .byte $23, $23, $23, $23, $23, $23, $23, $23, $23, $23, $23, $23, $23, $23, $23, $23
+    .byte $24, $24, $24, $24, $24, $24, $24, $24, $24, $24, $24, $24, $24, $24, $24, $24
+    .byte $25, $25, $25, $25, $25, $25, $25, $25, $25, $25, $25, $25, $25, $25, $25, $25
+    .byte $26, $26, $26, $26, $26, $26, $26, $26, $26, $26, $26, $26, $26, $26, $26, $26
+    .byte $27, $27, $27, $27, $27, $27, $27, $27, $27, $27, $27, $27, $27, $27, $27, $27
+</code>
+
+The tables are written out in full, but normally one would generate these as illustrated in the Hi-res version above.

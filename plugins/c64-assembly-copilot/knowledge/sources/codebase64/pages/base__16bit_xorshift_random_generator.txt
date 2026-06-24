@@ -1,0 +1,55 @@
+# PAGE: base:16bit_xorshift_random_generator
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:16bit_xorshift_random_generator
+
+====== 16-bit "798" Xorshift ======
+
+  * original idea: [[https://www.jstatsoft.org/article/view/v008i14|George Marsaglia]]
+  * idea for fast 8-bit implementation: [[http://www.retroprogramming.com/2017/07/xorshift-pseudorandom-numbers-in-z80.html|John Metcalf]]
+  * ported by: Veikko Sariola
+
+Xorshift is a fast pseudorandom generator algorithm originally developed by [[https://www.jstatsoft.org/article/view/v008i14|George Marsaglia]]. [[http://www.retroprogramming.com/2017/07/xorshift-pseudorandom-numbers-in-z80.html|John Metcalf]] found a 16-bit version of the algorithm that is fast on 8-bit platforms with only single bit shifts available. It has a period of 65535 and passes reasonable tests for randomness. His pseudocode is reprinted here:
+
+<code c>
+/* 16-bit xorshift PRNG */
+
+unsigned x = 1;
+
+unsigned xorshift( )
+{
+    x ^= x << 7;
+    x ^= x >> 9;
+    x ^= x << 8;
+    return x;
+}
+</code>
+
+Here is an implementation for the C64. 30 cycles without the RTS.
+
+<code asm>
+rng_zp_low = $02
+rng_zp_high = $03
+        ; seeding
+        LDA #1 ; seed, can be anything except 0
+        STA rng_zp_low
+        LDA #0
+        STA rng_zp_high
+        ...
+        ; the RNG. You can get 8-bit random numbers in A or 16-bit numbers
+        ; from the zero page addresses. Leaves X/Y unchanged.
+random  LDA rng_zp_high
+        LSR
+        LDA rng_zp_low
+        ROR
+        EOR rng_zp_high
+        STA rng_zp_high ; high part of x ^= x << 7 done
+        ROR             ; A has now x >> 9 and high bit comes from low byte
+        EOR rng_zp_low
+        STA rng_zp_low  ; x ^= x >> 9 and the low part of x ^= x << 7 done
+        EOR rng_zp_high 
+        STA rng_zp_high ; x ^= x << 8 done
+        RTS
+</code>
+
+Results:
+
+{{:base:xorshift_798_results.png?400|}}

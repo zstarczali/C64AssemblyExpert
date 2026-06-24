@@ -1,0 +1,31 @@
+# PAGE: base:nmi_lock_without_kernal
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:nmi_lock_without_kernal
+
+====== NMI Lock Without Kernal ======
+
+Modification of the example given at [[base:nmi_lock|NMI lock]]. The NMI is locked without using kernal routines and without using RAM at $0318/$0319.
+
+<code>
+  ; 'Disable NMI' without using kernal and $0318/$0319 by Sokrates
+
+  sei  ;; switch off interrupt
+  lda #$35 ;; all RAM except D000-Dfff 
+  sta $01  ;; write to $FFFA/$FFFB now possible
+  lda #<nmiRoutine ;; change nmi vector to nmiRoutine
+  sta $FFFA		     
+  lda #>nmiRoutine
+  sta $FFFB 			
+  lda #$00  ;; stop Timer A
+  sta $DD0E 
+  sta $DD04 ;; set Timer A to 0, after starting
+  sta $DD05 ;; NMI will occur immediately
+  lda #$81  
+  sta $DD0D ;; set Timer A as source for NMI 
+  lda #$01  
+  sta $DD0E ;; start Timer A -> NMI
+  ;; from here on NMI is disabled
+  ...
+
+nmiRoutine
+  rti ;; exit interrupt not acknowledged 
+</code>

@@ -1,0 +1,128 @@
+# PAGE: base:exomizer_making_custom_oldschool_decrunch_effects
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:exomizer_making_custom_oldschool_decrunch_effects
+
+===== Exomizer adding a custom de-crunch effect and de-crunch text =====
+
+You may have remembered back in the 1980's / 1990's C64 scene groups liked to present their own productions by adding a de-crunch effect or a 1-liner to their own programs before de-crunching the data and executing the program. A lot of these were made in Speed Packer, Cruncher AB, Cruel Crunch, Power Crunch, etc. Nowadays, for speed and efficiency the majority of us have moved to cross-platform coding. We know how much of a boring process crunching has been. Some of us still miss the decrunch text method.
+
+Decrunch effects were used in order to show that something is happening and the program isn't just stuck.
+Note, if coding custom decrunch effects into the Exomizer. Before you call Exomizer in command. The output filename should be the last file is the output file. For example:
+
+*exomizer sfx $jump_address loadname.prg -x "effect code" -o savename.prg*
+where jump_address = the address you run your program code after decrunching has finished.
+
+Exomizer has a custom de-crunch effect routine, when using SFX mode. Its default effect is a flashing character at the bottom right of the screen. There are possibilities of customizing exomizer to do really cool de-crunch effects based on the old packers/crunchers you may have used. For example, here is an example of the ** Speed Packer V1.1 ** decrunch sound:
+
+** exomizer sfx $4245 rayfish.prg  -s "lda #$00 sta $fb" -x "lda $fb eor #$01 sta $fb beq skip inc $d418 skip:"  -o rayfish.prg **
+
+(replace $d418 with $d020 if you want thick multicolour bars instead of strange noises);
+
+A post on Lemon 64 Forum has a list of example programmable decrunch effects which resemble some of the old crunchers. If you want to use them, here is a list of those:
+
+**Cruncher AB Style** (Black, White, Green, Purple - Change the AND (or make ORA) value to pick different colour scheme)
+-x "lda $fb eor #$01 sta $fb beq skip inc $fc lda $fc and #$05 sta $d020 skip:" -s "lda #$00 sta $d011" -f "lda #$1b sta $d011"
+
+**Coloured stripe columns**
+-x "inc $fb lda $fb sta $d020 lda #$00 sta $d020" 
+
+** Black and white stripe columns**
+-x "lda $fb eor #$01 sta $fb beq skip lda #$01 sta $d020 lda #$00 sta $d020 skip:"
+
+** Hi-Tec loader style stripe columns **
+-x "lda $fb eor #$01 sta $fb beq skip dec $d020 inc $d020 skip:"
+
+** Black and single colour stripes **
+
+Change the eor #$XX instruction depending on which colour you want:
+
+eor #$01 = White
+eor #$02 = Red
+eor #$03 = Cyan
+eor #$04 = Purple
+eor #$05 = Green
+eor #$06 = Blue
+eor #$07 = Yellow
+eor #$08 = Orange
+eor #$09 = Brown
+eor #$0a = Light red
+eor #$0b = Dark grey
+eor #$0c = Grey
+eor #$0d = Light green
+eor #$0e = Light blue
+eor #$0f = Light grey
+
+-x "lda $fb eor #$01 sta $fb beq skip lda $fc eor #$XX sta $d020 sta $fb sta $fc skip:"
+
+** Thicker inc $d020 stripes**
+-x "lda $fb eor #$01 sta $fb beq skip inc $d020 skip:"
+
+** File Press Expert effect **
+Set start of decruncher to red border the run depacker
+-x "lda $fb eor #$01 sta $fb beq skip lda $d020 eor #$01 sta $d020 skip:" -s "lda #$02 sta $d020" 
+
+** The Sharks Darksqueezer 0.1 ** (flickers the chars at the top left)
+-x "dec $0400 inc $0401 stx $0402"
+
+** Beastlinker ** (but slightly thicker)
+-x "ora #$05 sta $d020"  
+
+** Amazing ByteRaper ** (without any text)
+-x "ora #$05 sta $d021 sta $d418" 
+
+** FX Equal Sequence V2 ** (aka as the Mega Cruncher)
+-x "inc $fb lda $fb sta $d020 lda #0 sta $d020" 
+==== Adding Decrunch text to Exomizer SFX ====
+
+Adding a custom effect may be fun, what about adding a de-crunch text? Can that be done with Exomizer?
+
+Well, you could program a few characters using the -s "lda #$01 sta $0400 lda #$02 sta $0401 lda #$03 sta $040", but that is not really efficient. There is a function in Exomizer, which allows you to link custom code before de-crunching the code. In fact you will need to code a small routine yourself. First you need to use:
+
+** exomizer sfx $4245 rayfish.prg -o rayfish.prg -s "jsr highest_addr_out" -n **
+
+That will crunch the program, and give no decrunch effect. If you run this program, it will crash straight away because there is no code at the address it jumps to. Therefore we would need to code the decrunch text routine ourselves.
+
+<code>
+
+!to "rayfishcomplete.prg",cbm
+
+;Link the Exomizer SFX crunched program here
+*=$0801
+!bin "rayfish+.prg",,2
+
+;Black the screen 
+lda #0
+sta $d020
+sta $d021
+;-------------------------------
+ldx #$00  ;If using KERNAL RAM, 
+clrscrn   ;simply use JSR $E544 
+lda #$20  ;instead of this
+sta $0400,x
+sta $0500,x
+sta $0600,x
+sta $06e8,x
+inx
+bne clrscrn
+;--------------------------------
+
+;The decrunch text output routine 
+
+ldx #decrunchtextend-decrunchtext
+maketext 
+lda decrunchtext,x 
+sta $0400,x ;or where ever you wish to place it
+lda #$0f 
+sta $d800,x 
+dex
+bpl maketext
+
+;Always terminate with an RTS
+rts 
+
+!ct scr ;If using C64 studio
+
+;The decrunch text
+decrunchtext
+!text "-bringing the new dimension to your c64-"
+decrunchtextend
+</code>

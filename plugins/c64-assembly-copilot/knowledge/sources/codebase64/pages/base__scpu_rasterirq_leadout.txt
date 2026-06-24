@@ -1,0 +1,26 @@
+# PAGE: base:scpu_rasterirq_leadout
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:scpu_rasterirq_leadout
+
+====== RasterIRQLeadOut ======
+
+Exits IRQ interrupt code. Restores registers and sets next IRQ vector
+
+| SYNTAX:            | :RasterIRQLeadOut RasterCompareValue : VectorIRQ |||
+| EXAMPLE:           | :RasterIRQ 52 : #NextIRQ                         |||
+| PARAMETERS:        |  Type   |  Minimum  |  Maximum                     |
+| RasterCompareValue |   U9    |     0     |   312                        |
+| VectorIRQ          |  Label  |    N/A    |   N/A                        |
+
+<code>
+    .pseudocommand RasterIRQLeadOut RasterCompareValue : IRQVector {
+        lda #IRQVector.getValue()
+        sta $ffee
+        RasterCompare RasterCompareValue.getValue()
+        lda $d019
+        sta $d019
+        ply
+        plx
+        pla
+        rti
+    }
+</code>

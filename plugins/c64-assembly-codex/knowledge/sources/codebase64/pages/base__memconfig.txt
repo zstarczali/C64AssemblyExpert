@@ -1,0 +1,12 @@
+# PAGE: base:memconfig
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:memconfig
+
+====== Memory configuration ======
+
+This section describes how to do various kinds of memory configuration on the C64. 
+
+  * [[base:quick_vicii_screen_setup|Quick VIC-II screen setup]] - Code snippet to easily set the screen/font/bitmap address configuration
+  * [[base:vicii_memory_organizing|VIC memory organizing]] - Selecting VIC bank, where to put sprites, etc.
+  * [[base:memmanage|Memory Management]] - a part of c64doc by John West and Marko Mäkelä
+  * [[base:memory_management|Memory Management]] - Switching on/off BASIC, KERNAL, CHAR ROM by setting $01.
+  * [[RAM beneath $00 and $01]] - For the nerd in you.

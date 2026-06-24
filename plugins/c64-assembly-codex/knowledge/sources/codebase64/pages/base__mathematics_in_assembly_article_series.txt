@@ -1,0 +1,15 @@
+# PAGE: base:mathematics_in_assembly_article_series
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:mathematics_in_assembly_article_series
+
+======  Mathematics in Assembly ======
+
+Article series by Krill/Plush, originally published in various disk mags. They are all collected here:
+
+  * [[base:mathematics_in_assembly_part_1|Part 1: Attitude #4]]
+  * [[base:mathematics_in_assembly_part_2|Part 2: Domination #17]]
+  * [[base:mathematics_in_assembly_part_3|Part 3: Attitude #5]]
+  * [[base:mathematics_in_assembly_part_4|Part 4: Vandalism News #40]]
+  * [[base:mathematics_in_assembly_part_5|Part 5:]] 
+  * [[base:mathematics_in_assembly_part_6|Part 6:]]
+  * [[base:mathematics_in_assembly_part_7|Part 7: Attitude #7]]
+  * [[base:mathematics_in_assembly_part_8|Part 8: Vandalism News #41]]

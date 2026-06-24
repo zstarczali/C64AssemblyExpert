@@ -1,0 +1,110 @@
+# PAGE: base:joystick_input_handling
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:joystick_input_handling
+
+====== Joystick Input Handling - general info and examples ======
+
+By default the C64 can handle up to 2 joysticks that are connected to the 9-pin game ports. Unlike analogue joysticks used with modern PC the common C64 Joysticks were usually "digital", that is they contained a couple of switches that were closed by axis movements and button presses.
+
+The state of those switches can be read from the $dc00 (gameport 2) and $dc01 (port1) registers of CIA1, with the bits used as follows:
+
+  - - joystick up/forward
+  - - down/backward
+  - - left
+  - - right
+  - - fire
+
+C64's internal logic has it that if one of those switches is closed it will read 0, otherwise 1. For instance, if you want to branch somewhere if the firebutton of joystick was pressed the code should look like this:
+
+<code>
+lda $dc00      ;read gameport2
+and #$10       ;isolate button bit
+beq is_pressed ;if =0 then button is down, not vice versa!
+</code>
+
+Furthermore, to check if a joystick at any port is moved, $dc00 and $dc01 must be ANDed together due to that switch logic.  
+The above routine is ok to check certain single switches, but to process all at once the following routine by Bill Hindorf (published in the Programmer's Reference Guide) seems superior, especially for game-coding:
+
+<code>
+                
+dx .byte 0
+dy .byte 0
+
+djrr    lda $dc00     ; get input from port 2 only
+djrrb   ldy #0        ; this routine reads and decodes the
+        ldx #0        ; joystick/firebutton input data in
+        lsr           ; the accumulator. this least significant
+        bcs djr0      ; 5 bits contain the switch closure
+        dey           ; information. if a switch is closed then it
+djr0    lsr           ; produces a zero bit. if a switch is open then
+        bcs djr1      ; it produces a one bit. The joystick dir-
+        iny           ; ections are right, left, forward, backward
+djr1    lsr           ; bit3=right, bit2=left, bit1=backward,
+        bcs djr2      ; bit0=forward and bit4=fire button.
+        dex           ; at rts time dx and dy contain 2's compliment
+djr2    lsr           ; direction numbers i.e. $ff=-1, $00=0, $01=1.
+        bcs djr3      ; dx=1 (move right), dx=-1 (move left),
+        inx           ; dx=0 (no x change). dy=-1 (move up screen),
+djr3    lsr           ; dy=0 (move down screen), dy=0 (no y change).
+        stx dx        ; the forward joystick position corresponds
+        sty dy        ; to move up the screen and the backward
+        rts           ; position to move down screen.
+                      ;
+                      ; at rts time the carry flag contains the fire
+                      ; button state. if c=1 then button not pressed.
+                      ; if c=0 then pressed.
+</code>
+
+Now dx and dy can be used to change the player's sprite position directly or be added to x/y speeds for indirect movement control. However, this routine isn't too suitable for joystick controlled menues of some kind as it is difficult to control the speed at which the menu-items are selected. That drawback can be overcome by a slight variation:
+
+<code>
+up    .byte 0
+down   .byte 0
+left   .byte 0
+right  .byte 0
+button .byte 0
+
+lda $dc00 ;read joystick port 2
+lsr       ;get switch bits
+ror up    ;switch_history = switch_history/2 + 128*current_switch_state
+lsr       ;update the other switches' history the same way
+ror down
+lsr
+ror left
+lsr
+ror right
+lsr
+ror button
+rts
+</code>
+
+The above routine generates a 'history' of switch-states for each button that can be used like this:
+
+<code>
+;isolate single fire-button taps:
+
+          bit button       ;check if the joystick has just been moved up:
+          bmi no_action    ;if not up at all
+          bvc no_action    ;or already up during the last joystick readout
+
+          jsr just_pressed ;else it has just been tapped, thus react
+
+no_action ...
+</code>
+
+...or like this:
+
+<code>
+
+;delayed reaction:
+
+          lda up        ;check for stick forward movement: 
+          bne no_action ;if <> 0 then stick wasn't held up long enough
+                        ;else it was up the last 8 readouts:
+          dec up        ;reset history to $ff for new delay
+          jsr up_action ;and call the appropriate routine
+
+no_action ...
+
+</code>
+
+To achieve user-friendly menu controls, the methods above could be combined to check for both 'fresh' inputs and continuos switch closure.

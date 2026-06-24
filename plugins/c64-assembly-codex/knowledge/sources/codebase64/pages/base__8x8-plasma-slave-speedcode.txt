@@ -1,0 +1,5301 @@
+# PAGE: base:8x8-plasma-slave-speedcode
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:8x8-plasma-slave-speedcode
+
+<code>
+
+//--------------------------------------------------------------------------------------------------
+// 8x8 Plasma Crap w/ Speedcode Done the Slave Way
+// For Codebase64
+// By Cruzer/CML 2009
+// Asm: KickAss 3.1
+//--------------------------------------------------------------------------------------------------
+// memory...
+.var plasmaCnt =	$02
+.var add =		$04
+.var screen =		$0400
+.var basic =		$0801
+.var sine64 =		$1000
+.var sine128 =		$1200
+.var colorTable =	$1400
+.var bitmap =		$2000
+.var code =		$4000
+//--------------------------------------------------------------------------------------------------
+.pc = sine64 "sine64"
+.for (var i=0; i<$200; i++)
+	.by 32 + 32 * sin(i/[$100/2/PI])
+.pc = sine128 "sine128"
+.for (var i=0; i<$200; i++)
+	.by 64 + 64 * sin(i/[$100/2/PI])
+//--------------------------------------------------------------------------------------------------
+.pc = $0801 "basic"
+:BasicUpstart(code)
+//--------------------------------------------------------------------------------------------------
+.pc = code "code"
+	jmp start
+//--------------------------------------------------------------------------------------------------
+// Plasma Params...
+// Most of them are usused, since the speedcode is hardcoded, so changing them is useless.
+// Instead you need to change it 1000 times in the speedcode below. Not recommended :)
+.var width = 40
+.var height = 25
+.var sineSpreadX = 	$03
+.var sineSpreadY =	$01
+.var colorSpreadX = 	$01
+.var colorSpreadY = 	$02
+.var realtimeSpread0 =	$04
+.var realtimeSpread1 =	$07
+sineSpeeds:	.byte $03,$fe
+addSpeed:	.byte $ff
+colors:		.byte $a7,$aa,$8a,$2a,$b8,$95,$b5,$c5,$55,$5f,$cd,$5d,$37,$dd,$d1,$11
+//--------------------------------------------------------------------------------------------------
+start:
+	sei
+
+//clear screen...
+	ldx #$00
+	txa
+!:	sta $0400,x
+	sta $0500,x
+	sta $0600,x
+	sta $0700,x
+	inx
+	bne !-
+	
+// fill bitmap...
+	ldx #0
+	ldy #$1f
+	lda #%01010101
+!:	sta bitmap,x
+	eor #%11111111
+	inx
+	bne !-
+	inc !- +2
+	dey
+	bpl !-
+
+// generate color table...
+	ldx #0
+!loop:
+	txa
+	asl
+	asl
+	asl
+	bcc !+
+	eor #$ff
+!:	lsr
+	lsr
+	lsr
+	lsr
+	tay
+	lda colors,y
+	sta colorTable,x
+	sta colorTable+$100,x
+	inx
+	bne !loop-
+
+// init vic...
+	lda #$3b
+	sta $d011
+	lda #$18
+	sta $d018
+//--------------------------------------------------------------------------------------------------
+mainLoop:
+	lda #$00
+	sta $d020
+	lda #$44
+!:	cmp $d012
+	bne !-
+	sta $d020
+	
+	lda plasmaCnt+0
+	clc
+	adc sineSpeeds+0
+	sta plasmaCnt+0
+	lda plasmaCnt+1
+	clc
+	adc sineSpeeds+1
+	sta plasmaCnt+1
+	lda add
+	clc
+	adc addSpeed
+	anc #$3f
+	sta add
+
+	//here comes the speedcode...
+	ldx plasmaCnt + 0
+	ldy plasmaCnt + 1
+	clc
+	lda sine128 + $00,x
+	adc sine64 + $00,y
+	tax
+	lda sine64 + $00,x
+	adc add
+	tay
+	lda colorTable + $00,y
+	sta $0400
+	lda sine64 + $03,x
+	adc add
+	tay
+	lda colorTable + $01,y
+	sta $0401
+	lda sine64 + $06,x
+	adc add
+	tay
+	lda colorTable + $02,y
+	sta $0402
+	lda sine64 + $09,x
+	adc add
+	tay
+	lda colorTable + $03,y
+	sta $0403
+	lda sine64 + $0c,x
+	adc add
+	tay
+	lda colorTable + $04,y
+	sta $0404
+	lda sine64 + $0f,x
+	adc add
+	tay
+	lda colorTable + $05,y
+	sta $0405
+	lda sine64 + $12,x
+	adc add
+	tay
+	lda colorTable + $06,y
+	sta $0406
+	lda sine64 + $15,x
+	adc add
+	tay
+	lda colorTable + $07,y
+	sta $0407
+	lda sine64 + $18,x
+	adc add
+	tay
+	lda colorTable + $08,y
+	sta $0408
+	lda sine64 + $1b,x
+	adc add
+	tay
+	lda colorTable + $09,y
+	sta $0409
+	lda sine64 + $1e,x
+	adc add
+	tay
+	lda colorTable + $0a,y
+	sta $040a
+	lda sine64 + $21,x
+	adc add
+	tay
+	lda colorTable + $0b,y
+	sta $040b
+	lda sine64 + $24,x
+	adc add
+	tay
+	lda colorTable + $0c,y
+	sta $040c
+	lda sine64 + $27,x
+	adc add
+	tay
+	lda colorTable + $0d,y
+	sta $040d
+	lda sine64 + $2a,x
+	adc add
+	tay
+	lda colorTable + $0e,y
+	sta $040e
+	lda sine64 + $2d,x
+	adc add
+	tay
+	lda colorTable + $0f,y
+	sta $040f
+	lda sine64 + $30,x
+	adc add
+	tay
+	lda colorTable + $10,y
+	sta $0410
+	lda sine64 + $33,x
+	adc add
+	tay
+	lda colorTable + $11,y
+	sta $0411
+	lda sine64 + $36,x
+	adc add
+	tay
+	lda colorTable + $12,y
+	sta $0412
+	lda sine64 + $39,x
+	adc add
+	tay
+	lda colorTable + $13,y
+	sta $0413
+	lda sine64 + $3c,x
+	adc add
+	tay
+	lda colorTable + $14,y
+	sta $0414
+	lda sine64 + $3f,x
+	adc add
+	tay
+	lda colorTable + $15,y
+	sta $0415
+	lda sine64 + $42,x
+	adc add
+	tay
+	lda colorTable + $16,y
+	sta $0416
+	lda sine64 + $45,x
+	adc add
+	tay
+	lda colorTable + $17,y
+	sta $0417
+	lda sine64 + $48,x
+	adc add
+	tay
+	lda colorTable + $18,y
+	sta $0418
+	lda sine64 + $4b,x
+	adc add
+	tay
+	lda colorTable + $19,y
+	sta $0419
+	lda sine64 + $4e,x
+	adc add
+	tay
+	lda colorTable + $1a,y
+	sta $041a
+	lda sine64 + $51,x
+	adc add
+	tay
+	lda colorTable + $1b,y
+	sta $041b
+	lda sine64 + $54,x
+	adc add
+	tay
+	lda colorTable + $1c,y
+	sta $041c
+	lda sine64 + $57,x
+	adc add
+	tay
+	lda colorTable + $1d,y
+	sta $041d
+	lda sine64 + $5a,x
+	adc add
+	tay
+	lda colorTable + $1e,y
+	sta $041e
+	lda sine64 + $5d,x
+	adc add
+	tay
+	lda colorTable + $1f,y
+	sta $041f
+	lda sine64 + $60,x
+	adc add
+	tay
+	lda colorTable + $20,y
+	sta $0420
+	lda sine64 + $63,x
+	adc add
+	tay
+	lda colorTable + $21,y
+	sta $0421
+	lda sine64 + $66,x
+	adc add
+	tay
+	lda colorTable + $22,y
+	sta $0422
+	lda sine64 + $69,x
+	adc add
+	tay
+	lda colorTable + $23,y
+	sta $0423
+	lda sine64 + $6c,x
+	adc add
+	tay
+	lda colorTable + $24,y
+	sta $0424
+	lda sine64 + $6f,x
+	adc add
+	tay
+	lda colorTable + $25,y
+	sta $0425
+	lda sine64 + $72,x
+	adc add
+	tay
+	lda colorTable + $26,y
+	sta $0426
+	lda sine64 + $75,x
+	adc add
+	tay
+	lda colorTable + $27,y
+	sta $0427
+	
+	ldx plasmaCnt + 0
+	ldy plasmaCnt + 1
+	clc
+	lda sine128 + $04,x
+	adc sine64 + $07,y
+	tax
+	lda sine64 + $01,x
+	adc add
+	tay
+	lda colorTable + $02,y
+	sta $0428
+	lda sine64 + $04,x
+	adc add
+	tay
+	lda colorTable + $03,y
+	sta $0429
+	lda sine64 + $07,x
+	adc add
+	tay
+	lda colorTable + $04,y
+	sta $042a
+	lda sine64 + $0a,x
+	adc add
+	tay
+	lda colorTable + $05,y
+	sta $042b
+	lda sine64 + $0d,x
+	adc add
+	tay
+	lda colorTable + $06,y
+	sta $042c
+	lda sine64 + $10,x
+	adc add
+	tay
+	lda colorTable + $07,y
+	sta $042d
+	lda sine64 + $13,x
+	adc add
+	tay
+	lda colorTable + $08,y
+	sta $042e
+	lda sine64 + $16,x
+	adc add
+	tay
+	lda colorTable + $09,y
+	sta $042f
+	lda sine64 + $19,x
+	adc add
+	tay
+	lda colorTable + $0a,y
+	sta $0430
+	lda sine64 + $1c,x
+	adc add
+	tay
+	lda colorTable + $0b,y
+	sta $0431
+	lda sine64 + $1f,x
+	adc add
+	tay
+	lda colorTable + $0c,y
+	sta $0432
+	lda sine64 + $22,x
+	adc add
+	tay
+	lda colorTable + $0d,y
+	sta $0433
+	lda sine64 + $25,x
+	adc add
+	tay
+	lda colorTable + $0e,y
+	sta $0434
+	lda sine64 + $28,x
+	adc add
+	tay
+	lda colorTable + $0f,y
+	sta $0435
+	lda sine64 + $2b,x
+	adc add
+	tay
+	lda colorTable + $10,y
+	sta $0436
+	lda sine64 + $2e,x
+	adc add
+	tay
+	lda colorTable + $11,y
+	sta $0437
+	lda sine64 + $31,x
+	adc add
+	tay
+	lda colorTable + $12,y
+	sta $0438
+	lda sine64 + $34,x
+	adc add
+	tay
+	lda colorTable + $13,y
+	sta $0439
+	lda sine64 + $37,x
+	adc add
+	tay
+	lda colorTable + $14,y
+	sta $043a
+	lda sine64 + $3a,x
+	adc add
+	tay
+	lda colorTable + $15,y
+	sta $043b
+	lda sine64 + $3d,x
+	adc add
+	tay
+	lda colorTable + $16,y
+	sta $043c
+	lda sine64 + $40,x
+	adc add
+	tay
+	lda colorTable + $17,y
+	sta $043d
+	lda sine64 + $43,x
+	adc add
+	tay
+	lda colorTable + $18,y
+	sta $043e
+	lda sine64 + $46,x
+	adc add
+	tay
+	lda colorTable + $19,y
+	sta $043f
+	lda sine64 + $49,x
+	adc add
+	tay
+	lda colorTable + $1a,y
+	sta $0440
+	lda sine64 + $4c,x
+	adc add
+	tay
+	lda colorTable + $1b,y
+	sta $0441
+	lda sine64 + $4f,x
+	adc add
+	tay
+	lda colorTable + $1c,y
+	sta $0442
+	lda sine64 + $52,x
+	adc add
+	tay
+	lda colorTable + $1d,y
+	sta $0443
+	lda sine64 + $55,x
+	adc add
+	tay
+	lda colorTable + $1e,y
+	sta $0444
+	lda sine64 + $58,x
+	adc add
+	tay
+	lda colorTable + $1f,y
+	sta $0445
+	lda sine64 + $5b,x
+	adc add
+	tay
+	lda colorTable + $20,y
+	sta $0446
+	lda sine64 + $5e,x
+	adc add
+	tay
+	lda colorTable + $21,y
+	sta $0447
+	lda sine64 + $61,x
+	adc add
+	tay
+	lda colorTable + $22,y
+	sta $0448
+	lda sine64 + $64,x
+	adc add
+	tay
+	lda colorTable + $23,y
+	sta $0449
+	lda sine64 + $67,x
+	adc add
+	tay
+	lda colorTable + $24,y
+	sta $044a
+	lda sine64 + $6a,x
+	adc add
+	tay
+	lda colorTable + $25,y
+	sta $044b
+	lda sine64 + $6d,x
+	adc add
+	tay
+	lda colorTable + $26,y
+	sta $044c
+	lda sine64 + $70,x
+	adc add
+	tay
+	lda colorTable + $27,y
+	sta $044d
+	lda sine64 + $73,x
+	adc add
+	tay
+	lda colorTable + $28,y
+	sta $044e
+	lda sine64 + $76,x
+	adc add
+	tay
+	lda colorTable + $29,y
+	sta $044f
+	
+	ldx plasmaCnt + 0
+	ldy plasmaCnt + 1
+	clc
+	lda sine128 + $08,x
+	adc sine64 + $0e,y
+	tax
+	lda sine64 + $02,x
+	adc add
+	tay
+	lda colorTable + $04,y
+	sta $0450
+	lda sine64 + $05,x
+	adc add
+	tay
+	lda colorTable + $05,y
+	sta $0451
+	lda sine64 + $08,x
+	adc add
+	tay
+	lda colorTable + $06,y
+	sta $0452
+	lda sine64 + $0b,x
+	adc add
+	tay
+	lda colorTable + $07,y
+	sta $0453
+	lda sine64 + $0e,x
+	adc add
+	tay
+	lda colorTable + $08,y
+	sta $0454
+	lda sine64 + $11,x
+	adc add
+	tay
+	lda colorTable + $09,y
+	sta $0455
+	lda sine64 + $14,x
+	adc add
+	tay
+	lda colorTable + $0a,y
+	sta $0456
+	lda sine64 + $17,x
+	adc add
+	tay
+	lda colorTable + $0b,y
+	sta $0457
+	lda sine64 + $1a,x
+	adc add
+	tay
+	lda colorTable + $0c,y
+	sta $0458
+	lda sine64 + $1d,x
+	adc add
+	tay
+	lda colorTable + $0d,y
+	sta $0459
+	lda sine64 + $20,x
+	adc add
+	tay
+	lda colorTable + $0e,y
+	sta $045a
+	lda sine64 + $23,x
+	adc add
+	tay
+	lda colorTable + $0f,y
+	sta $045b
+	lda sine64 + $26,x
+	adc add
+	tay
+	lda colorTable + $10,y
+	sta $045c
+	lda sine64 + $29,x
+	adc add
+	tay
+	lda colorTable + $11,y
+	sta $045d
+	lda sine64 + $2c,x
+	adc add
+	tay
+	lda colorTable + $12,y
+	sta $045e
+	lda sine64 + $2f,x
+	adc add
+	tay
+	lda colorTable + $13,y
+	sta $045f
+	lda sine64 + $32,x
+	adc add
+	tay
+	lda colorTable + $14,y
+	sta $0460
+	lda sine64 + $35,x
+	adc add
+	tay
+	lda colorTable + $15,y
+	sta $0461
+	lda sine64 + $38,x
+	adc add
+	tay
+	lda colorTable + $16,y
+	sta $0462
+	lda sine64 + $3b,x
+	adc add
+	tay
+	lda colorTable + $17,y
+	sta $0463
+	lda sine64 + $3e,x
+	adc add
+	tay
+	lda colorTable + $18,y
+	sta $0464
+	lda sine64 + $41,x
+	adc add
+	tay
+	lda colorTable + $19,y
+	sta $0465
+	lda sine64 + $44,x
+	adc add
+	tay
+	lda colorTable + $1a,y
+	sta $0466
+	lda sine64 + $47,x
+	adc add
+	tay
+	lda colorTable + $1b,y
+	sta $0467
+	lda sine64 + $4a,x
+	adc add
+	tay
+	lda colorTable + $1c,y
+	sta $0468
+	lda sine64 + $4d,x
+	adc add
+	tay
+	lda colorTable + $1d,y
+	sta $0469
+	lda sine64 + $50,x
+	adc add
+	tay
+	lda colorTable + $1e,y
+	sta $046a
+	lda sine64 + $53,x
+	adc add
+	tay
+	lda colorTable + $1f,y
+	sta $046b
+	lda sine64 + $56,x
+	adc add
+	tay
+	lda colorTable + $20,y
+	sta $046c
+	lda sine64 + $59,x
+	adc add
+	tay
+	lda colorTable + $21,y
+	sta $046d
+	lda sine64 + $5c,x
+	adc add
+	tay
+	lda colorTable + $22,y
+	sta $046e
+	lda sine64 + $5f,x
+	adc add
+	tay
+	lda colorTable + $23,y
+	sta $046f
+	lda sine64 + $62,x
+	adc add
+	tay
+	lda colorTable + $24,y
+	sta $0470
+	lda sine64 + $65,x
+	adc add
+	tay
+	lda colorTable + $25,y
+	sta $0471
+	lda sine64 + $68,x
+	adc add
+	tay
+	lda colorTable + $26,y
+	sta $0472
+	lda sine64 + $6b,x
+	adc add
+	tay
+	lda colorTable + $27,y
+	sta $0473
+	lda sine64 + $6e,x
+	adc add
+	tay
+	lda colorTable + $28,y
+	sta $0474
+	lda sine64 + $71,x
+	adc add
+	tay
+	lda colorTable + $29,y
+	sta $0475
+	lda sine64 + $74,x
+	adc add
+	tay
+	lda colorTable + $2a,y
+	sta $0476
+	lda sine64 + $77,x
+	adc add
+	tay
+	lda colorTable + $2b,y
+	sta $0477
+	
+	ldx plasmaCnt + 0
+	ldy plasmaCnt + 1
+	clc
+	lda sine128 + $0c,x
+	adc sine64 + $15,y
+	tax
+	lda sine64 + $03,x
+	adc add
+	tay
+	lda colorTable + $06,y
+	sta $0478
+	lda sine64 + $06,x
+	adc add
+	tay
+	lda colorTable + $07,y
+	sta $0479
+	lda sine64 + $09,x
+	adc add
+	tay
+	lda colorTable + $08,y
+	sta $047a
+	lda sine64 + $0c,x
+	adc add
+	tay
+	lda colorTable + $09,y
+	sta $047b
+	lda sine64 + $0f,x
+	adc add
+	tay
+	lda colorTable + $0a,y
+	sta $047c
+	lda sine64 + $12,x
+	adc add
+	tay
+	lda colorTable + $0b,y
+	sta $047d
+	lda sine64 + $15,x
+	adc add
+	tay
+	lda colorTable + $0c,y
+	sta $047e
+	lda sine64 + $18,x
+	adc add
+	tay
+	lda colorTable + $0d,y
+	sta $047f
+	lda sine64 + $1b,x
+	adc add
+	tay
+	lda colorTable + $0e,y
+	sta $0480
+	lda sine64 + $1e,x
+	adc add
+	tay
+	lda colorTable + $0f,y
+	sta $0481
+	lda sine64 + $21,x
+	adc add
+	tay
+	lda colorTable + $10,y
+	sta $0482
+	lda sine64 + $24,x
+	adc add
+	tay
+	lda colorTable + $11,y
+	sta $0483
+	lda sine64 + $27,x
+	adc add
+	tay
+	lda colorTable + $12,y
+	sta $0484
+	lda sine64 + $2a,x
+	adc add
+	tay
+	lda colorTable + $13,y
+	sta $0485
+	lda sine64 + $2d,x
+	adc add
+	tay
+	lda colorTable + $14,y
+	sta $0486
+	lda sine64 + $30,x
+	adc add
+	tay
+	lda colorTable + $15,y
+	sta $0487
+	lda sine64 + $33,x
+	adc add
+	tay
+	lda colorTable + $16,y
+	sta $0488
+	lda sine64 + $36,x
+	adc add
+	tay
+	lda colorTable + $17,y
+	sta $0489
+	lda sine64 + $39,x
+	adc add
+	tay
+	lda colorTable + $18,y
+	sta $048a
+	lda sine64 + $3c,x
+	adc add
+	tay
+	lda colorTable + $19,y
+	sta $048b
+	lda sine64 + $3f,x
+	adc add
+	tay
+	lda colorTable + $1a,y
+	sta $048c
+	lda sine64 + $42,x
+	adc add
+	tay
+	lda colorTable + $1b,y
+	sta $048d
+	lda sine64 + $45,x
+	adc add
+	tay
+	lda colorTable + $1c,y
+	sta $048e
+	lda sine64 + $48,x
+	adc add
+	tay
+	lda colorTable + $1d,y
+	sta $048f
+	lda sine64 + $4b,x
+	adc add
+	tay
+	lda colorTable + $1e,y
+	sta $0490
+	lda sine64 + $4e,x
+	adc add
+	tay
+	lda colorTable + $1f,y
+	sta $0491
+	lda sine64 + $51,x
+	adc add
+	tay
+	lda colorTable + $20,y
+	sta $0492
+	lda sine64 + $54,x
+	adc add
+	tay
+	lda colorTable + $21,y
+	sta $0493
+	lda sine64 + $57,x
+	adc add
+	tay
+	lda colorTable + $22,y
+	sta $0494
+	lda sine64 + $5a,x
+	adc add
+	tay
+	lda colorTable + $23,y
+	sta $0495
+	lda sine64 + $5d,x
+	adc add
+	tay
+	lda colorTable + $24,y
+	sta $0496
+	lda sine64 + $60,x
+	adc add
+	tay
+	lda colorTable + $25,y
+	sta $0497
+	lda sine64 + $63,x
+	adc add
+	tay
+	lda colorTable + $26,y
+	sta $0498
+	lda sine64 + $66,x
+	adc add
+	tay
+	lda colorTable + $27,y
+	sta $0499
+	lda sine64 + $69,x
+	adc add
+	tay
+	lda colorTable + $28,y
+	sta $049a
+	lda sine64 + $6c,x
+	adc add
+	tay
+	lda colorTable + $29,y
+	sta $049b
+	lda sine64 + $6f,x
+	adc add
+	tay
+	lda colorTable + $2a,y
+	sta $049c
+	lda sine64 + $72,x
+	adc add
+	tay
+	lda colorTable + $2b,y
+	sta $049d
+	lda sine64 + $75,x
+	adc add
+	tay
+	lda colorTable + $2c,y
+	sta $049e
+	lda sine64 + $78,x
+	adc add
+	tay
+	lda colorTable + $2d,y
+	sta $049f
+	
+	ldx plasmaCnt + 0
+	ldy plasmaCnt + 1
+	clc
+	lda sine128 + $10,x
+	adc sine64 + $1c,y
+	tax
+	lda sine64 + $04,x
+	adc add
+	tay
+	lda colorTable + $08,y
+	sta $04a0
+	lda sine64 + $07,x
+	adc add
+	tay
+	lda colorTable + $09,y
+	sta $04a1
+	lda sine64 + $0a,x
+	adc add
+	tay
+	lda colorTable + $0a,y
+	sta $04a2
+	lda sine64 + $0d,x
+	adc add
+	tay
+	lda colorTable + $0b,y
+	sta $04a3
+	lda sine64 + $10,x
+	adc add
+	tay
+	lda colorTable + $0c,y
+	sta $04a4
+	lda sine64 + $13,x
+	adc add
+	tay
+	lda colorTable + $0d,y
+	sta $04a5
+	lda sine64 + $16,x
+	adc add
+	tay
+	lda colorTable + $0e,y
+	sta $04a6
+	lda sine64 + $19,x
+	adc add
+	tay
+	lda colorTable + $0f,y
+	sta $04a7
+	lda sine64 + $1c,x
+	adc add
+	tay
+	lda colorTable + $10,y
+	sta $04a8
+	lda sine64 + $1f,x
+	adc add
+	tay
+	lda colorTable + $11,y
+	sta $04a9
+	lda sine64 + $22,x
+	adc add
+	tay
+	lda colorTable + $12,y
+	sta $04aa
+	lda sine64 + $25,x
+	adc add
+	tay
+	lda colorTable + $13,y
+	sta $04ab
+	lda sine64 + $28,x
+	adc add
+	tay
+	lda colorTable + $14,y
+	sta $04ac
+	lda sine64 + $2b,x
+	adc add
+	tay
+	lda colorTable + $15,y
+	sta $04ad
+	lda sine64 + $2e,x
+	adc add
+	tay
+	lda colorTable + $16,y
+	sta $04ae
+	lda sine64 + $31,x
+	adc add
+	tay
+	lda colorTable + $17,y
+	sta $04af
+	lda sine64 + $34,x
+	adc add
+	tay
+	lda colorTable + $18,y
+	sta $04b0
+	lda sine64 + $37,x
+	adc add
+	tay
+	lda colorTable + $19,y
+	sta $04b1
+	lda sine64 + $3a,x
+	adc add
+	tay
+	lda colorTable + $1a,y
+	sta $04b2
+	lda sine64 + $3d,x
+	adc add
+	tay
+	lda colorTable + $1b,y
+	sta $04b3
+	lda sine64 + $40,x
+	adc add
+	tay
+	lda colorTable + $1c,y
+	sta $04b4
+	lda sine64 + $43,x
+	adc add
+	tay
+	lda colorTable + $1d,y
+	sta $04b5
+	lda sine64 + $46,x
+	adc add
+	tay
+	lda colorTable + $1e,y
+	sta $04b6
+	lda sine64 + $49,x
+	adc add
+	tay
+	lda colorTable + $1f,y
+	sta $04b7
+	lda sine64 + $4c,x
+	adc add
+	tay
+	lda colorTable + $20,y
+	sta $04b8
+	lda sine64 + $4f,x
+	adc add
+	tay
+	lda colorTable + $21,y
+	sta $04b9
+	lda sine64 + $52,x
+	adc add
+	tay
+	lda colorTable + $22,y
+	sta $04ba
+	lda sine64 + $55,x
+	adc add
+	tay
+	lda colorTable + $23,y
+	sta $04bb
+	lda sine64 + $58,x
+	adc add
+	tay
+	lda colorTable + $24,y
+	sta $04bc
+	lda sine64 + $5b,x
+	adc add
+	tay
+	lda colorTable + $25,y
+	sta $04bd
+	lda sine64 + $5e,x
+	adc add
+	tay
+	lda colorTable + $26,y
+	sta $04be
+	lda sine64 + $61,x
+	adc add
+	tay
+	lda colorTable + $27,y
+	sta $04bf
+	lda sine64 + $64,x
+	adc add
+	tay
+	lda colorTable + $28,y
+	sta $04c0
+	lda sine64 + $67,x
+	adc add
+	tay
+	lda colorTable + $29,y
+	sta $04c1
+	lda sine64 + $6a,x
+	adc add
+	tay
+	lda colorTable + $2a,y
+	sta $04c2
+	lda sine64 + $6d,x
+	adc add
+	tay
+	lda colorTable + $2b,y
+	sta $04c3
+	lda sine64 + $70,x
+	adc add
+	tay
+	lda colorTable + $2c,y
+	sta $04c4
+	lda sine64 + $73,x
+	adc add
+	tay
+	lda colorTable + $2d,y
+	sta $04c5
+	lda sine64 + $76,x
+	adc add
+	tay
+	lda colorTable + $2e,y
+	sta $04c6
+	lda sine64 + $79,x
+	adc add
+	tay
+	lda colorTable + $2f,y
+	sta $04c7
+	
+	ldx plasmaCnt + 0
+	ldy plasmaCnt + 1
+	clc
+	lda sine128 + $14,x
+	adc sine64 + $23,y
+	tax
+	lda sine64 + $05,x
+	adc add
+	tay
+	lda colorTable + $0a,y
+	sta $04c8
+	lda sine64 + $08,x
+	adc add
+	tay
+	lda colorTable + $0b,y
+	sta $04c9
+	lda sine64 + $0b,x
+	adc add
+	tay
+	lda colorTable + $0c,y
+	sta $04ca
+	lda sine64 + $0e,x
+	adc add
+	tay
+	lda colorTable + $0d,y
+	sta $04cb
+	lda sine64 + $11,x
+	adc add
+	tay
+	lda colorTable + $0e,y
+	sta $04cc
+	lda sine64 + $14,x
+	adc add
+	tay
+	lda colorTable + $0f,y
+	sta $04cd
+	lda sine64 + $17,x
+	adc add
+	tay
+	lda colorTable + $10,y
+	sta $04ce
+	lda sine64 + $1a,x
+	adc add
+	tay
+	lda colorTable + $11,y
+	sta $04cf
+	lda sine64 + $1d,x
+	adc add
+	tay
+	lda colorTable + $12,y
+	sta $04d0
+	lda sine64 + $20,x
+	adc add
+	tay
+	lda colorTable + $13,y
+	sta $04d1
+	lda sine64 + $23,x
+	adc add
+	tay
+	lda colorTable + $14,y
+	sta $04d2
+	lda sine64 + $26,x
+	adc add
+	tay
+	lda colorTable + $15,y
+	sta $04d3
+	lda sine64 + $29,x
+	adc add
+	tay
+	lda colorTable + $16,y
+	sta $04d4
+	lda sine64 + $2c,x
+	adc add
+	tay
+	lda colorTable + $17,y
+	sta $04d5
+	lda sine64 + $2f,x
+	adc add
+	tay
+	lda colorTable + $18,y
+	sta $04d6
+	lda sine64 + $32,x
+	adc add
+	tay
+	lda colorTable + $19,y
+	sta $04d7
+	lda sine64 + $35,x
+	adc add
+	tay
+	lda colorTable + $1a,y
+	sta $04d8
+	lda sine64 + $38,x
+	adc add
+	tay
+	lda colorTable + $1b,y
+	sta $04d9
+	lda sine64 + $3b,x
+	adc add
+	tay
+	lda colorTable + $1c,y
+	sta $04da
+	lda sine64 + $3e,x
+	adc add
+	tay
+	lda colorTable + $1d,y
+	sta $04db
+	lda sine64 + $41,x
+	adc add
+	tay
+	lda colorTable + $1e,y
+	sta $04dc
+	lda sine64 + $44,x
+	adc add
+	tay
+	lda colorTable + $1f,y
+	sta $04dd
+	lda sine64 + $47,x
+	adc add
+	tay
+	lda colorTable + $20,y
+	sta $04de
+	lda sine64 + $4a,x
+	adc add
+	tay
+	lda colorTable + $21,y
+	sta $04df
+	lda sine64 + $4d,x
+	adc add
+	tay
+	lda colorTable + $22,y
+	sta $04e0
+	lda sine64 + $50,x
+	adc add
+	tay
+	lda colorTable + $23,y
+	sta $04e1
+	lda sine64 + $53,x
+	adc add
+	tay
+	lda colorTable + $24,y
+	sta $04e2
+	lda sine64 + $56,x
+	adc add
+	tay
+	lda colorTable + $25,y
+	sta $04e3
+	lda sine64 + $59,x
+	adc add
+	tay
+	lda colorTable + $26,y
+	sta $04e4
+	lda sine64 + $5c,x
+	adc add
+	tay
+	lda colorTable + $27,y
+	sta $04e5
+	lda sine64 + $5f,x
+	adc add
+	tay
+	lda colorTable + $28,y
+	sta $04e6
+	lda sine64 + $62,x
+	adc add
+	tay
+	lda colorTable + $29,y
+	sta $04e7
+	lda sine64 + $65,x
+	adc add
+	tay
+	lda colorTable + $2a,y
+	sta $04e8
+	lda sine64 + $68,x
+	adc add
+	tay
+	lda colorTable + $2b,y
+	sta $04e9
+	lda sine64 + $6b,x
+	adc add
+	tay
+	lda colorTable + $2c,y
+	sta $04ea
+	lda sine64 + $6e,x
+	adc add
+	tay
+	lda colorTable + $2d,y
+	sta $04eb
+	lda sine64 + $71,x
+	adc add
+	tay
+	lda colorTable + $2e,y
+	sta $04ec
+	lda sine64 + $74,x
+	adc add
+	tay
+	lda colorTable + $2f,y
+	sta $04ed
+	lda sine64 + $77,x
+	adc add
+	tay
+	lda colorTable + $30,y
+	sta $04ee
+	lda sine64 + $7a,x
+	adc add
+	tay
+	lda colorTable + $31,y
+	sta $04ef
+	
+	ldx plasmaCnt + 0
+	ldy plasmaCnt + 1
+	clc
+	lda sine128 + $18,x
+	adc sine64 + $2a,y
+	tax
+	lda sine64 + $06,x
+	adc add
+	tay
+	lda colorTable + $0c,y
+	sta $04f0
+	lda sine64 + $09,x
+	adc add
+	tay
+	lda colorTable + $0d,y
+	sta $04f1
+	lda sine64 + $0c,x
+	adc add
+	tay
+	lda colorTable + $0e,y
+	sta $04f2
+	lda sine64 + $0f,x
+	adc add
+	tay
+	lda colorTable + $0f,y
+	sta $04f3
+	lda sine64 + $12,x
+	adc add
+	tay
+	lda colorTable + $10,y
+	sta $04f4
+	lda sine64 + $15,x
+	adc add
+	tay
+	lda colorTable + $11,y
+	sta $04f5
+	lda sine64 + $18,x
+	adc add
+	tay
+	lda colorTable + $12,y
+	sta $04f6
+	lda sine64 + $1b,x
+	adc add
+	tay
+	lda colorTable + $13,y
+	sta $04f7
+	lda sine64 + $1e,x
+	adc add
+	tay
+	lda colorTable + $14,y
+	sta $04f8
+	lda sine64 + $21,x
+	adc add
+	tay
+	lda colorTable + $15,y
+	sta $04f9
+	lda sine64 + $24,x
+	adc add
+	tay
+	lda colorTable + $16,y
+	sta $04fa
+	lda sine64 + $27,x
+	adc add
+	tay
+	lda colorTable + $17,y
+	sta $04fb
+	lda sine64 + $2a,x
+	adc add
+	tay
+	lda colorTable + $18,y
+	sta $04fc
+	lda sine64 + $2d,x
+	adc add
+	tay
+	lda colorTable + $19,y
+	sta $04fd
+	lda sine64 + $30,x
+	adc add
+	tay
+	lda colorTable + $1a,y
+	sta $04fe
+	lda sine64 + $33,x
+	adc add
+	tay
+	lda colorTable + $1b,y
+	sta $04ff
+	lda sine64 + $36,x
+	adc add
+	tay
+	lda colorTable + $1c,y
+	sta $0500
+	lda sine64 + $39,x
+	adc add
+	tay
+	lda colorTable + $1d,y
+	sta $0501
+	lda sine64 + $3c,x
+	adc add
+	tay
+	lda colorTable + $1e,y
+	sta $0502
+	lda sine64 + $3f,x
+	adc add
+	tay
+	lda colorTable + $1f,y
+	sta $0503
+	lda sine64 + $42,x
+	adc add
+	tay
+	lda colorTable + $20,y
+	sta $0504
+	lda sine64 + $45,x
+	adc add
+	tay
+	lda colorTable + $21,y
+	sta $0505
+	lda sine64 + $48,x
+	adc add
+	tay
+	lda colorTable + $22,y
+	sta $0506
+	lda sine64 + $4b,x
+	adc add
+	tay
+	lda colorTable + $23,y
+	sta $0507
+	lda sine64 + $4e,x
+	adc add
+	tay
+	lda colorTable + $24,y
+	sta $0508
+	lda sine64 + $51,x
+	adc add
+	tay
+	lda colorTable + $25,y
+	sta $0509
+	lda sine64 + $54,x
+	adc add
+	tay
+	lda colorTable + $26,y
+	sta $050a
+	lda sine64 + $57,x
+	adc add
+	tay
+	lda colorTable + $27,y
+	sta $050b
+	lda sine64 + $5a,x
+	adc add
+	tay
+	lda colorTable + $28,y
+	sta $050c
+	lda sine64 + $5d,x
+	adc add
+	tay
+	lda colorTable + $29,y
+	sta $050d
+	lda sine64 + $60,x
+	adc add
+	tay
+	lda colorTable + $2a,y
+	sta $050e
+	lda sine64 + $63,x
+	adc add
+	tay
+	lda colorTable + $2b,y
+	sta $050f
+	lda sine64 + $66,x
+	adc add
+	tay
+	lda colorTable + $2c,y
+	sta $0510
+	lda sine64 + $69,x
+	adc add
+	tay
+	lda colorTable + $2d,y
+	sta $0511
+	lda sine64 + $6c,x
+	adc add
+	tay
+	lda colorTable + $2e,y
+	sta $0512
+	lda sine64 + $6f,x
+	adc add
+	tay
+	lda colorTable + $2f,y
+	sta $0513
+	lda sine64 + $72,x
+	adc add
+	tay
+	lda colorTable + $30,y
+	sta $0514
+	lda sine64 + $75,x
+	adc add
+	tay
+	lda colorTable + $31,y
+	sta $0515
+	lda sine64 + $78,x
+	adc add
+	tay
+	lda colorTable + $32,y
+	sta $0516
+	lda sine64 + $7b,x
+	adc add
+	tay
+	lda colorTable + $33,y
+	sta $0517
+	
+	ldx plasmaCnt + 0
+	ldy plasmaCnt + 1
+	clc
+	lda sine128 + $1c,x
+	adc sine64 + $31,y
+	tax
+	lda sine64 + $07,x
+	adc add
+	tay
+	lda colorTable + $0e,y
+	sta $0518
+	lda sine64 + $0a,x
+	adc add
+	tay
+	lda colorTable + $0f,y
+	sta $0519
+	lda sine64 + $0d,x
+	adc add
+	tay
+	lda colorTable + $10,y
+	sta $051a
+	lda sine64 + $10,x
+	adc add
+	tay
+	lda colorTable + $11,y
+	sta $051b
+	lda sine64 + $13,x
+	adc add
+	tay
+	lda colorTable + $12,y
+	sta $051c
+	lda sine64 + $16,x
+	adc add
+	tay
+	lda colorTable + $13,y
+	sta $051d
+	lda sine64 + $19,x
+	adc add
+	tay
+	lda colorTable + $14,y
+	sta $051e
+	lda sine64 + $1c,x
+	adc add
+	tay
+	lda colorTable + $15,y
+	sta $051f
+	lda sine64 + $1f,x
+	adc add
+	tay
+	lda colorTable + $16,y
+	sta $0520
+	lda sine64 + $22,x
+	adc add
+	tay
+	lda colorTable + $17,y
+	sta $0521
+	lda sine64 + $25,x
+	adc add
+	tay
+	lda colorTable + $18,y
+	sta $0522
+	lda sine64 + $28,x
+	adc add
+	tay
+	lda colorTable + $19,y
+	sta $0523
+	lda sine64 + $2b,x
+	adc add
+	tay
+	lda colorTable + $1a,y
+	sta $0524
+	lda sine64 + $2e,x
+	adc add
+	tay
+	lda colorTable + $1b,y
+	sta $0525
+	lda sine64 + $31,x
+	adc add
+	tay
+	lda colorTable + $1c,y
+	sta $0526
+	lda sine64 + $34,x
+	adc add
+	tay
+	lda colorTable + $1d,y
+	sta $0527
+	lda sine64 + $37,x
+	adc add
+	tay
+	lda colorTable + $1e,y
+	sta $0528
+	lda sine64 + $3a,x
+	adc add
+	tay
+	lda colorTable + $1f,y
+	sta $0529
+	lda sine64 + $3d,x
+	adc add
+	tay
+	lda colorTable + $20,y
+	sta $052a
+	lda sine64 + $40,x
+	adc add
+	tay
+	lda colorTable + $21,y
+	sta $052b
+	lda sine64 + $43,x
+	adc add
+	tay
+	lda colorTable + $22,y
+	sta $052c
+	lda sine64 + $46,x
+	adc add
+	tay
+	lda colorTable + $23,y
+	sta $052d
+	lda sine64 + $49,x
+	adc add
+	tay
+	lda colorTable + $24,y
+	sta $052e
+	lda sine64 + $4c,x
+	adc add
+	tay
+	lda colorTable + $25,y
+	sta $052f
+	lda sine64 + $4f,x
+	adc add
+	tay
+	lda colorTable + $26,y
+	sta $0530
+	lda sine64 + $52,x
+	adc add
+	tay
+	lda colorTable + $27,y
+	sta $0531
+	lda sine64 + $55,x
+	adc add
+	tay
+	lda colorTable + $28,y
+	sta $0532
+	lda sine64 + $58,x
+	adc add
+	tay
+	lda colorTable + $29,y
+	sta $0533
+	lda sine64 + $5b,x
+	adc add
+	tay
+	lda colorTable + $2a,y
+	sta $0534
+	lda sine64 + $5e,x
+	adc add
+	tay
+	lda colorTable + $2b,y
+	sta $0535
+	lda sine64 + $61,x
+	adc add
+	tay
+	lda colorTable + $2c,y
+	sta $0536
+	lda sine64 + $64,x
+	adc add
+	tay
+	lda colorTable + $2d,y
+	sta $0537
+	lda sine64 + $67,x
+	adc add
+	tay
+	lda colorTable + $2e,y
+	sta $0538
+	lda sine64 + $6a,x
+	adc add
+	tay
+	lda colorTable + $2f,y
+	sta $0539
+	lda sine64 + $6d,x
+	adc add
+	tay
+	lda colorTable + $30,y
+	sta $053a
+	lda sine64 + $70,x
+	adc add
+	tay
+	lda colorTable + $31,y
+	sta $053b
+	lda sine64 + $73,x
+	adc add
+	tay
+	lda colorTable + $32,y
+	sta $053c
+	lda sine64 + $76,x
+	adc add
+	tay
+	lda colorTable + $33,y
+	sta $053d
+	lda sine64 + $79,x
+	adc add
+	tay
+	lda colorTable + $34,y
+	sta $053e
+	lda sine64 + $7c,x
+	adc add
+	tay
+	lda colorTable + $35,y
+	sta $053f
+	
+	ldx plasmaCnt + 0
+	ldy plasmaCnt + 1
+	clc
+	lda sine128 + $20,x
+	adc sine64 + $38,y
+	tax
+	lda sine64 + $08,x
+	adc add
+	tay
+	lda colorTable + $10,y
+	sta $0540
+	lda sine64 + $0b,x
+	adc add
+	tay
+	lda colorTable + $11,y
+	sta $0541
+	lda sine64 + $0e,x
+	adc add
+	tay
+	lda colorTable + $12,y
+	sta $0542
+	lda sine64 + $11,x
+	adc add
+	tay
+	lda colorTable + $13,y
+	sta $0543
+	lda sine64 + $14,x
+	adc add
+	tay
+	lda colorTable + $14,y
+	sta $0544
+	lda sine64 + $17,x
+	adc add
+	tay
+	lda colorTable + $15,y
+	sta $0545
+	lda sine64 + $1a,x
+	adc add
+	tay
+	lda colorTable + $16,y
+	sta $0546
+	lda sine64 + $1d,x
+	adc add
+	tay
+	lda colorTable + $17,y
+	sta $0547
+	lda sine64 + $20,x
+	adc add
+	tay
+	lda colorTable + $18,y
+	sta $0548
+	lda sine64 + $23,x
+	adc add
+	tay
+	lda colorTable + $19,y
+	sta $0549
+	lda sine64 + $26,x
+	adc add
+	tay
+	lda colorTable + $1a,y
+	sta $054a
+	lda sine64 + $29,x
+	adc add
+	tay
+	lda colorTable + $1b,y
+	sta $054b
+	lda sine64 + $2c,x
+	adc add
+	tay
+	lda colorTable + $1c,y
+	sta $054c
+	lda sine64 + $2f,x
+	adc add
+	tay
+	lda colorTable + $1d,y
+	sta $054d
+	lda sine64 + $32,x
+	adc add
+	tay
+	lda colorTable + $1e,y
+	sta $054e
+	lda sine64 + $35,x
+	adc add
+	tay
+	lda colorTable + $1f,y
+	sta $054f
+	lda sine64 + $38,x
+	adc add
+	tay
+	lda colorTable + $20,y
+	sta $0550
+	lda sine64 + $3b,x
+	adc add
+	tay
+	lda colorTable + $21,y
+	sta $0551
+	lda sine64 + $3e,x
+	adc add
+	tay
+	lda colorTable + $22,y
+	sta $0552
+	lda sine64 + $41,x
+	adc add
+	tay
+	lda colorTable + $23,y
+	sta $0553
+	lda sine64 + $44,x
+	adc add
+	tay
+	lda colorTable + $24,y
+	sta $0554
+	lda sine64 + $47,x
+	adc add
+	tay
+	lda colorTable + $25,y
+	sta $0555
+	lda sine64 + $4a,x
+	adc add
+	tay
+	lda colorTable + $26,y
+	sta $0556
+	lda sine64 + $4d,x
+	adc add
+	tay
+	lda colorTable + $27,y
+	sta $0557
+	lda sine64 + $50,x
+	adc add
+	tay
+	lda colorTable + $28,y
+	sta $0558
+	lda sine64 + $53,x
+	adc add
+	tay
+	lda colorTable + $29,y
+	sta $0559
+	lda sine64 + $56,x
+	adc add
+	tay
+	lda colorTable + $2a,y
+	sta $055a
+	lda sine64 + $59,x
+	adc add
+	tay
+	lda colorTable + $2b,y
+	sta $055b
+	lda sine64 + $5c,x
+	adc add
+	tay
+	lda colorTable + $2c,y
+	sta $055c
+	lda sine64 + $5f,x
+	adc add
+	tay
+	lda colorTable + $2d,y
+	sta $055d
+	lda sine64 + $62,x
+	adc add
+	tay
+	lda colorTable + $2e,y
+	sta $055e
+	lda sine64 + $65,x
+	adc add
+	tay
+	lda colorTable + $2f,y
+	sta $055f
+	lda sine64 + $68,x
+	adc add
+	tay
+	lda colorTable + $30,y
+	sta $0560
+	lda sine64 + $6b,x
+	adc add
+	tay
+	lda colorTable + $31,y
+	sta $0561
+	lda sine64 + $6e,x
+	adc add
+	tay
+	lda colorTable + $32,y
+	sta $0562
+	lda sine64 + $71,x
+	adc add
+	tay
+	lda colorTable + $33,y
+	sta $0563
+	lda sine64 + $74,x
+	adc add
+	tay
+	lda colorTable + $34,y
+	sta $0564
+	lda sine64 + $77,x
+	adc add
+	tay
+	lda colorTable + $35,y
+	sta $0565
+	lda sine64 + $7a,x
+	adc add
+	tay
+	lda colorTable + $36,y
+	sta $0566
+	lda sine64 + $7d,x
+	adc add
+	tay
+	lda colorTable + $37,y
+	sta $0567
+	
+	ldx plasmaCnt + 0
+	ldy plasmaCnt + 1
+	clc
+	lda sine128 + $24,x
+	adc sine64 + $3f,y
+	tax
+	lda sine64 + $09,x
+	adc add
+	tay
+	lda colorTable + $12,y
+	sta $0568
+	lda sine64 + $0c,x
+	adc add
+	tay
+	lda colorTable + $13,y
+	sta $0569
+	lda sine64 + $0f,x
+	adc add
+	tay
+	lda colorTable + $14,y
+	sta $056a
+	lda sine64 + $12,x
+	adc add
+	tay
+	lda colorTable + $15,y
+	sta $056b
+	lda sine64 + $15,x
+	adc add
+	tay
+	lda colorTable + $16,y
+	sta $056c
+	lda sine64 + $18,x
+	adc add
+	tay
+	lda colorTable + $17,y
+	sta $056d
+	lda sine64 + $1b,x
+	adc add
+	tay
+	lda colorTable + $18,y
+	sta $056e
+	lda sine64 + $1e,x
+	adc add
+	tay
+	lda colorTable + $19,y
+	sta $056f
+	lda sine64 + $21,x
+	adc add
+	tay
+	lda colorTable + $1a,y
+	sta $0570
+	lda sine64 + $24,x
+	adc add
+	tay
+	lda colorTable + $1b,y
+	sta $0571
+	lda sine64 + $27,x
+	adc add
+	tay
+	lda colorTable + $1c,y
+	sta $0572
+	lda sine64 + $2a,x
+	adc add
+	tay
+	lda colorTable + $1d,y
+	sta $0573
+	lda sine64 + $2d,x
+	adc add
+	tay
+	lda colorTable + $1e,y
+	sta $0574
+	lda sine64 + $30,x
+	adc add
+	tay
+	lda colorTable + $1f,y
+	sta $0575
+	lda sine64 + $33,x
+	adc add
+	tay
+	lda colorTable + $20,y
+	sta $0576
+	lda sine64 + $36,x
+	adc add
+	tay
+	lda colorTable + $21,y
+	sta $0577
+	lda sine64 + $39,x
+	adc add
+	tay
+	lda colorTable + $22,y
+	sta $0578
+	lda sine64 + $3c,x
+	adc add
+	tay
+	lda colorTable + $23,y
+	sta $0579
+	lda sine64 + $3f,x
+	adc add
+	tay
+	lda colorTable + $24,y
+	sta $057a
+	lda sine64 + $42,x
+	adc add
+	tay
+	lda colorTable + $25,y
+	sta $057b
+	lda sine64 + $45,x
+	adc add
+	tay
+	lda colorTable + $26,y
+	sta $057c
+	lda sine64 + $48,x
+	adc add
+	tay
+	lda colorTable + $27,y
+	sta $057d
+	lda sine64 + $4b,x
+	adc add
+	tay
+	lda colorTable + $28,y
+	sta $057e
+	lda sine64 + $4e,x
+	adc add
+	tay
+	lda colorTable + $29,y
+	sta $057f
+	lda sine64 + $51,x
+	adc add
+	tay
+	lda colorTable + $2a,y
+	sta $0580
+	lda sine64 + $54,x
+	adc add
+	tay
+	lda colorTable + $2b,y
+	sta $0581
+	lda sine64 + $57,x
+	adc add
+	tay
+	lda colorTable + $2c,y
+	sta $0582
+	lda sine64 + $5a,x
+	adc add
+	tay
+	lda colorTable + $2d,y
+	sta $0583
+	lda sine64 + $5d,x
+	adc add
+	tay
+	lda colorTable + $2e,y
+	sta $0584
+	lda sine64 + $60,x
+	adc add
+	tay
+	lda colorTable + $2f,y
+	sta $0585
+	lda sine64 + $63,x
+	adc add
+	tay
+	lda colorTable + $30,y
+	sta $0586
+	lda sine64 + $66,x
+	adc add
+	tay
+	lda colorTable + $31,y
+	sta $0587
+	lda sine64 + $69,x
+	adc add
+	tay
+	lda colorTable + $32,y
+	sta $0588
+	lda sine64 + $6c,x
+	adc add
+	tay
+	lda colorTable + $33,y
+	sta $0589
+	lda sine64 + $6f,x
+	adc add
+	tay
+	lda colorTable + $34,y
+	sta $058a
+	lda sine64 + $72,x
+	adc add
+	tay
+	lda colorTable + $35,y
+	sta $058b
+	lda sine64 + $75,x
+	adc add
+	tay
+	lda colorTable + $36,y
+	sta $058c
+	lda sine64 + $78,x
+	adc add
+	tay
+	lda colorTable + $37,y
+	sta $058d
+	lda sine64 + $7b,x
+	adc add
+	tay
+	lda colorTable + $38,y
+	sta $058e
+	lda sine64 + $7e,x
+	adc add
+	tay
+	lda colorTable + $39,y
+	sta $058f
+	
+	ldx plasmaCnt + 0
+	ldy plasmaCnt + 1
+	clc
+	lda sine128 + $28,x
+	adc sine64 + $46,y
+	tax
+	lda sine64 + $0a,x
+	adc add
+	tay
+	lda colorTable + $14,y
+	sta $0590
+	lda sine64 + $0d,x
+	adc add
+	tay
+	lda colorTable + $15,y
+	sta $0591
+	lda sine64 + $10,x
+	adc add
+	tay
+	lda colorTable + $16,y
+	sta $0592
+	lda sine64 + $13,x
+	adc add
+	tay
+	lda colorTable + $17,y
+	sta $0593
+	lda sine64 + $16,x
+	adc add
+	tay
+	lda colorTable + $18,y
+	sta $0594
+	lda sine64 + $19,x
+	adc add
+	tay
+	lda colorTable + $19,y
+	sta $0595
+	lda sine64 + $1c,x
+	adc add
+	tay
+	lda colorTable + $1a,y
+	sta $0596
+	lda sine64 + $1f,x
+	adc add
+	tay
+	lda colorTable + $1b,y
+	sta $0597
+	lda sine64 + $22,x
+	adc add
+	tay
+	lda colorTable + $1c,y
+	sta $0598
+	lda sine64 + $25,x
+	adc add
+	tay
+	lda colorTable + $1d,y
+	sta $0599
+	lda sine64 + $28,x
+	adc add
+	tay
+	lda colorTable + $1e,y
+	sta $059a
+	lda sine64 + $2b,x
+	adc add
+	tay
+	lda colorTable + $1f,y
+	sta $059b
+	lda sine64 + $2e,x
+	adc add
+	tay
+	lda colorTable + $20,y
+	sta $059c
+	lda sine64 + $31,x
+	adc add
+	tay
+	lda colorTable + $21,y
+	sta $059d
+	lda sine64 + $34,x
+	adc add
+	tay
+	lda colorTable + $22,y
+	sta $059e
+	lda sine64 + $37,x
+	adc add
+	tay
+	lda colorTable + $23,y
+	sta $059f
+	lda sine64 + $3a,x
+	adc add
+	tay
+	lda colorTable + $24,y
+	sta $05a0
+	lda sine64 + $3d,x
+	adc add
+	tay
+	lda colorTable + $25,y
+	sta $05a1
+	lda sine64 + $40,x
+	adc add
+	tay
+	lda colorTable + $26,y
+	sta $05a2
+	lda sine64 + $43,x
+	adc add
+	tay
+	lda colorTable + $27,y
+	sta $05a3
+	lda sine64 + $46,x
+	adc add
+	tay
+	lda colorTable + $28,y
+	sta $05a4
+	lda sine64 + $49,x
+	adc add
+	tay
+	lda colorTable + $29,y
+	sta $05a5
+	lda sine64 + $4c,x
+	adc add
+	tay
+	lda colorTable + $2a,y
+	sta $05a6
+	lda sine64 + $4f,x
+	adc add
+	tay
+	lda colorTable + $2b,y
+	sta $05a7
+	lda sine64 + $52,x
+	adc add
+	tay
+	lda colorTable + $2c,y
+	sta $05a8
+	lda sine64 + $55,x
+	adc add
+	tay
+	lda colorTable + $2d,y
+	sta $05a9
+	lda sine64 + $58,x
+	adc add
+	tay
+	lda colorTable + $2e,y
+	sta $05aa
+	lda sine64 + $5b,x
+	adc add
+	tay
+	lda colorTable + $2f,y
+	sta $05ab
+	lda sine64 + $5e,x
+	adc add
+	tay
+	lda colorTable + $30,y
+	sta $05ac
+	lda sine64 + $61,x
+	adc add
+	tay
+	lda colorTable + $31,y
+	sta $05ad
+	lda sine64 + $64,x
+	adc add
+	tay
+	lda colorTable + $32,y
+	sta $05ae
+	lda sine64 + $67,x
+	adc add
+	tay
+	lda colorTable + $33,y
+	sta $05af
+	lda sine64 + $6a,x
+	adc add
+	tay
+	lda colorTable + $34,y
+	sta $05b0
+	lda sine64 + $6d,x
+	adc add
+	tay
+	lda colorTable + $35,y
+	sta $05b1
+	lda sine64 + $70,x
+	adc add
+	tay
+	lda colorTable + $36,y
+	sta $05b2
+	lda sine64 + $73,x
+	adc add
+	tay
+	lda colorTable + $37,y
+	sta $05b3
+	lda sine64 + $76,x
+	adc add
+	tay
+	lda colorTable + $38,y
+	sta $05b4
+	lda sine64 + $79,x
+	adc add
+	tay
+	lda colorTable + $39,y
+	sta $05b5
+	lda sine64 + $7c,x
+	adc add
+	tay
+	lda colorTable + $3a,y
+	sta $05b6
+	lda sine64 + $7f,x
+	adc add
+	tay
+	lda colorTable + $3b,y
+	sta $05b7
+	
+	ldx plasmaCnt + 0
+	ldy plasmaCnt + 1
+	clc
+	lda sine128 + $2c,x
+	adc sine64 + $4d,y
+	tax
+	lda sine64 + $0b,x
+	adc add
+	tay
+	lda colorTable + $16,y
+	sta $05b8
+	lda sine64 + $0e,x
+	adc add
+	tay
+	lda colorTable + $17,y
+	sta $05b9
+	lda sine64 + $11,x
+	adc add
+	tay
+	lda colorTable + $18,y
+	sta $05ba
+	lda sine64 + $14,x
+	adc add
+	tay
+	lda colorTable + $19,y
+	sta $05bb
+	lda sine64 + $17,x
+	adc add
+	tay
+	lda colorTable + $1a,y
+	sta $05bc
+	lda sine64 + $1a,x
+	adc add
+	tay
+	lda colorTable + $1b,y
+	sta $05bd
+	lda sine64 + $1d,x
+	adc add
+	tay
+	lda colorTable + $1c,y
+	sta $05be
+	lda sine64 + $20,x
+	adc add
+	tay
+	lda colorTable + $1d,y
+	sta $05bf
+	lda sine64 + $23,x
+	adc add
+	tay
+	lda colorTable + $1e,y
+	sta $05c0
+	lda sine64 + $26,x
+	adc add
+	tay
+	lda colorTable + $1f,y
+	sta $05c1
+	lda sine64 + $29,x
+	adc add
+	tay
+	lda colorTable + $20,y
+	sta $05c2
+	lda sine64 + $2c,x
+	adc add
+	tay
+	lda colorTable + $21,y
+	sta $05c3
+	lda sine64 + $2f,x
+	adc add
+	tay
+	lda colorTable + $22,y
+	sta $05c4
+	lda sine64 + $32,x
+	adc add
+	tay
+	lda colorTable + $23,y
+	sta $05c5
+	lda sine64 + $35,x
+	adc add
+	tay
+	lda colorTable + $24,y
+	sta $05c6
+	lda sine64 + $38,x
+	adc add
+	tay
+	lda colorTable + $25,y
+	sta $05c7
+	lda sine64 + $3b,x
+	adc add
+	tay
+	lda colorTable + $26,y
+	sta $05c8
+	lda sine64 + $3e,x
+	adc add
+	tay
+	lda colorTable + $27,y
+	sta $05c9
+	lda sine64 + $41,x
+	adc add
+	tay
+	lda colorTable + $28,y
+	sta $05ca
+	lda sine64 + $44,x
+	adc add
+	tay
+	lda colorTable + $29,y
+	sta $05cb
+	lda sine64 + $47,x
+	adc add
+	tay
+	lda colorTable + $2a,y
+	sta $05cc
+	lda sine64 + $4a,x
+	adc add
+	tay
+	lda colorTable + $2b,y
+	sta $05cd
+	lda sine64 + $4d,x
+	adc add
+	tay
+	lda colorTable + $2c,y
+	sta $05ce
+	lda sine64 + $50,x
+	adc add
+	tay
+	lda colorTable + $2d,y
+	sta $05cf
+	lda sine64 + $53,x
+	adc add
+	tay
+	lda colorTable + $2e,y
+	sta $05d0
+	lda sine64 + $56,x
+	adc add
+	tay
+	lda colorTable + $2f,y
+	sta $05d1
+	lda sine64 + $59,x
+	adc add
+	tay
+	lda colorTable + $30,y
+	sta $05d2
+	lda sine64 + $5c,x
+	adc add
+	tay
+	lda colorTable + $31,y
+	sta $05d3
+	lda sine64 + $5f,x
+	adc add
+	tay
+	lda colorTable + $32,y
+	sta $05d4
+	lda sine64 + $62,x
+	adc add
+	tay
+	lda colorTable + $33,y
+	sta $05d5
+	lda sine64 + $65,x
+	adc add
+	tay
+	lda colorTable + $34,y
+	sta $05d6
+	lda sine64 + $68,x
+	adc add
+	tay
+	lda colorTable + $35,y
+	sta $05d7
+	lda sine64 + $6b,x
+	adc add
+	tay
+	lda colorTable + $36,y
+	sta $05d8
+	lda sine64 + $6e,x
+	adc add
+	tay
+	lda colorTable + $37,y
+	sta $05d9
+	lda sine64 + $71,x
+	adc add
+	tay
+	lda colorTable + $38,y
+	sta $05da
+	lda sine64 + $74,x
+	adc add
+	tay
+	lda colorTable + $39,y
+	sta $05db
+	lda sine64 + $77,x
+	adc add
+	tay
+	lda colorTable + $3a,y
+	sta $05dc
+	lda sine64 + $7a,x
+	adc add
+	tay
+	lda colorTable + $3b,y
+	sta $05dd
+	lda sine64 + $7d,x
+	adc add
+	tay
+	lda colorTable + $3c,y
+	sta $05de
+	lda sine64 + $80,x
+	adc add
+	tay
+	lda colorTable + $3d,y
+	sta $05df
+	
+	ldx plasmaCnt + 0
+	ldy plasmaCnt + 1
+	clc
+	lda sine128 + $30,x
+	adc sine64 + $54,y
+	tax
+	lda sine64 + $0c,x
+	adc add
+	tay
+	lda colorTable + $18,y
+	sta $05e0
+	lda sine64 + $0f,x
+	adc add
+	tay
+	lda colorTable + $19,y
+	sta $05e1
+	lda sine64 + $12,x
+	adc add
+	tay
+	lda colorTable + $1a,y
+	sta $05e2
+	lda sine64 + $15,x
+	adc add
+	tay
+	lda colorTable + $1b,y
+	sta $05e3
+	lda sine64 + $18,x
+	adc add
+	tay
+	lda colorTable + $1c,y
+	sta $05e4
+	lda sine64 + $1b,x
+	adc add
+	tay
+	lda colorTable + $1d,y
+	sta $05e5
+	lda sine64 + $1e,x
+	adc add
+	tay
+	lda colorTable + $1e,y
+	sta $05e6
+	lda sine64 + $21,x
+	adc add
+	tay
+	lda colorTable + $1f,y
+	sta $05e7
+	lda sine64 + $24,x
+	adc add
+	tay
+	lda colorTable + $20,y
+	sta $05e8
+	lda sine64 + $27,x
+	adc add
+	tay
+	lda colorTable + $21,y
+	sta $05e9
+	lda sine64 + $2a,x
+	adc add
+	tay
+	lda colorTable + $22,y
+	sta $05ea
+	lda sine64 + $2d,x
+	adc add
+	tay
+	lda colorTable + $23,y
+	sta $05eb
+	lda sine64 + $30,x
+	adc add
+	tay
+	lda colorTable + $24,y
+	sta $05ec
+	lda sine64 + $33,x
+	adc add
+	tay
+	lda colorTable + $25,y
+	sta $05ed
+	lda sine64 + $36,x
+	adc add
+	tay
+	lda colorTable + $26,y
+	sta $05ee
+	lda sine64 + $39,x
+	adc add
+	tay
+	lda colorTable + $27,y
+	sta $05ef
+	lda sine64 + $3c,x
+	adc add
+	tay
+	lda colorTable + $28,y
+	sta $05f0
+	lda sine64 + $3f,x
+	adc add
+	tay
+	lda colorTable + $29,y
+	sta $05f1
+	lda sine64 + $42,x
+	adc add
+	tay
+	lda colorTable + $2a,y
+	sta $05f2
+	lda sine64 + $45,x
+	adc add
+	tay
+	lda colorTable + $2b,y
+	sta $05f3
+	lda sine64 + $48,x
+	adc add
+	tay
+	lda colorTable + $2c,y
+	sta $05f4
+	lda sine64 + $4b,x
+	adc add
+	tay
+	lda colorTable + $2d,y
+	sta $05f5
+	lda sine64 + $4e,x
+	adc add
+	tay
+	lda colorTable + $2e,y
+	sta $05f6
+	lda sine64 + $51,x
+	adc add
+	tay
+	lda colorTable + $2f,y
+	sta $05f7
+	lda sine64 + $54,x
+	adc add
+	tay
+	lda colorTable + $30,y
+	sta $05f8
+	lda sine64 + $57,x
+	adc add
+	tay
+	lda colorTable + $31,y
+	sta $05f9
+	lda sine64 + $5a,x
+	adc add
+	tay
+	lda colorTable + $32,y
+	sta $05fa
+	lda sine64 + $5d,x
+	adc add
+	tay
+	lda colorTable + $33,y
+	sta $05fb
+	lda sine64 + $60,x
+	adc add
+	tay
+	lda colorTable + $34,y
+	sta $05fc
+	lda sine64 + $63,x
+	adc add
+	tay
+	lda colorTable + $35,y
+	sta $05fd
+	lda sine64 + $66,x
+	adc add
+	tay
+	lda colorTable + $36,y
+	sta $05fe
+	lda sine64 + $69,x
+	adc add
+	tay
+	lda colorTable + $37,y
+	sta $05ff
+	lda sine64 + $6c,x
+	adc add
+	tay
+	lda colorTable + $38,y
+	sta $0600
+	lda sine64 + $6f,x
+	adc add
+	tay
+	lda colorTable + $39,y
+	sta $0601
+	lda sine64 + $72,x
+	adc add
+	tay
+	lda colorTable + $3a,y
+	sta $0602
+	lda sine64 + $75,x
+	adc add
+	tay
+	lda colorTable + $3b,y
+	sta $0603
+	lda sine64 + $78,x
+	adc add
+	tay
+	lda colorTable + $3c,y
+	sta $0604
+	lda sine64 + $7b,x
+	adc add
+	tay
+	lda colorTable + $3d,y
+	sta $0605
+	lda sine64 + $7e,x
+	adc add
+	tay
+	lda colorTable + $3e,y
+	sta $0606
+	lda sine64 + $81,x
+	adc add
+	tay
+	lda colorTable + $3f,y
+	sta $0607
+	
+	ldx plasmaCnt + 0
+	ldy plasmaCnt + 1
+	clc
+	lda sine128 + $34,x
+	adc sine64 + $5b,y
+	tax
+	lda sine64 + $0d,x
+	adc add
+	tay
+	lda colorTable + $1a,y
+	sta $0608
+	lda sine64 + $10,x
+	adc add
+	tay
+	lda colorTable + $1b,y
+	sta $0609
+	lda sine64 + $13,x
+	adc add
+	tay
+	lda colorTable + $1c,y
+	sta $060a
+	lda sine64 + $16,x
+	adc add
+	tay
+	lda colorTable + $1d,y
+	sta $060b
+	lda sine64 + $19,x
+	adc add
+	tay
+	lda colorTable + $1e,y
+	sta $060c
+	lda sine64 + $1c,x
+	adc add
+	tay
+	lda colorTable + $1f,y
+	sta $060d
+	lda sine64 + $1f,x
+	adc add
+	tay
+	lda colorTable + $20,y
+	sta $060e
+	lda sine64 + $22,x
+	adc add
+	tay
+	lda colorTable + $21,y
+	sta $060f
+	lda sine64 + $25,x
+	adc add
+	tay
+	lda colorTable + $22,y
+	sta $0610
+	lda sine64 + $28,x
+	adc add
+	tay
+	lda colorTable + $23,y
+	sta $0611
+	lda sine64 + $2b,x
+	adc add
+	tay
+	lda colorTable + $24,y
+	sta $0612
+	lda sine64 + $2e,x
+	adc add
+	tay
+	lda colorTable + $25,y
+	sta $0613
+	lda sine64 + $31,x
+	adc add
+	tay
+	lda colorTable + $26,y
+	sta $0614
+	lda sine64 + $34,x
+	adc add
+	tay
+	lda colorTable + $27,y
+	sta $0615
+	lda sine64 + $37,x
+	adc add
+	tay
+	lda colorTable + $28,y
+	sta $0616
+	lda sine64 + $3a,x
+	adc add
+	tay
+	lda colorTable + $29,y
+	sta $0617
+	lda sine64 + $3d,x
+	adc add
+	tay
+	lda colorTable + $2a,y
+	sta $0618
+	lda sine64 + $40,x
+	adc add
+	tay
+	lda colorTable + $2b,y
+	sta $0619
+	lda sine64 + $43,x
+	adc add
+	tay
+	lda colorTable + $2c,y
+	sta $061a
+	lda sine64 + $46,x
+	adc add
+	tay
+	lda colorTable + $2d,y
+	sta $061b
+	lda sine64 + $49,x
+	adc add
+	tay
+	lda colorTable + $2e,y
+	sta $061c
+	lda sine64 + $4c,x
+	adc add
+	tay
+	lda colorTable + $2f,y
+	sta $061d
+	lda sine64 + $4f,x
+	adc add
+	tay
+	lda colorTable + $30,y
+	sta $061e
+	lda sine64 + $52,x
+	adc add
+	tay
+	lda colorTable + $31,y
+	sta $061f
+	lda sine64 + $55,x
+	adc add
+	tay
+	lda colorTable + $32,y
+	sta $0620
+	lda sine64 + $58,x
+	adc add
+	tay
+	lda colorTable + $33,y
+	sta $0621
+	lda sine64 + $5b,x
+	adc add
+	tay
+	lda colorTable + $34,y
+	sta $0622
+	lda sine64 + $5e,x
+	adc add
+	tay
+	lda colorTable + $35,y
+	sta $0623
+	lda sine64 + $61,x
+	adc add
+	tay
+	lda colorTable + $36,y
+	sta $0624
+	lda sine64 + $64,x
+	adc add
+	tay
+	lda colorTable + $37,y
+	sta $0625
+	lda sine64 + $67,x
+	adc add
+	tay
+	lda colorTable + $38,y
+	sta $0626
+	lda sine64 + $6a,x
+	adc add
+	tay
+	lda colorTable + $39,y
+	sta $0627
+	lda sine64 + $6d,x
+	adc add
+	tay
+	lda colorTable + $3a,y
+	sta $0628
+	lda sine64 + $70,x
+	adc add
+	tay
+	lda colorTable + $3b,y
+	sta $0629
+	lda sine64 + $73,x
+	adc add
+	tay
+	lda colorTable + $3c,y
+	sta $062a
+	lda sine64 + $76,x
+	adc add
+	tay
+	lda colorTable + $3d,y
+	sta $062b
+	lda sine64 + $79,x
+	adc add
+	tay
+	lda colorTable + $3e,y
+	sta $062c
+	lda sine64 + $7c,x
+	adc add
+	tay
+	lda colorTable + $3f,y
+	sta $062d
+	lda sine64 + $7f,x
+	adc add
+	tay
+	lda colorTable + $00,y
+	sta $062e
+	lda sine64 + $82,x
+	adc add
+	tay
+	lda colorTable + $01,y
+	sta $062f
+	
+	ldx plasmaCnt + 0
+	ldy plasmaCnt + 1
+	clc
+	lda sine128 + $38,x
+	adc sine64 + $62,y
+	tax
+	lda sine64 + $0e,x
+	adc add
+	tay
+	lda colorTable + $1c,y
+	sta $0630
+	lda sine64 + $11,x
+	adc add
+	tay
+	lda colorTable + $1d,y
+	sta $0631
+	lda sine64 + $14,x
+	adc add
+	tay
+	lda colorTable + $1e,y
+	sta $0632
+	lda sine64 + $17,x
+	adc add
+	tay
+	lda colorTable + $1f,y
+	sta $0633
+	lda sine64 + $1a,x
+	adc add
+	tay
+	lda colorTable + $20,y
+	sta $0634
+	lda sine64 + $1d,x
+	adc add
+	tay
+	lda colorTable + $21,y
+	sta $0635
+	lda sine64 + $20,x
+	adc add
+	tay
+	lda colorTable + $22,y
+	sta $0636
+	lda sine64 + $23,x
+	adc add
+	tay
+	lda colorTable + $23,y
+	sta $0637
+	lda sine64 + $26,x
+	adc add
+	tay
+	lda colorTable + $24,y
+	sta $0638
+	lda sine64 + $29,x
+	adc add
+	tay
+	lda colorTable + $25,y
+	sta $0639
+	lda sine64 + $2c,x
+	adc add
+	tay
+	lda colorTable + $26,y
+	sta $063a
+	lda sine64 + $2f,x
+	adc add
+	tay
+	lda colorTable + $27,y
+	sta $063b
+	lda sine64 + $32,x
+	adc add
+	tay
+	lda colorTable + $28,y
+	sta $063c
+	lda sine64 + $35,x
+	adc add
+	tay
+	lda colorTable + $29,y
+	sta $063d
+	lda sine64 + $38,x
+	adc add
+	tay
+	lda colorTable + $2a,y
+	sta $063e
+	lda sine64 + $3b,x
+	adc add
+	tay
+	lda colorTable + $2b,y
+	sta $063f
+	lda sine64 + $3e,x
+	adc add
+	tay
+	lda colorTable + $2c,y
+	sta $0640
+	lda sine64 + $41,x
+	adc add
+	tay
+	lda colorTable + $2d,y
+	sta $0641
+	lda sine64 + $44,x
+	adc add
+	tay
+	lda colorTable + $2e,y
+	sta $0642
+	lda sine64 + $47,x
+	adc add
+	tay
+	lda colorTable + $2f,y
+	sta $0643
+	lda sine64 + $4a,x
+	adc add
+	tay
+	lda colorTable + $30,y
+	sta $0644
+	lda sine64 + $4d,x
+	adc add
+	tay
+	lda colorTable + $31,y
+	sta $0645
+	lda sine64 + $50,x
+	adc add
+	tay
+	lda colorTable + $32,y
+	sta $0646
+	lda sine64 + $53,x
+	adc add
+	tay
+	lda colorTable + $33,y
+	sta $0647
+	lda sine64 + $56,x
+	adc add
+	tay
+	lda colorTable + $34,y
+	sta $0648
+	lda sine64 + $59,x
+	adc add
+	tay
+	lda colorTable + $35,y
+	sta $0649
+	lda sine64 + $5c,x
+	adc add
+	tay
+	lda colorTable + $36,y
+	sta $064a
+	lda sine64 + $5f,x
+	adc add
+	tay
+	lda colorTable + $37,y
+	sta $064b
+	lda sine64 + $62,x
+	adc add
+	tay
+	lda colorTable + $38,y
+	sta $064c
+	lda sine64 + $65,x
+	adc add
+	tay
+	lda colorTable + $39,y
+	sta $064d
+	lda sine64 + $68,x
+	adc add
+	tay
+	lda colorTable + $3a,y
+	sta $064e
+	lda sine64 + $6b,x
+	adc add
+	tay
+	lda colorTable + $3b,y
+	sta $064f
+	lda sine64 + $6e,x
+	adc add
+	tay
+	lda colorTable + $3c,y
+	sta $0650
+	lda sine64 + $71,x
+	adc add
+	tay
+	lda colorTable + $3d,y
+	sta $0651
+	lda sine64 + $74,x
+	adc add
+	tay
+	lda colorTable + $3e,y
+	sta $0652
+	lda sine64 + $77,x
+	adc add
+	tay
+	lda colorTable + $3f,y
+	sta $0653
+	lda sine64 + $7a,x
+	adc add
+	tay
+	lda colorTable + $00,y
+	sta $0654
+	lda sine64 + $7d,x
+	adc add
+	tay
+	lda colorTable + $01,y
+	sta $0655
+	lda sine64 + $80,x
+	adc add
+	tay
+	lda colorTable + $02,y
+	sta $0656
+	lda sine64 + $83,x
+	adc add
+	tay
+	lda colorTable + $03,y
+	sta $0657
+	
+	ldx plasmaCnt + 0
+	ldy plasmaCnt + 1
+	clc
+	lda sine128 + $3c,x
+	adc sine64 + $69,y
+	tax
+	lda sine64 + $0f,x
+	adc add
+	tay
+	lda colorTable + $1e,y
+	sta $0658
+	lda sine64 + $12,x
+	adc add
+	tay
+	lda colorTable + $1f,y
+	sta $0659
+	lda sine64 + $15,x
+	adc add
+	tay
+	lda colorTable + $20,y
+	sta $065a
+	lda sine64 + $18,x
+	adc add
+	tay
+	lda colorTable + $21,y
+	sta $065b
+	lda sine64 + $1b,x
+	adc add
+	tay
+	lda colorTable + $22,y
+	sta $065c
+	lda sine64 + $1e,x
+	adc add
+	tay
+	lda colorTable + $23,y
+	sta $065d
+	lda sine64 + $21,x
+	adc add
+	tay
+	lda colorTable + $24,y
+	sta $065e
+	lda sine64 + $24,x
+	adc add
+	tay
+	lda colorTable + $25,y
+	sta $065f
+	lda sine64 + $27,x
+	adc add
+	tay
+	lda colorTable + $26,y
+	sta $0660
+	lda sine64 + $2a,x
+	adc add
+	tay
+	lda colorTable + $27,y
+	sta $0661
+	lda sine64 + $2d,x
+	adc add
+	tay
+	lda colorTable + $28,y
+	sta $0662
+	lda sine64 + $30,x
+	adc add
+	tay
+	lda colorTable + $29,y
+	sta $0663
+	lda sine64 + $33,x
+	adc add
+	tay
+	lda colorTable + $2a,y
+	sta $0664
+	lda sine64 + $36,x
+	adc add
+	tay
+	lda colorTable + $2b,y
+	sta $0665
+	lda sine64 + $39,x
+	adc add
+	tay
+	lda colorTable + $2c,y
+	sta $0666
+	lda sine64 + $3c,x
+	adc add
+	tay
+	lda colorTable + $2d,y
+	sta $0667
+	lda sine64 + $3f,x
+	adc add
+	tay
+	lda colorTable + $2e,y
+	sta $0668
+	lda sine64 + $42,x
+	adc add
+	tay
+	lda colorTable + $2f,y
+	sta $0669
+	lda sine64 + $45,x
+	adc add
+	tay
+	lda colorTable + $30,y
+	sta $066a
+	lda sine64 + $48,x
+	adc add
+	tay
+	lda colorTable + $31,y
+	sta $066b
+	lda sine64 + $4b,x
+	adc add
+	tay
+	lda colorTable + $32,y
+	sta $066c
+	lda sine64 + $4e,x
+	adc add
+	tay
+	lda colorTable + $33,y
+	sta $066d
+	lda sine64 + $51,x
+	adc add
+	tay
+	lda colorTable + $34,y
+	sta $066e
+	lda sine64 + $54,x
+	adc add
+	tay
+	lda colorTable + $35,y
+	sta $066f
+	lda sine64 + $57,x
+	adc add
+	tay
+	lda colorTable + $36,y
+	sta $0670
+	lda sine64 + $5a,x
+	adc add
+	tay
+	lda colorTable + $37,y
+	sta $0671
+	lda sine64 + $5d,x
+	adc add
+	tay
+	lda colorTable + $38,y
+	sta $0672
+	lda sine64 + $60,x
+	adc add
+	tay
+	lda colorTable + $39,y
+	sta $0673
+	lda sine64 + $63,x
+	adc add
+	tay
+	lda colorTable + $3a,y
+	sta $0674
+	lda sine64 + $66,x
+	adc add
+	tay
+	lda colorTable + $3b,y
+	sta $0675
+	lda sine64 + $69,x
+	adc add
+	tay
+	lda colorTable + $3c,y
+	sta $0676
+	lda sine64 + $6c,x
+	adc add
+	tay
+	lda colorTable + $3d,y
+	sta $0677
+	lda sine64 + $6f,x
+	adc add
+	tay
+	lda colorTable + $3e,y
+	sta $0678
+	lda sine64 + $72,x
+	adc add
+	tay
+	lda colorTable + $3f,y
+	sta $0679
+	lda sine64 + $75,x
+	adc add
+	tay
+	lda colorTable + $00,y
+	sta $067a
+	lda sine64 + $78,x
+	adc add
+	tay
+	lda colorTable + $01,y
+	sta $067b
+	lda sine64 + $7b,x
+	adc add
+	tay
+	lda colorTable + $02,y
+	sta $067c
+	lda sine64 + $7e,x
+	adc add
+	tay
+	lda colorTable + $03,y
+	sta $067d
+	lda sine64 + $81,x
+	adc add
+	tay
+	lda colorTable + $04,y
+	sta $067e
+	lda sine64 + $84,x
+	adc add
+	tay
+	lda colorTable + $05,y
+	sta $067f
+	
+	ldx plasmaCnt + 0
+	ldy plasmaCnt + 1
+	clc
+	lda sine128 + $40,x
+	adc sine64 + $70,y
+	tax
+	lda sine64 + $10,x
+	adc add
+	tay
+	lda colorTable + $20,y
+	sta $0680
+	lda sine64 + $13,x
+	adc add
+	tay
+	lda colorTable + $21,y
+	sta $0681
+	lda sine64 + $16,x
+	adc add
+	tay
+	lda colorTable + $22,y
+	sta $0682
+	lda sine64 + $19,x
+	adc add
+	tay
+	lda colorTable + $23,y
+	sta $0683
+	lda sine64 + $1c,x
+	adc add
+	tay
+	lda colorTable + $24,y
+	sta $0684
+	lda sine64 + $1f,x
+	adc add
+	tay
+	lda colorTable + $25,y
+	sta $0685
+	lda sine64 + $22,x
+	adc add
+	tay
+	lda colorTable + $26,y
+	sta $0686
+	lda sine64 + $25,x
+	adc add
+	tay
+	lda colorTable + $27,y
+	sta $0687
+	lda sine64 + $28,x
+	adc add
+	tay
+	lda colorTable + $28,y
+	sta $0688
+	lda sine64 + $2b,x
+	adc add
+	tay
+	lda colorTable + $29,y
+	sta $0689
+	lda sine64 + $2e,x
+	adc add
+	tay
+	lda colorTable + $2a,y
+	sta $068a
+	lda sine64 + $31,x
+	adc add
+	tay
+	lda colorTable + $2b,y
+	sta $068b
+	lda sine64 + $34,x
+	adc add
+	tay
+	lda colorTable + $2c,y
+	sta $068c
+	lda sine64 + $37,x
+	adc add
+	tay
+	lda colorTable + $2d,y
+	sta $068d
+	lda sine64 + $3a,x
+	adc add
+	tay
+	lda colorTable + $2e,y
+	sta $068e
+	lda sine64 + $3d,x
+	adc add
+	tay
+	lda colorTable + $2f,y
+	sta $068f
+	lda sine64 + $40,x
+	adc add
+	tay
+	lda colorTable + $30,y
+	sta $0690
+	lda sine64 + $43,x
+	adc add
+	tay
+	lda colorTable + $31,y
+	sta $0691
+	lda sine64 + $46,x
+	adc add
+	tay
+	lda colorTable + $32,y
+	sta $0692
+	lda sine64 + $49,x
+	adc add
+	tay
+	lda colorTable + $33,y
+	sta $0693
+	lda sine64 + $4c,x
+	adc add
+	tay
+	lda colorTable + $34,y
+	sta $0694
+	lda sine64 + $4f,x
+	adc add
+	tay
+	lda colorTable + $35,y
+	sta $0695
+	lda sine64 + $52,x
+	adc add
+	tay
+	lda colorTable + $36,y
+	sta $0696
+	lda sine64 + $55,x
+	adc add
+	tay
+	lda colorTable + $37,y
+	sta $0697
+	lda sine64 + $58,x
+	adc add
+	tay
+	lda colorTable + $38,y
+	sta $0698
+	lda sine64 + $5b,x
+	adc add
+	tay
+	lda colorTable + $39,y
+	sta $0699
+	lda sine64 + $5e,x
+	adc add
+	tay
+	lda colorTable + $3a,y
+	sta $069a
+	lda sine64 + $61,x
+	adc add
+	tay
+	lda colorTable + $3b,y
+	sta $069b
+	lda sine64 + $64,x
+	adc add
+	tay
+	lda colorTable + $3c,y
+	sta $069c
+	lda sine64 + $67,x
+	adc add
+	tay
+	lda colorTable + $3d,y
+	sta $069d
+	lda sine64 + $6a,x
+	adc add
+	tay
+	lda colorTable + $3e,y
+	sta $069e
+	lda sine64 + $6d,x
+	adc add
+	tay
+	lda colorTable + $3f,y
+	sta $069f
+	lda sine64 + $70,x
+	adc add
+	tay
+	lda colorTable + $00,y
+	sta $06a0
+	lda sine64 + $73,x
+	adc add
+	tay
+	lda colorTable + $01,y
+	sta $06a1
+	lda sine64 + $76,x
+	adc add
+	tay
+	lda colorTable + $02,y
+	sta $06a2
+	lda sine64 + $79,x
+	adc add
+	tay
+	lda colorTable + $03,y
+	sta $06a3
+	lda sine64 + $7c,x
+	adc add
+	tay
+	lda colorTable + $04,y
+	sta $06a4
+	lda sine64 + $7f,x
+	adc add
+	tay
+	lda colorTable + $05,y
+	sta $06a5
+	lda sine64 + $82,x
+	adc add
+	tay
+	lda colorTable + $06,y
+	sta $06a6
+	lda sine64 + $85,x
+	adc add
+	tay
+	lda colorTable + $07,y
+	sta $06a7
+	
+	ldx plasmaCnt + 0
+	ldy plasmaCnt + 1
+	clc
+	lda sine128 + $44,x
+	adc sine64 + $77,y
+	tax
+	lda sine64 + $11,x
+	adc add
+	tay
+	lda colorTable + $22,y
+	sta $06a8
+	lda sine64 + $14,x
+	adc add
+	tay
+	lda colorTable + $23,y
+	sta $06a9
+	lda sine64 + $17,x
+	adc add
+	tay
+	lda colorTable + $24,y
+	sta $06aa
+	lda sine64 + $1a,x
+	adc add
+	tay
+	lda colorTable + $25,y
+	sta $06ab
+	lda sine64 + $1d,x
+	adc add
+	tay
+	lda colorTable + $26,y
+	sta $06ac
+	lda sine64 + $20,x
+	adc add
+	tay
+	lda colorTable + $27,y
+	sta $06ad
+	lda sine64 + $23,x
+	adc add
+	tay
+	lda colorTable + $28,y
+	sta $06ae
+	lda sine64 + $26,x
+	adc add
+	tay
+	lda colorTable + $29,y
+	sta $06af
+	lda sine64 + $29,x
+	adc add
+	tay
+	lda colorTable + $2a,y
+	sta $06b0
+	lda sine64 + $2c,x
+	adc add
+	tay
+	lda colorTable + $2b,y
+	sta $06b1
+	lda sine64 + $2f,x
+	adc add
+	tay
+	lda colorTable + $2c,y
+	sta $06b2
+	lda sine64 + $32,x
+	adc add
+	tay
+	lda colorTable + $2d,y
+	sta $06b3
+	lda sine64 + $35,x
+	adc add
+	tay
+	lda colorTable + $2e,y
+	sta $06b4
+	lda sine64 + $38,x
+	adc add
+	tay
+	lda colorTable + $2f,y
+	sta $06b5
+	lda sine64 + $3b,x
+	adc add
+	tay
+	lda colorTable + $30,y
+	sta $06b6
+	lda sine64 + $3e,x
+	adc add
+	tay
+	lda colorTable + $31,y
+	sta $06b7
+	lda sine64 + $41,x
+	adc add
+	tay
+	lda colorTable + $32,y
+	sta $06b8
+	lda sine64 + $44,x
+	adc add
+	tay
+	lda colorTable + $33,y
+	sta $06b9
+	lda sine64 + $47,x
+	adc add
+	tay
+	lda colorTable + $34,y
+	sta $06ba
+	lda sine64 + $4a,x
+	adc add
+	tay
+	lda colorTable + $35,y
+	sta $06bb
+	lda sine64 + $4d,x
+	adc add
+	tay
+	lda colorTable + $36,y
+	sta $06bc
+	lda sine64 + $50,x
+	adc add
+	tay
+	lda colorTable + $37,y
+	sta $06bd
+	lda sine64 + $53,x
+	adc add
+	tay
+	lda colorTable + $38,y
+	sta $06be
+	lda sine64 + $56,x
+	adc add
+	tay
+	lda colorTable + $39,y
+	sta $06bf
+	lda sine64 + $59,x
+	adc add
+	tay
+	lda colorTable + $3a,y
+	sta $06c0
+	lda sine64 + $5c,x
+	adc add
+	tay
+	lda colorTable + $3b,y
+	sta $06c1
+	lda sine64 + $5f,x
+	adc add
+	tay
+	lda colorTable + $3c,y
+	sta $06c2
+	lda sine64 + $62,x
+	adc add
+	tay
+	lda colorTable + $3d,y
+	sta $06c3
+	lda sine64 + $65,x
+	adc add
+	tay
+	lda colorTable + $3e,y
+	sta $06c4
+	lda sine64 + $68,x
+	adc add
+	tay
+	lda colorTable + $3f,y
+	sta $06c5
+	lda sine64 + $6b,x
+	adc add
+	tay
+	lda colorTable + $00,y
+	sta $06c6
+	lda sine64 + $6e,x
+	adc add
+	tay
+	lda colorTable + $01,y
+	sta $06c7
+	lda sine64 + $71,x
+	adc add
+	tay
+	lda colorTable + $02,y
+	sta $06c8
+	lda sine64 + $74,x
+	adc add
+	tay
+	lda colorTable + $03,y
+	sta $06c9
+	lda sine64 + $77,x
+	adc add
+	tay
+	lda colorTable + $04,y
+	sta $06ca
+	lda sine64 + $7a,x
+	adc add
+	tay
+	lda colorTable + $05,y
+	sta $06cb
+	lda sine64 + $7d,x
+	adc add
+	tay
+	lda colorTable + $06,y
+	sta $06cc
+	lda sine64 + $80,x
+	adc add
+	tay
+	lda colorTable + $07,y
+	sta $06cd
+	lda sine64 + $83,x
+	adc add
+	tay
+	lda colorTable + $08,y
+	sta $06ce
+	lda sine64 + $86,x
+	adc add
+	tay
+	lda colorTable + $09,y
+	sta $06cf
+	
+	ldx plasmaCnt + 0
+	ldy plasmaCnt + 1
+	clc
+	lda sine128 + $48,x
+	adc sine64 + $7e,y
+	tax
+	lda sine64 + $12,x
+	adc add
+	tay
+	lda colorTable + $24,y
+	sta $06d0
+	lda sine64 + $15,x
+	adc add
+	tay
+	lda colorTable + $25,y
+	sta $06d1
+	lda sine64 + $18,x
+	adc add
+	tay
+	lda colorTable + $26,y
+	sta $06d2
+	lda sine64 + $1b,x
+	adc add
+	tay
+	lda colorTable + $27,y
+	sta $06d3
+	lda sine64 + $1e,x
+	adc add
+	tay
+	lda colorTable + $28,y
+	sta $06d4
+	lda sine64 + $21,x
+	adc add
+	tay
+	lda colorTable + $29,y
+	sta $06d5
+	lda sine64 + $24,x
+	adc add
+	tay
+	lda colorTable + $2a,y
+	sta $06d6
+	lda sine64 + $27,x
+	adc add
+	tay
+	lda colorTable + $2b,y
+	sta $06d7
+	lda sine64 + $2a,x
+	adc add
+	tay
+	lda colorTable + $2c,y
+	sta $06d8
+	lda sine64 + $2d,x
+	adc add
+	tay
+	lda colorTable + $2d,y
+	sta $06d9
+	lda sine64 + $30,x
+	adc add
+	tay
+	lda colorTable + $2e,y
+	sta $06da
+	lda sine64 + $33,x
+	adc add
+	tay
+	lda colorTable + $2f,y
+	sta $06db
+	lda sine64 + $36,x
+	adc add
+	tay
+	lda colorTable + $30,y
+	sta $06dc
+	lda sine64 + $39,x
+	adc add
+	tay
+	lda colorTable + $31,y
+	sta $06dd
+	lda sine64 + $3c,x
+	adc add
+	tay
+	lda colorTable + $32,y
+	sta $06de
+	lda sine64 + $3f,x
+	adc add
+	tay
+	lda colorTable + $33,y
+	sta $06df
+	lda sine64 + $42,x
+	adc add
+	tay
+	lda colorTable + $34,y
+	sta $06e0
+	lda sine64 + $45,x
+	adc add
+	tay
+	lda colorTable + $35,y
+	sta $06e1
+	lda sine64 + $48,x
+	adc add
+	tay
+	lda colorTable + $36,y
+	sta $06e2
+	lda sine64 + $4b,x
+	adc add
+	tay
+	lda colorTable + $37,y
+	sta $06e3
+	lda sine64 + $4e,x
+	adc add
+	tay
+	lda colorTable + $38,y
+	sta $06e4
+	lda sine64 + $51,x
+	adc add
+	tay
+	lda colorTable + $39,y
+	sta $06e5
+	lda sine64 + $54,x
+	adc add
+	tay
+	lda colorTable + $3a,y
+	sta $06e6
+	lda sine64 + $57,x
+	adc add
+	tay
+	lda colorTable + $3b,y
+	sta $06e7
+	lda sine64 + $5a,x
+	adc add
+	tay
+	lda colorTable + $3c,y
+	sta $06e8
+	lda sine64 + $5d,x
+	adc add
+	tay
+	lda colorTable + $3d,y
+	sta $06e9
+	lda sine64 + $60,x
+	adc add
+	tay
+	lda colorTable + $3e,y
+	sta $06ea
+	lda sine64 + $63,x
+	adc add
+	tay
+	lda colorTable + $3f,y
+	sta $06eb
+	lda sine64 + $66,x
+	adc add
+	tay
+	lda colorTable + $00,y
+	sta $06ec
+	lda sine64 + $69,x
+	adc add
+	tay
+	lda colorTable + $01,y
+	sta $06ed
+	lda sine64 + $6c,x
+	adc add
+	tay
+	lda colorTable + $02,y
+	sta $06ee
+	lda sine64 + $6f,x
+	adc add
+	tay
+	lda colorTable + $03,y
+	sta $06ef
+	lda sine64 + $72,x
+	adc add
+	tay
+	lda colorTable + $04,y
+	sta $06f0
+	lda sine64 + $75,x
+	adc add
+	tay
+	lda colorTable + $05,y
+	sta $06f1
+	lda sine64 + $78,x
+	adc add
+	tay
+	lda colorTable + $06,y
+	sta $06f2
+	lda sine64 + $7b,x
+	adc add
+	tay
+	lda colorTable + $07,y
+	sta $06f3
+	lda sine64 + $7e,x
+	adc add
+	tay
+	lda colorTable + $08,y
+	sta $06f4
+	lda sine64 + $81,x
+	adc add
+	tay
+	lda colorTable + $09,y
+	sta $06f5
+	lda sine64 + $84,x
+	adc add
+	tay
+	lda colorTable + $0a,y
+	sta $06f6
+	lda sine64 + $87,x
+	adc add
+	tay
+	lda colorTable + $0b,y
+	sta $06f7
+	
+	ldx plasmaCnt + 0
+	ldy plasmaCnt + 1
+	clc
+	lda sine128 + $4c,x
+	adc sine64 + $85,y
+	tax
+	lda sine64 + $13,x
+	adc add
+	tay
+	lda colorTable + $26,y
+	sta $06f8
+	lda sine64 + $16,x
+	adc add
+	tay
+	lda colorTable + $27,y
+	sta $06f9
+	lda sine64 + $19,x
+	adc add
+	tay
+	lda colorTable + $28,y
+	sta $06fa
+	lda sine64 + $1c,x
+	adc add
+	tay
+	lda colorTable + $29,y
+	sta $06fb
+	lda sine64 + $1f,x
+	adc add
+	tay
+	lda colorTable + $2a,y
+	sta $06fc
+	lda sine64 + $22,x
+	adc add
+	tay
+	lda colorTable + $2b,y
+	sta $06fd
+	lda sine64 + $25,x
+	adc add
+	tay
+	lda colorTable + $2c,y
+	sta $06fe
+	lda sine64 + $28,x
+	adc add
+	tay
+	lda colorTable + $2d,y
+	sta $06ff
+	lda sine64 + $2b,x
+	adc add
+	tay
+	lda colorTable + $2e,y
+	sta $0700
+	lda sine64 + $2e,x
+	adc add
+	tay
+	lda colorTable + $2f,y
+	sta $0701
+	lda sine64 + $31,x
+	adc add
+	tay
+	lda colorTable + $30,y
+	sta $0702
+	lda sine64 + $34,x
+	adc add
+	tay
+	lda colorTable + $31,y
+	sta $0703
+	lda sine64 + $37,x
+	adc add
+	tay
+	lda colorTable + $32,y
+	sta $0704
+	lda sine64 + $3a,x
+	adc add
+	tay
+	lda colorTable + $33,y
+	sta $0705
+	lda sine64 + $3d,x
+	adc add
+	tay
+	lda colorTable + $34,y
+	sta $0706
+	lda sine64 + $40,x
+	adc add
+	tay
+	lda colorTable + $35,y
+	sta $0707
+	lda sine64 + $43,x
+	adc add
+	tay
+	lda colorTable + $36,y
+	sta $0708
+	lda sine64 + $46,x
+	adc add
+	tay
+	lda colorTable + $37,y
+	sta $0709
+	lda sine64 + $49,x
+	adc add
+	tay
+	lda colorTable + $38,y
+	sta $070a
+	lda sine64 + $4c,x
+	adc add
+	tay
+	lda colorTable + $39,y
+	sta $070b
+	lda sine64 + $4f,x
+	adc add
+	tay
+	lda colorTable + $3a,y
+	sta $070c
+	lda sine64 + $52,x
+	adc add
+	tay
+	lda colorTable + $3b,y
+	sta $070d
+	lda sine64 + $55,x
+	adc add
+	tay
+	lda colorTable + $3c,y
+	sta $070e
+	lda sine64 + $58,x
+	adc add
+	tay
+	lda colorTable + $3d,y
+	sta $070f
+	lda sine64 + $5b,x
+	adc add
+	tay
+	lda colorTable + $3e,y
+	sta $0710
+	lda sine64 + $5e,x
+	adc add
+	tay
+	lda colorTable + $3f,y
+	sta $0711
+	lda sine64 + $61,x
+	adc add
+	tay
+	lda colorTable + $00,y
+	sta $0712
+	lda sine64 + $64,x
+	adc add
+	tay
+	lda colorTable + $01,y
+	sta $0713
+	lda sine64 + $67,x
+	adc add
+	tay
+	lda colorTable + $02,y
+	sta $0714
+	lda sine64 + $6a,x
+	adc add
+	tay
+	lda colorTable + $03,y
+	sta $0715
+	lda sine64 + $6d,x
+	adc add
+	tay
+	lda colorTable + $04,y
+	sta $0716
+	lda sine64 + $70,x
+	adc add
+	tay
+	lda colorTable + $05,y
+	sta $0717
+	lda sine64 + $73,x
+	adc add
+	tay
+	lda colorTable + $06,y
+	sta $0718
+	lda sine64 + $76,x
+	adc add
+	tay
+	lda colorTable + $07,y
+	sta $0719
+	lda sine64 + $79,x
+	adc add
+	tay
+	lda colorTable + $08,y
+	sta $071a
+	lda sine64 + $7c,x
+	adc add
+	tay
+	lda colorTable + $09,y
+	sta $071b
+	lda sine64 + $7f,x
+	adc add
+	tay
+	lda colorTable + $0a,y
+	sta $071c
+	lda sine64 + $82,x
+	adc add
+	tay
+	lda colorTable + $0b,y
+	sta $071d
+	lda sine64 + $85,x
+	adc add
+	tay
+	lda colorTable + $0c,y
+	sta $071e
+	lda sine64 + $88,x
+	adc add
+	tay
+	lda colorTable + $0d,y
+	sta $071f
+	
+	ldx plasmaCnt + 0
+	ldy plasmaCnt + 1
+	clc
+	lda sine128 + $50,x
+	adc sine64 + $8c,y
+	tax
+	lda sine64 + $14,x
+	adc add
+	tay
+	lda colorTable + $28,y
+	sta $0720
+	lda sine64 + $17,x
+	adc add
+	tay
+	lda colorTable + $29,y
+	sta $0721
+	lda sine64 + $1a,x
+	adc add
+	tay
+	lda colorTable + $2a,y
+	sta $0722
+	lda sine64 + $1d,x
+	adc add
+	tay
+	lda colorTable + $2b,y
+	sta $0723
+	lda sine64 + $20,x
+	adc add
+	tay
+	lda colorTable + $2c,y
+	sta $0724
+	lda sine64 + $23,x
+	adc add
+	tay
+	lda colorTable + $2d,y
+	sta $0725
+	lda sine64 + $26,x
+	adc add
+	tay
+	lda colorTable + $2e,y
+	sta $0726
+	lda sine64 + $29,x
+	adc add
+	tay
+	lda colorTable + $2f,y
+	sta $0727
+	lda sine64 + $2c,x
+	adc add
+	tay
+	lda colorTable + $30,y
+	sta $0728
+	lda sine64 + $2f,x
+	adc add
+	tay
+	lda colorTable + $31,y
+	sta $0729
+	lda sine64 + $32,x
+	adc add
+	tay
+	lda colorTable + $32,y
+	sta $072a
+	lda sine64 + $35,x
+	adc add
+	tay
+	lda colorTable + $33,y
+	sta $072b
+	lda sine64 + $38,x
+	adc add
+	tay
+	lda colorTable + $34,y
+	sta $072c
+	lda sine64 + $3b,x
+	adc add
+	tay
+	lda colorTable + $35,y
+	sta $072d
+	lda sine64 + $3e,x
+	adc add
+	tay
+	lda colorTable + $36,y
+	sta $072e
+	lda sine64 + $41,x
+	adc add
+	tay
+	lda colorTable + $37,y
+	sta $072f
+	lda sine64 + $44,x
+	adc add
+	tay
+	lda colorTable + $38,y
+	sta $0730
+	lda sine64 + $47,x
+	adc add
+	tay
+	lda colorTable + $39,y
+	sta $0731
+	lda sine64 + $4a,x
+	adc add
+	tay
+	lda colorTable + $3a,y
+	sta $0732
+	lda sine64 + $4d,x
+	adc add
+	tay
+	lda colorTable + $3b,y
+	sta $0733
+	lda sine64 + $50,x
+	adc add
+	tay
+	lda colorTable + $3c,y
+	sta $0734
+	lda sine64 + $53,x
+	adc add
+	tay
+	lda colorTable + $3d,y
+	sta $0735
+	lda sine64 + $56,x
+	adc add
+	tay
+	lda colorTable + $3e,y
+	sta $0736
+	lda sine64 + $59,x
+	adc add
+	tay
+	lda colorTable + $3f,y
+	sta $0737
+	lda sine64 + $5c,x
+	adc add
+	tay
+	lda colorTable + $00,y
+	sta $0738
+	lda sine64 + $5f,x
+	adc add
+	tay
+	lda colorTable + $01,y
+	sta $0739
+	lda sine64 + $62,x
+	adc add
+	tay
+	lda colorTable + $02,y
+	sta $073a
+	lda sine64 + $65,x
+	adc add
+	tay
+	lda colorTable + $03,y
+	sta $073b
+	lda sine64 + $68,x
+	adc add
+	tay
+	lda colorTable + $04,y
+	sta $073c
+	lda sine64 + $6b,x
+	adc add
+	tay
+	lda colorTable + $05,y
+	sta $073d
+	lda sine64 + $6e,x
+	adc add
+	tay
+	lda colorTable + $06,y
+	sta $073e
+	lda sine64 + $71,x
+	adc add
+	tay
+	lda colorTable + $07,y
+	sta $073f
+	lda sine64 + $74,x
+	adc add
+	tay
+	lda colorTable + $08,y
+	sta $0740
+	lda sine64 + $77,x
+	adc add
+	tay
+	lda colorTable + $09,y
+	sta $0741
+	lda sine64 + $7a,x
+	adc add
+	tay
+	lda colorTable + $0a,y
+	sta $0742
+	lda sine64 + $7d,x
+	adc add
+	tay
+	lda colorTable + $0b,y
+	sta $0743
+	lda sine64 + $80,x
+	adc add
+	tay
+	lda colorTable + $0c,y
+	sta $0744
+	lda sine64 + $83,x
+	adc add
+	tay
+	lda colorTable + $0d,y
+	sta $0745
+	lda sine64 + $86,x
+	adc add
+	tay
+	lda colorTable + $0e,y
+	sta $0746
+	lda sine64 + $89,x
+	adc add
+	tay
+	lda colorTable + $0f,y
+	sta $0747
+	
+	ldx plasmaCnt + 0
+	ldy plasmaCnt + 1
+	clc
+	lda sine128 + $54,x
+	adc sine64 + $93,y
+	tax
+	lda sine64 + $15,x
+	adc add
+	tay
+	lda colorTable + $2a,y
+	sta $0748
+	lda sine64 + $18,x
+	adc add
+	tay
+	lda colorTable + $2b,y
+	sta $0749
+	lda sine64 + $1b,x
+	adc add
+	tay
+	lda colorTable + $2c,y
+	sta $074a
+	lda sine64 + $1e,x
+	adc add
+	tay
+	lda colorTable + $2d,y
+	sta $074b
+	lda sine64 + $21,x
+	adc add
+	tay
+	lda colorTable + $2e,y
+	sta $074c
+	lda sine64 + $24,x
+	adc add
+	tay
+	lda colorTable + $2f,y
+	sta $074d
+	lda sine64 + $27,x
+	adc add
+	tay
+	lda colorTable + $30,y
+	sta $074e
+	lda sine64 + $2a,x
+	adc add
+	tay
+	lda colorTable + $31,y
+	sta $074f
+	lda sine64 + $2d,x
+	adc add
+	tay
+	lda colorTable + $32,y
+	sta $0750
+	lda sine64 + $30,x
+	adc add
+	tay
+	lda colorTable + $33,y
+	sta $0751
+	lda sine64 + $33,x
+	adc add
+	tay
+	lda colorTable + $34,y
+	sta $0752
+	lda sine64 + $36,x
+	adc add
+	tay
+	lda colorTable + $35,y
+	sta $0753
+	lda sine64 + $39,x
+	adc add
+	tay
+	lda colorTable + $36,y
+	sta $0754
+	lda sine64 + $3c,x
+	adc add
+	tay
+	lda colorTable + $37,y
+	sta $0755
+	lda sine64 + $3f,x
+	adc add
+	tay
+	lda colorTable + $38,y
+	sta $0756
+	lda sine64 + $42,x
+	adc add
+	tay
+	lda colorTable + $39,y
+	sta $0757
+	lda sine64 + $45,x
+	adc add
+	tay
+	lda colorTable + $3a,y
+	sta $0758
+	lda sine64 + $48,x
+	adc add
+	tay
+	lda colorTable + $3b,y
+	sta $0759
+	lda sine64 + $4b,x
+	adc add
+	tay
+	lda colorTable + $3c,y
+	sta $075a
+	lda sine64 + $4e,x
+	adc add
+	tay
+	lda colorTable + $3d,y
+	sta $075b
+	lda sine64 + $51,x
+	adc add
+	tay
+	lda colorTable + $3e,y
+	sta $075c
+	lda sine64 + $54,x
+	adc add
+	tay
+	lda colorTable + $3f,y
+	sta $075d
+	lda sine64 + $57,x
+	adc add
+	tay
+	lda colorTable + $00,y
+	sta $075e
+	lda sine64 + $5a,x
+	adc add
+	tay
+	lda colorTable + $01,y
+	sta $075f
+	lda sine64 + $5d,x
+	adc add
+	tay
+	lda colorTable + $02,y
+	sta $0760
+	lda sine64 + $60,x
+	adc add
+	tay
+	lda colorTable + $03,y
+	sta $0761
+	lda sine64 + $63,x
+	adc add
+	tay
+	lda colorTable + $04,y
+	sta $0762
+	lda sine64 + $66,x
+	adc add
+	tay
+	lda colorTable + $05,y
+	sta $0763
+	lda sine64 + $69,x
+	adc add
+	tay
+	lda colorTable + $06,y
+	sta $0764
+	lda sine64 + $6c,x
+	adc add
+	tay
+	lda colorTable + $07,y
+	sta $0765
+	lda sine64 + $6f,x
+	adc add
+	tay
+	lda colorTable + $08,y
+	sta $0766
+	lda sine64 + $72,x
+	adc add
+	tay
+	lda colorTable + $09,y
+	sta $0767
+	lda sine64 + $75,x
+	adc add
+	tay
+	lda colorTable + $0a,y
+	sta $0768
+	lda sine64 + $78,x
+	adc add
+	tay
+	lda colorTable + $0b,y
+	sta $0769
+	lda sine64 + $7b,x
+	adc add
+	tay
+	lda colorTable + $0c,y
+	sta $076a
+	lda sine64 + $7e,x
+	adc add
+	tay
+	lda colorTable + $0d,y
+	sta $076b
+	lda sine64 + $81,x
+	adc add
+	tay
+	lda colorTable + $0e,y
+	sta $076c
+	lda sine64 + $84,x
+	adc add
+	tay
+	lda colorTable + $0f,y
+	sta $076d
+	lda sine64 + $87,x
+	adc add
+	tay
+	lda colorTable + $10,y
+	sta $076e
+	lda sine64 + $8a,x
+	adc add
+	tay
+	lda colorTable + $11,y
+	sta $076f
+	
+	ldx plasmaCnt + 0
+	ldy plasmaCnt + 1
+	clc
+	lda sine128 + $58,x
+	adc sine64 + $9a,y
+	tax
+	lda sine64 + $16,x
+	adc add
+	tay
+	lda colorTable + $2c,y
+	sta $0770
+	lda sine64 + $19,x
+	adc add
+	tay
+	lda colorTable + $2d,y
+	sta $0771
+	lda sine64 + $1c,x
+	adc add
+	tay
+	lda colorTable + $2e,y
+	sta $0772
+	lda sine64 + $1f,x
+	adc add
+	tay
+	lda colorTable + $2f,y
+	sta $0773
+	lda sine64 + $22,x
+	adc add
+	tay
+	lda colorTable + $30,y
+	sta $0774
+	lda sine64 + $25,x
+	adc add
+	tay
+	lda colorTable + $31,y
+	sta $0775
+	lda sine64 + $28,x
+	adc add
+	tay
+	lda colorTable + $32,y
+	sta $0776
+	lda sine64 + $2b,x
+	adc add
+	tay
+	lda colorTable + $33,y
+	sta $0777
+	lda sine64 + $2e,x
+	adc add
+	tay
+	lda colorTable + $34,y
+	sta $0778
+	lda sine64 + $31,x
+	adc add
+	tay
+	lda colorTable + $35,y
+	sta $0779
+	lda sine64 + $34,x
+	adc add
+	tay
+	lda colorTable + $36,y
+	sta $077a
+	lda sine64 + $37,x
+	adc add
+	tay
+	lda colorTable + $37,y
+	sta $077b
+	lda sine64 + $3a,x
+	adc add
+	tay
+	lda colorTable + $38,y
+	sta $077c
+	lda sine64 + $3d,x
+	adc add
+	tay
+	lda colorTable + $39,y
+	sta $077d
+	lda sine64 + $40,x
+	adc add
+	tay
+	lda colorTable + $3a,y
+	sta $077e
+	lda sine64 + $43,x
+	adc add
+	tay
+	lda colorTable + $3b,y
+	sta $077f
+	lda sine64 + $46,x
+	adc add
+	tay
+	lda colorTable + $3c,y
+	sta $0780
+	lda sine64 + $49,x
+	adc add
+	tay
+	lda colorTable + $3d,y
+	sta $0781
+	lda sine64 + $4c,x
+	adc add
+	tay
+	lda colorTable + $3e,y
+	sta $0782
+	lda sine64 + $4f,x
+	adc add
+	tay
+	lda colorTable + $3f,y
+	sta $0783
+	lda sine64 + $52,x
+	adc add
+	tay
+	lda colorTable + $00,y
+	sta $0784
+	lda sine64 + $55,x
+	adc add
+	tay
+	lda colorTable + $01,y
+	sta $0785
+	lda sine64 + $58,x
+	adc add
+	tay
+	lda colorTable + $02,y
+	sta $0786
+	lda sine64 + $5b,x
+	adc add
+	tay
+	lda colorTable + $03,y
+	sta $0787
+	lda sine64 + $5e,x
+	adc add
+	tay
+	lda colorTable + $04,y
+	sta $0788
+	lda sine64 + $61,x
+	adc add
+	tay
+	lda colorTable + $05,y
+	sta $0789
+	lda sine64 + $64,x
+	adc add
+	tay
+	lda colorTable + $06,y
+	sta $078a
+	lda sine64 + $67,x
+	adc add
+	tay
+	lda colorTable + $07,y
+	sta $078b
+	lda sine64 + $6a,x
+	adc add
+	tay
+	lda colorTable + $08,y
+	sta $078c
+	lda sine64 + $6d,x
+	adc add
+	tay
+	lda colorTable + $09,y
+	sta $078d
+	lda sine64 + $70,x
+	adc add
+	tay
+	lda colorTable + $0a,y
+	sta $078e
+	lda sine64 + $73,x
+	adc add
+	tay
+	lda colorTable + $0b,y
+	sta $078f
+	lda sine64 + $76,x
+	adc add
+	tay
+	lda colorTable + $0c,y
+	sta $0790
+	lda sine64 + $79,x
+	adc add
+	tay
+	lda colorTable + $0d,y
+	sta $0791
+	lda sine64 + $7c,x
+	adc add
+	tay
+	lda colorTable + $0e,y
+	sta $0792
+	lda sine64 + $7f,x
+	adc add
+	tay
+	lda colorTable + $0f,y
+	sta $0793
+	lda sine64 + $82,x
+	adc add
+	tay
+	lda colorTable + $10,y
+	sta $0794
+	lda sine64 + $85,x
+	adc add
+	tay
+	lda colorTable + $11,y
+	sta $0795
+	lda sine64 + $88,x
+	adc add
+	tay
+	lda colorTable + $12,y
+	sta $0796
+	lda sine64 + $8b,x
+	adc add
+	tay
+	lda colorTable + $13,y
+	sta $0797
+	
+	ldx plasmaCnt + 0
+	ldy plasmaCnt + 1
+	clc
+	lda sine128 + $5c,x
+	adc sine64 + $a1,y
+	tax
+	lda sine64 + $17,x
+	adc add
+	tay
+	lda colorTable + $2e,y
+	sta $0798
+	lda sine64 + $1a,x
+	adc add
+	tay
+	lda colorTable + $2f,y
+	sta $0799
+	lda sine64 + $1d,x
+	adc add
+	tay
+	lda colorTable + $30,y
+	sta $079a
+	lda sine64 + $20,x
+	adc add
+	tay
+	lda colorTable + $31,y
+	sta $079b
+	lda sine64 + $23,x
+	adc add
+	tay
+	lda colorTable + $32,y
+	sta $079c
+	lda sine64 + $26,x
+	adc add
+	tay
+	lda colorTable + $33,y
+	sta $079d
+	lda sine64 + $29,x
+	adc add
+	tay
+	lda colorTable + $34,y
+	sta $079e
+	lda sine64 + $2c,x
+	adc add
+	tay
+	lda colorTable + $35,y
+	sta $079f
+	lda sine64 + $2f,x
+	adc add
+	tay
+	lda colorTable + $36,y
+	sta $07a0
+	lda sine64 + $32,x
+	adc add
+	tay
+	lda colorTable + $37,y
+	sta $07a1
+	lda sine64 + $35,x
+	adc add
+	tay
+	lda colorTable + $38,y
+	sta $07a2
+	lda sine64 + $38,x
+	adc add
+	tay
+	lda colorTable + $39,y
+	sta $07a3
+	lda sine64 + $3b,x
+	adc add
+	tay
+	lda colorTable + $3a,y
+	sta $07a4
+	lda sine64 + $3e,x
+	adc add
+	tay
+	lda colorTable + $3b,y
+	sta $07a5
+	lda sine64 + $41,x
+	adc add
+	tay
+	lda colorTable + $3c,y
+	sta $07a6
+	lda sine64 + $44,x
+	adc add
+	tay
+	lda colorTable + $3d,y
+	sta $07a7
+	lda sine64 + $47,x
+	adc add
+	tay
+	lda colorTable + $3e,y
+	sta $07a8
+	lda sine64 + $4a,x
+	adc add
+	tay
+	lda colorTable + $3f,y
+	sta $07a9
+	lda sine64 + $4d,x
+	adc add
+	tay
+	lda colorTable + $00,y
+	sta $07aa
+	lda sine64 + $50,x
+	adc add
+	tay
+	lda colorTable + $01,y
+	sta $07ab
+	lda sine64 + $53,x
+	adc add
+	tay
+	lda colorTable + $02,y
+	sta $07ac
+	lda sine64 + $56,x
+	adc add
+	tay
+	lda colorTable + $03,y
+	sta $07ad
+	lda sine64 + $59,x
+	adc add
+	tay
+	lda colorTable + $04,y
+	sta $07ae
+	lda sine64 + $5c,x
+	adc add
+	tay
+	lda colorTable + $05,y
+	sta $07af
+	lda sine64 + $5f,x
+	adc add
+	tay
+	lda colorTable + $06,y
+	sta $07b0
+	lda sine64 + $62,x
+	adc add
+	tay
+	lda colorTable + $07,y
+	sta $07b1
+	lda sine64 + $65,x
+	adc add
+	tay
+	lda colorTable + $08,y
+	sta $07b2
+	lda sine64 + $68,x
+	adc add
+	tay
+	lda colorTable + $09,y
+	sta $07b3
+	lda sine64 + $6b,x
+	adc add
+	tay
+	lda colorTable + $0a,y
+	sta $07b4
+	lda sine64 + $6e,x
+	adc add
+	tay
+	lda colorTable + $0b,y
+	sta $07b5
+	lda sine64 + $71,x
+	adc add
+	tay
+	lda colorTable + $0c,y
+	sta $07b6
+	lda sine64 + $74,x
+	adc add
+	tay
+	lda colorTable + $0d,y
+	sta $07b7
+	lda sine64 + $77,x
+	adc add
+	tay
+	lda colorTable + $0e,y
+	sta $07b8
+	lda sine64 + $7a,x
+	adc add
+	tay
+	lda colorTable + $0f,y
+	sta $07b9
+	lda sine64 + $7d,x
+	adc add
+	tay
+	lda colorTable + $10,y
+	sta $07ba
+	lda sine64 + $80,x
+	adc add
+	tay
+	lda colorTable + $11,y
+	sta $07bb
+	lda sine64 + $83,x
+	adc add
+	tay
+	lda colorTable + $12,y
+	sta $07bc
+	lda sine64 + $86,x
+	adc add
+	tay
+	lda colorTable + $13,y
+	sta $07bd
+	lda sine64 + $89,x
+	adc add
+	tay
+	lda colorTable + $14,y
+	sta $07be
+	lda sine64 + $8c,x
+	adc add
+	tay
+	lda colorTable + $15,y
+	sta $07bf
+	
+	ldx plasmaCnt + 0
+	ldy plasmaCnt + 1
+	clc
+	lda sine128 + $60,x
+	adc sine64 + $a8,y
+	tax
+	lda sine64 + $18,x
+	adc add
+	tay
+	lda colorTable + $30,y
+	sta $07c0
+	lda sine64 + $1b,x
+	adc add
+	tay
+	lda colorTable + $31,y
+	sta $07c1
+	lda sine64 + $1e,x
+	adc add
+	tay
+	lda colorTable + $32,y
+	sta $07c2
+	lda sine64 + $21,x
+	adc add
+	tay
+	lda colorTable + $33,y
+	sta $07c3
+	lda sine64 + $24,x
+	adc add
+	tay
+	lda colorTable + $34,y
+	sta $07c4
+	lda sine64 + $27,x
+	adc add
+	tay
+	lda colorTable + $35,y
+	sta $07c5
+	lda sine64 + $2a,x
+	adc add
+	tay
+	lda colorTable + $36,y
+	sta $07c6
+	lda sine64 + $2d,x
+	adc add
+	tay
+	lda colorTable + $37,y
+	sta $07c7
+	lda sine64 + $30,x
+	adc add
+	tay
+	lda colorTable + $38,y
+	sta $07c8
+	lda sine64 + $33,x
+	adc add
+	tay
+	lda colorTable + $39,y
+	sta $07c9
+	lda sine64 + $36,x
+	adc add
+	tay
+	lda colorTable + $3a,y
+	sta $07ca
+	lda sine64 + $39,x
+	adc add
+	tay
+	lda colorTable + $3b,y
+	sta $07cb
+	lda sine64 + $3c,x
+	adc add
+	tay
+	lda colorTable + $3c,y
+	sta $07cc
+	lda sine64 + $3f,x
+	adc add
+	tay
+	lda colorTable + $3d,y
+	sta $07cd
+	lda sine64 + $42,x
+	adc add
+	tay
+	lda colorTable + $3e,y
+	sta $07ce
+	lda sine64 + $45,x
+	adc add
+	tay
+	lda colorTable + $3f,y
+	sta $07cf
+	lda sine64 + $48,x
+	adc add
+	tay
+	lda colorTable + $00,y
+	sta $07d0
+	lda sine64 + $4b,x
+	adc add
+	tay
+	lda colorTable + $01,y
+	sta $07d1
+	lda sine64 + $4e,x
+	adc add
+	tay
+	lda colorTable + $02,y
+	sta $07d2
+	lda sine64 + $51,x
+	adc add
+	tay
+	lda colorTable + $03,y
+	sta $07d3
+	lda sine64 + $54,x
+	adc add
+	tay
+	lda colorTable + $04,y
+	sta $07d4
+	lda sine64 + $57,x
+	adc add
+	tay
+	lda colorTable + $05,y
+	sta $07d5
+	lda sine64 + $5a,x
+	adc add
+	tay
+	lda colorTable + $06,y
+	sta $07d6
+	lda sine64 + $5d,x
+	adc add
+	tay
+	lda colorTable + $07,y
+	sta $07d7
+	lda sine64 + $60,x
+	adc add
+	tay
+	lda colorTable + $08,y
+	sta $07d8
+	lda sine64 + $63,x
+	adc add
+	tay
+	lda colorTable + $09,y
+	sta $07d9
+	lda sine64 + $66,x
+	adc add
+	tay
+	lda colorTable + $0a,y
+	sta $07da
+	lda sine64 + $69,x
+	adc add
+	tay
+	lda colorTable + $0b,y
+	sta $07db
+	lda sine64 + $6c,x
+	adc add
+	tay
+	lda colorTable + $0c,y
+	sta $07dc
+	lda sine64 + $6f,x
+	adc add
+	tay
+	lda colorTable + $0d,y
+	sta $07dd
+	lda sine64 + $72,x
+	adc add
+	tay
+	lda colorTable + $0e,y
+	sta $07de
+	lda sine64 + $75,x
+	adc add
+	tay
+	lda colorTable + $0f,y
+	sta $07df
+	lda sine64 + $78,x
+	adc add
+	tay
+	lda colorTable + $10,y
+	sta $07e0
+	lda sine64 + $7b,x
+	adc add
+	tay
+	lda colorTable + $11,y
+	sta $07e1
+	lda sine64 + $7e,x
+	adc add
+	tay
+	lda colorTable + $12,y
+	sta $07e2
+	lda sine64 + $81,x
+	adc add
+	tay
+	lda colorTable + $13,y
+	sta $07e3
+	lda sine64 + $84,x
+	adc add
+	tay
+	lda colorTable + $14,y
+	sta $07e4
+	lda sine64 + $87,x
+	adc add
+	tay
+	lda colorTable + $15,y
+	sta $07e5
+	lda sine64 + $8a,x
+	adc add
+	tay
+	lda colorTable + $16,y
+	sta $07e6
+	lda sine64 + $8d,x
+	adc add
+	tay
+	lda colorTable + $17,y
+	sta $07e7
+
+	jmp mainLoop
+</code>

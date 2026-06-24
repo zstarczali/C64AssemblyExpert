@@ -1,0 +1,58 @@
+# PAGE: base:shortest_keyboard_scan
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:shortest_keyboard_scan
+
+====== Shortest keyboard scan ======
+
+Uses all registers A X Y, keeps history, to detect key press & hold. If joystick(s) will be read, to avoid interfere, this method should be used : 
+
+[[base:both_joysticks_handling_plus_proper_keyboard_scan|Handling both joysticks with proper keyboard scan]]
+
+lda #$ff
+sta $dc00
+lda $dc00
+...
+
+<code>
+
+;64tass format
+
+	* = $1000
+		
+	sei
+loop	lda #$80
+-	cmp $d012
+	bne -
+		
+	ldx #$00		;key #0
+	ldy #$7f
+	lda #$40		;Q
+	jsr keyscan
+	bcc +
+		
+	inc $d020
+		
++	ldx #$01		;key #1
+	ldy #$fd
+	lda #$02		;W
+	jsr keyscan
+	bcc +
+		
+	inc $d021
+		
++	jmp loop		
+
+keyscan	clc
+	sty $dc00
+	and $dc01
+	beq +			;key pressed A=0, update buffer, C=0
+	cmp keys,x
+	bne +			;key not held down, A!=0, C=1
+	clc			;no keypress, return with C=0
+	rts
+		
++	sta keys,x
+	rts
+		
+keys	.byte $40,$02	        ;initial values should be A values		
+
+</code>

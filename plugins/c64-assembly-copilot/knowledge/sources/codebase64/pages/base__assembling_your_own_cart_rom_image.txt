@@ -1,0 +1,302 @@
+# PAGE: base:assembling_your_own_cart_rom_image
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:assembling_your_own_cart_rom_image
+
+====== Assembling your own cart ROM image ======
+
+Cartridge ROM images are burnt or flashed into ROM/flash chips. The file formats of the ROM images vary, but common formats are either raw binary dumps or the special [[base:crt_file_format|.crt]] file format.
+
+Most emulators can handle both of these formats, and hardware such as Retro Replay and 1541U with flash ROM can be used if you want to run your cartridge image on the real hardware without having a EPROM burner or other special hardware.
+
+====== Suitable assemblers for cartridge ROM development ======
+
+Most assemblers can be used to write your own cartridge ROM, but some are more suitable than others. For example, if you are planning to write a cartridge ROM that uses more than one ROM bank, you might want to use an assembler that, in one way or another, supports writing several segments that have the same start address. [[http://developer.berlios.de/projects/rrtools/|DreamAss]] deserves a special comment here since it has even more features in this direction. In addition to plain support of segments, it also has:
+
+  * a pseudo op that returns the bank number of a symbol. this makes it very easy to build tables with bank/address for a cross-bank-call-api
+  * the assembler can put functions into banks as they fit automatically, so you don't have to worry about memory layout.
+
+====== Simple cartridge skeleton sources ======
+Here are two small sources from the net that might help you to get up and running with an autostarting cartridge.
+
+===== CBM80 Autostart Cartridge =====
+Version 1.0
+
+By Alphaworks (?)
+
+<code>
+CHRGET    = $0073
+TXTPTR    = $7A
+IERROR    = $0300
+IMAIN     = $0302
+IGONE     = $0308
+GONE      = $A7E4
+CHKCOM    = $AEFD
+FRMNUM    = $AD8A
+GETADR    = $B7F7
+CHROUT    = $FFD2
+BORDER    = $D020
+SCREEN    = $D021
+TEXT	  = $0286
+
+
+	* = $8000
+
+	.BYTE	$09, $80			; Cartridge cold-start vector = $8009
+	.BYTE	$25, $80			; Cartridge warm-start vector = $8025
+	.BYTE	$C3, $C2, $CD, $38, $30		; CBM8O - Autostart key
+
+
+;	KERNAL RESET ROUTINE
+	STX $D016				; Turn on VIC for PAL / NTSC check
+	JSR $FDA3				; IOINIT - Init CIA chips
+	JSR $FD50				; RANTAM - Clear/test system RAM
+	JSR $FD15				; RESTOR - Init KERNAL RAM vectors
+	JSR $FF5B				; CINT   - Init VIC and screen editor
+	CLI					; Re-enable IRQ interrupts
+
+
+;	BASIC RESET  Routine
+
+	JSR $E453				; Init BASIC RAM vectors
+	JSR $E3BF				; Main BASIC RAM Init routine
+	JSR $E422				; Power-up message / NEW command
+	LDX #$FB
+	TXS					; Reduce stack pointer for BASIC
+
+	
+;	START YOUR PROGRAM HERE ($8025)
+
+    LDA #4		; CHANGE BORDER COLOUR TO 
+    STA BORDER		; BLACK
+    LDA #147		; PRINT CHR$(147) TO CLEAR
+    JSR CHROUT		; SCREEN
+    RTS
+</code>
+
+===== Copy a program from ROM to RAM and autostart it =====
+By Enthusi
+
+Taken from [[http://noname.c64.org/csdb/forums/?roomid=11&topicid=64580#64617|this CSDb discussion thread]].
+
+This code is used to create a [[base:crt_file_format|.crt]] ROM image which includes a copy of an executable program. When started, the code in the ROM copies the program to  C64 RAM (from $0801) and executes it. The cart-reset-routine copies the "launcher" to $0400, executes it and somewhere near $0430 it says JMP $080b.
+
+These CRTs will run in VICE and MMCR Bios 0.55 - source is in XA syntax
+
+<code>
+
+;this is for a 8KB cart!!
+*=$0000
+	.asc "C64 CARTRIDGE   "
+	.byte $00,$00 ;header length
+	.byte $00,$40 ;header length
+	.word $0001 ;version
+	.word $0000 ;crt type
+	.byte $00 ;exrom line
+	.byte $01 ;game line
+	.byte $00,$00,$00,$00,$00,$00 ;unused
+	.asc "CRT TITLE"
+name
+	.dsb ($0040-name),0
+	;chip packets
+	.asc "CHIP"
+	.byte $00,$00,$20,$10 ;chip length
+	.byte $00,$00 ;chip type
+	.byte $00,$00 ;bank
+	.byte $80,$00 ;adress
+	.byte $20,$00 ;length
+	
+;ROM part
+;---------------------------------
+*=$8000
+	.word launcher
+	.word launcher
+	.byte $c3 ;c
+	.byte $c2 ;b
+	.byte $cd ;m
+	.byte $38 ;8
+	.byte $30 ;0
+
+launcher
+	sei
+	stx $d016
+	jsr $fda3 ;prepare irq
+	jsr $fd50 ;init memory
+	jsr $fd15 ;init i/o
+	jsr $ff5b ;init video
+	cli
+	;jsr $e453 ;load basic vectors
+	;jsr $e3bf ;init basic ram
+	;jsr $a68e
+	;jmp $a7ae
+
+	;ldx #$fb
+	; txs
+;---------------------------------
+start_all
+	lda $d011
+	and #%11101111
+	sta $d011
+
+	ldx #$00
+	sa1
+	lda movecode1,x
+	sta $0400,x
+	inx
+	bne sa1
+	jmp $0400
+;------------------------------
+movecode1
+
+	*=$0400
+movecode2
+	basic_move
+	ldx #$00
+	bm1
+	lda main_file_start,x
+	bm2
+	sta $0801,x
+	inx
+	bne bm1
+	inc bm1+2
+	inc bm2+2
+	lda bm1+2
+	cmp #$c0
+	bne basic_move
+	jmp $080b
+movecode3
+;---------------------------------
+	*=movecode1+(movecode3-movecode2)
+
+main_file_start
+	.bin 2,0,"game.bin"
+main_file_end
+
+	.dsb ($a000-main_file_end),0
+</code>
+
+===== CBM80 Autostart Cartridge developed with DreamAss =====
+By Csanyi Pal
+
+This cart rom image is just for experimenting how can one assemble her/his own cart rom image with DreamAss.
+It can be run in VICE x64sc emulator.
+
+<code>
+;HOW TO COMPILE
+;dreamass -o TestMyCart.crt TestMyCart.src
+;HOW TO VERIFY CRT IMAGE
+;cartconv -f TestMyCart.crt
+;HOW TO RUN in VICE's x64sc emulator
+;x64sc -cartcrt TestMyCart.crt
+
+;DreamAss documentation is after unpacking and running make in dreamass-master directorty
+;and after that running make in dreamass-master/docs directory is here:
+;file://dreamass-master/docs/dreamass.html#Outfiles
+#outfile @, sort, $00, "crtheader", "chip1header", "romsegment"
+
+;Calculation of the start address that must be given.
+;StartAddress=StartAddressOfCartROM-CRTheaderLenght-ChipHeaderLenght
+;StartAddress=$(8000-40-10)=$7fb0
+
+;Definition of segments
+#segdef "crtheader",$7fb0-$7ff0,fillup,force            ;CRT header
+#segdef "chip1header",$7ff0-$8000,fillup                ;CHIP header
+#segdef "romsegment",$8000-$a000,fillup,force           ;ROM
+
+    .segment "crtheader"                ;CRT header
+    .pet "c64 cartridge   "             ;16 byte long
+    .byte $00,$00                       ;File header length  ($00000040,  in  high/low  format,
+    .byte $00,$40                       ;calculated from offset $0000). Default value is $40 = 64
+    .word $0001                         ;crt version 1.0 = {$01, $00} (high/low, presently 01.00)
+    .word $0000                         ;hardver type ($0000, high/low)
+    .byte $00                           ;Signal of the ExROM Line (for Memory configuration)
+                                        ;Cartridge port EXROM line status
+                                        ; 0 - inactive
+                                        ; 1 - active
+    .byte $00                           ;Signal of the Game Line (for Memory configuration)
+                                        ;Cartridge port GAME line status
+                                        ; 0 - inactive
+                                        ; 1 - active
+    .byte $00,$00,$00,$00,$00,$00       ;Reserved for future use
+    .pet "test my cartridge 08kb"       ;32 byte long, uppercase,  padded with null characters)
+                                        ;name of the cartridge (Null-terminated String)
+                                        ;DreamAss fill up automatically the remained bytes,
+                                        ;thanks to fillup,force options in
+                                        ; #segdef "crtheader",$7fb0-$7ff0,fillup,force
+                                        ;End of CRT header.
+
+;0040-xxxx Cartridge contents (called CHIP PACKETS, as there  can be more than one  per  CRT  file).
+
+    .segment "chip1header"              ;CHIP header segment
+    .pet "chip"                         ;$40-$43 Contained ROM signature "CHIP"
+                                        ;(note there can be more than one image in a .CRT file)
+    .byte $00,$00,$20,$10               ;$44-$47 Total packet length ($00002010,  ROM  image  size  and
+                                        ;CHIP header combined) (high/low format)
+                                        ;here the value is $2000 +$10 that is 8192+16=8208 byte
+    .byte $00,$00                       ;$48-$49 chip type 0, that is ROM
+                                        ; 0 - ROM
+                                        ; 1 - RAM, no ROM data
+                                        ; 2 - Flash ROM
+    .byte $00,$00                       ;$4A-$4B bank value of 0
+                                        ;Bank number ($0000 - normal cartridge)
+    .byte $80,$00                       ;$4C-$4D $8000 that is 32768 is Starting load address (high/low format)
+    .byte $20,$00                       ;$4E-$4F ROM image size in bytes, here $2000 that is 8192 byte = 8KiB
+                                        ;(high/low  format,  typically $2000 or $4000)
+
+                                        ;0050-xxxx - ROM data
+;ROM part follows...
+chrget   = $0073
+txtptr   = $007a
+ierror   = $0300
+imain    = $0302
+igone    = $0308
+gone     = $a7e4
+chkcom   = $aefd
+frmnum   = $ad8a
+getadr   = $b7f7
+chrout   = $ffd2
+border   = $d020
+screen   = $d021
+text     = $0286
+
+    .segment "romsegment"                       ;ROM segment
+
+    .word coldstart                     ;coldstart vector
+    .word warmstart                     ;warmstart vector
+    .byte $C3,$C2,$CD,$38,$30           ;"CBM8O".
+                                        ;Needed to autostart Cartridge.
+
+coldstart:
+;       KERNAL RESET ROUTINE
+    stx $d016                           ; Turn on VIC for PAL / NTSC check
+    jsr $fda3                           ; IOINIT - Init CIA chips
+    jsr $fd50                           ; RANTAM - Clear/test system RAM
+    jsr $fd15                           ; RESTOR - Init KERNAL RAM vectors
+    jsr $ff5b                           ; CINT   - Init VIC and screen editor
+    cli                                 ; Re-enable IRQ interrupts
+
+warmstart:
+; Write here your code!
+    lda #$fe                            ;C64 default border color
+    sta border                          ;screen border
+    lda #$f6                            ;C64 default screen color
+    sta screen                          ;screen
+
+    jsr write0                          ;write text to screen
+
+stophere:
+    jmp stophere                        ;Short cycle, to stop here program.
+
+;write text to screen
+
+write0:
+    ldx #0
+write1:
+    lda txt1,x
+    beq done1
+    jsr $ffd2
+    inx
+    bne write1
+done1:
+    rts
+txt1:
+    .pet 8,14,13,"     *** Pal Csanyi's Cartridge ***",13," is 8kb of size",13," Informations about the Cartridge",13,0
+</code>

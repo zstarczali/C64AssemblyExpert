@@ -1,0 +1,39 @@
+# PAGE: base:supercpu_phd
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:supercpu_phd
+
+====== PHD ======
+
+<code>
+    /*-------------------------------------------------------------------------
+    OP CODE: PHD (PusH Direct page register)
+    ========================================
+    
+    Addressing Modes:
+        Stack (Push)                    ($0b - 1 byte, 4 cycles)
+
+    Flags Affected:
+        N/A
+
+    Description:
+        Push the contents of the direct page register D onto the stack.
+
+        Since the direct page register is always a sixteen-bit register, this
+        is always a sixteen-bit operation, regardless of the settings of the m
+        and x mode select flags. The high byte of the direct page register is
+        pushed first, then the low byte. The direct page register itself is
+        unchanged. The stack pointer now points to the next available stack
+        location, directly below the last byte pushed.
+
+        By pushing the D register onto the stack, the local environment of a
+        calling subroutine may easily be saved a called subroutine before
+        modifying the D register to provide itself with its own direct page
+        memory.
+
+    Notes:
+
+    -------------------------------------------------------------------------*/
+
+    .pseudocommand phd {
+        .byte $0b
+    }
+</code>

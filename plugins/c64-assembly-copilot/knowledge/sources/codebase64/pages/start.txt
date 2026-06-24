@@ -1,0 +1,33 @@
+# PAGE: start
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=start
+
+====== Codebase 64 ======
+
+This wiki is the number one source of articles on Commodore 64 programming on the internet. You will find source code, tutorials, manuals, notes on clever tricks and hardware quirks and more!
+
+Codebase64 started in 2007 and continues to grow thanks to the users of this site. All kinds of contributions are most welcome! To contribute, send a message to [[http://noname.c64.org/csdb/scener/?id=8093|Frantic at CSDb]] with the username you want AND your email. You will then get a user account sent to you over mail. (You can change the password yourself later if you want.)
+
+To receive notifications when new content is added to the site, use the RSS feed feature ([[http://codebase64.net/feed.php|use this link]]).
+====== Site contents  ======
+
+The main part of this site is the Codebase, with a lot of articles, tutorials and source code. Please add //your// stuff here too!
+
+  * [[base:start|Source code, articles & tutorials]]
+
+The Magazines and Books sections contain material not originally intended for wikis, but still highly relevant to C64 coding. Any modifications to these texts should be added //outside// the texts, or in footnotes. The original texts should not be modified since they have once been released as finished wholes.
+
+  * [[magazines:start|Magazines]]
+  * [[books:start|Books]]
+
+This section contains user projects. This place is meant to host YOUR c64 coding projects. We are not sourceforge or github and no services like SVN or CVS are provided but feel free to upload archive files with downloadable sources and other relevant resources.
+
+  * [[projects:start|User Projects]]
+
+The following section contain external links to resources in other places on the world wide web. In general, external links are to be avoided on the wiki as far as possible, since it is preferred to store all relevant information on this site. In this specific section, external links are more than welcome though.
+
+  * [[links:start|External links]] to various C64 coding related resources on the www.
+
+
+====== Contact ======
+
+Get in touch with the administrator of this site, through [[http://csdb.dk/scener/?id=8093|CSDb]] for questions, ideas and so forth.

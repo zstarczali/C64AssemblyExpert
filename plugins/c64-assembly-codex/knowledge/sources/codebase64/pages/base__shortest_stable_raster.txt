@@ -1,0 +1,43 @@
+# PAGE: base:shortest_stable_raster
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:shortest_stable_raster
+
+====== Shortest Stable Raster code (PAL/NTSC) ======
+
+The polling method, half variance technique, in its shortest form. PAL/NTSC.
+
+<code>
+
+;64tass format
+
+stirq	.byte $a5	;subroutine
+        .byte $ea
+        .byte $a9 	;for NTSC, change this to $ea
+        .byte $ea
+	ldy #$07    
+-       dey
+        bne -
+        inx
+        rts
+
+        ldx #$28	;main start is here!
+-       cpx $d012
+        bne -
+        
+        jsr stirq+1 	;40 cycles
+        cpx $d012
+        beq +
+        nop
+        nop
+
++       jsr stirq+1 	;40 cycles
+        cpx $d012
+        beq +
+        bit $ea
+
++       jsr stirq  	;41 cycles
+        cpx $d012
+        bne +
+        
++       nop      	;stable raster here
+
+</code>

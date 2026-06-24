@@ -1,0 +1,381 @@
+# PAGE: base:chr_load_tape_transfer_2.0
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:chr_load_tape_transfer_2.0
+
+====== CHR Load Tape Transfer 2.0 ======
+<code>
+;---------------------------------------
+;CHR Load Tape Transfer 2.0
+;
+;(C) 2005 Nostalgia
+;
+;By Fungus / Nostalgia
+;---------------------------------------
+
+         *= $0801
+
+cd       = $03
+txtmsg   = $0b00
+
+         .byte $0b,$08,$d5,$07,$9e
+         .byte $32,$30,$36,$31,$00
+         .byte $00,$00
+
+
+         lda $ba
+         sta cd       ;save current
+                      ;disk drive
+         lda #$0b     ;setup
+         sta $d011
+         lda #$c1     ;no nmi
+         sta $0318
+         lda #$80
+         sta $0291    ;no char shift
+         lda #$17
+         sta $d018    ;this set
+         lda #$00
+         sta $9d      ;st clear
+         sta $d020
+         sta $d021
+         lda #$2f     ;i/o config
+         sta $00      ;bit 4 = input
+         lda $01
+         and #$07     ;mem config
+         ora #$20     ;motor off
+         sta $01
+         lda #$00
+         sta $0289    ;no keys
+         sta $0286
+
+         lda #$93
+         jsr $ffd2    ;clr screen
+
+         ldx #$00     ;print msg 1
+pm1      lda txtmsg,x
+         sta $0400,x
+         lda #$05
+         sta $d800,x
+         inx
+         cpx #$a0
+         bne pm1
+
+         lda #$1b
+         sta $d011
+
+wplay    lda $01      ;wait for play
+         and #$10
+         bne wplay
+
+         jsr lod      ;load header
+
+         lda $01      ;motor off
+         ora #$20
+         sta $01
+
+namer    ldy #$00     ;name file
+         ldx #$00     ;remove illegal
+dname    lda $0341,y  ;characters
+         bmi skip
+         beq skip
+         sta name,x
+         inx
+skip     iny
+         cpy #$10
+         bne dname
+
+         ldx #$0f     ;copy name back
+sname    lda name,x
+         sta $0341,x
+         dex
+         bpl sname
+
+         ldx #$00
+xl       lda loader1,x
+         sta $04a0,x
+         lda loader1+$0100,x
+         sta $05a0,x
+         inx
+         bne xl
+
+         jmp $04a0    ;begin real loader
+lod
+         lda #$01     ;open tape file
+         tax
+         tay
+         jsr $ffba
+         lda #$00
+         jsr $ffbd
+         lda #$00
+         sta $c0
+         sta $93
+         jsr $f7d7    ;load header/file
+         jmp $f84f
+
+name     .text "                "
+
+;---------------------------------------
+;chr load tape routine
+
+loader1  = *
+         *= $04a0
+         .offs loader1-*
+
+savename = $0341
+
+moreload
+         jsr putindex
+         jsr printload
+         jsr printname
+         jsr clrmem
+         jsr loader
+         jsr save
+         jmp moreload
+
+loader   sei
+         lda $0353
+         sta mod+1
+
+         lda #$01     ;load relocate
+         sta $ac
+         sta $ae
+         lda #$08
+         sta $af
+         sta $ad
+
+         lda #$07
+         sta $01
+res
+         ldy #$00
+         sty $02      ;eor val
+         lda #$0b     ;vic off
+         sta $d011
+
+i1351    sei          ;load
+mod      lda #$fa     ;parameter
+         sta $dd06    ;timer low
+         ldx #$01
+i1359    jsr i12d4    ;get bit
+         rol $f7      ;00 to start
+         lda $f7
+         cmp #$63
+         bne i1359    ;sync
+         ldy #$64
+i1366    jsr i13e7    ;get byte
+         cmp #$63
+         beq i1366    ;sync
+i136d    cpy $f7      ;sync
+         bne i1359
+         jsr i13e7    ;get byte
+         iny
+         bne i136d    ;skip $9d bytes
+         cmp #$00
+         beq i1351    ;try again
+i137b    jsr i13e7    ;get byte
+         sta !$2b,y   ;002b-0034
+         sta !$f9,y   ;00f9-0101
+         iny
+         cpy #$0a
+         bne i137b
+         ldy #$00
+         sty $90      ;st
+         sty $02      ;eor val
+i138f    jsr i13e7    ;get byte
+         sta ($ae),y
+         eor $02
+         sta $02
+         inc $ae
+         bne skiphi
+         inc $af
+skiphi   inc $f9
+         bne i139e
+         inc $fa
+i139e    lda $f9
+         cmp $fb
+         lda $fa
+         sbc $fc
+         bcc i138f    ;load loop
+         jsr i13e7    ;get chksum
+         pha
+         lda #$27     ;tape off
+         sta $01
+         pla
+         cmp $02
+         beq loadok
+         jmp loaderr
+loadok   lda fileidx
+         asl a        ;jump addies
+         tax
+         lda $fd
+         sta addr,x
+         lda $fe
+         sta addr+1,x
+         rts
+
+i13e7    lda #$07     ;get byte
+         sta $f8
+i13eb    jsr i12d4
+         rol $f7
+         inc $d020
+         dec $f8
+         bpl i13eb
+         lda $f7
+         rts
+
+i12d4    lda $dc0d    ;get bit
+         and #$10
+         beq i12d4
+         lda $dd0d
+         stx $dd07
+         lsr a
+         lsr a
+         lda #$19
+         sta $dd0f
+         rts
+
+;---------------------------------------
+;save routine
+
+save
+         lda #$00      ;save file
+         sta $d020     ;border  = black
+         lda #$1b
+         sta $d011
+
+         jsr printsave
+
+         lda #$01      ;open file for
+         ldx cd        ;write
+         ldy #$01
+         jsr $ffba     ;setlfs
+         lda #$10
+         ldx #$41      ;$0340 16 chars
+         ldy #$03
+         jsr $ffbd     ;setname
+         jsr $ffc0     ;open
+         ldx #$01
+         jsr $ffc9     ;chkout
+         lda $2b       ;start addy low
+         jsr $ffa8     ;send
+         lda $2c       ;start addy high
+         jsr $ffa8     ;send
+
+         ldy #$00      ;save the file
+saveb    sei
+         inc $01
+         lda ($ac),y
+         dec $01
+         jsr $ffa8
+         inc $d020
+         dec $d020
+
+         inc $ac
+         bne b1
+         inc $ad
+
+b1       lda $ad
+         cmp $af
+         bne saveb
+         lda $ac
+         cmp $ae
+         bne saveb
+
+         lda #$01
+         jmp $ffc3     ;close the file
+
+;---------------------------------------
+;utility subroutines
+
+loaderr
+         lda #$02      ;print tape load
+         sta $d020     ;error msg
+         ldx #$17
+perr1    lda et1,x
+         and #$3f
+         sta $0478,x
+         lda #$01
+         sta $d878,x
+         dex
+         bpl perr1
+         jmp *         ;endless loop
+
+printload
+         ldx #$07      ;print loading
+ll       lda lt,x      ;text
+         and #$3f
+         sta $0478,x
+         lda #$05
+         sta $d878,x
+         dex
+         bpl ll
+         rts
+
+printsave
+         ldx #$07
+dl       lda st,x      ;print save text
+         and #$3f
+         sta $0478,x
+         lda #$05
+         sta $d878,x
+         dex
+         bpl dl
+         rts
+
+printname
+         ldx #$0f      ;print name
+ln       lda savename,x
+         and #$3f
+         sta $0480,x
+         dex
+         bpl ln
+         rts
+
+putindex
+         lda fileidx
+         inc fileidx
+         pha
+         lsr a
+         lsr a
+         lsr a
+         lsr a
+         jsr convert1
+         sta savename+$0e
+         pla
+         and #$0f
+         jsr convert1
+         sta savename+$0f
+         rts
+
+convert1 ora #$30
+         cmp #$3a
+         bcc convert2
+         adc #$06
+convert2 rts
+
+clrmem
+         sei
+         inc $01
+         lda #$08
+         sta clrit+$02
+         lda #$00
+         tax
+clrit    sta $0800,x
+         inx
+         bne clrit
+         inc clrit+$02
+         bne clrit
+         dec $01
+         cli
+         rts
+
+;Transfer Messages
+
+fileidx  .byte $00
+
+et1      .text "Load Error!     "
+         .text "        "
+lt       .text "Loading "
+st       .text "Saving  "
+
+addr
+
+
+</code>

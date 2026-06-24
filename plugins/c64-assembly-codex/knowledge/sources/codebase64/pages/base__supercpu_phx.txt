@@ -1,0 +1,39 @@
+# PAGE: base:supercpu_phx
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:supercpu_phx
+
+====== PHX ======
+
+<code>
+    /*-------------------------------------------------------------------------
+    OP CODE: PHX (PusH index register X to stack)
+    =============================================
+
+    Addressing Modes:
+        Stack                            ($da - 1 byte, 3 cycles¹)
+        ¹ - Add 1 cycle if x = 0 (16-bit index registers)
+
+    Flags Affected:
+        N/A
+
+    Description:
+        Push the contents of the X index register onto the stack. The register
+        itself is unchanged.
+        
+        8-bit index registers (all processors): The eight-bit contents of the
+        index register are pushed onto the stack. The stack pointer now points
+        to the next available stack location, directly below the byte pushed.
+
+        16-bit index registers (65802/65816 only, x = 0): The sixteen-bit
+        contents of the index register are pushed. The high byte is pushed
+        first, then the low byte. The stack pointer now points to the next
+        available stack location, directly below the last byte pushed.
+
+    Notes:
+
+    -------------------------------------------------------------------------*/
+
+    .pseudocommand phx {
+        .byte $da
+    }
+
+</code>

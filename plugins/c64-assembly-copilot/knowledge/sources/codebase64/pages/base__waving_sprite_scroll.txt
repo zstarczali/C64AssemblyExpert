@@ -1,0 +1,173 @@
+# PAGE: base:waving_sprite_scroll
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:waving_sprite_scroll
+
+====== Waving sprite scroll ======
+
+The sprites 1 through 8 are positioned on the screen next to each other with a fixed spacing. The scrolling takes place by moving them all a bit to the left, 4 pixels at a time, until sprite 1 reaches X≤0. At that moment sprite 2 is 4 pixels to the right of where sprite 1 started.
+The sprites are then all positioned back to their starting position and the content is shifted, so that the value of sprites 8 is in 7, 7 in 6, etc. A new letter is fetched from the scroll text and the corresponding pointer value is plotted in the pointer of sprite 8. So basically sprites 1 moves from X=43 to X=255, 4 pixels at a time, after which it resets to value 43 again.
+
+In addition to that all, the Y-coords of the sprites are changed based on sine data.
+
+This codes assumes a letter-per-sprite font, in the same order as the screencodes, located at $2000.
+
+The code is a stripped down and somewhat simplified version of what is used in "This Is Halloweed" (https://csdb.dk/release/?id=197114).
+
+<code>
+// Made in Kick Assembler
+
+	.const SPRITESPACING	= 43	// minimal possible spacing
+	.const SINLEAP		= 20	// choose anything here to change sine wave
+	.const SCROLLSPEED	= 4	// lower value is slower
+	.const SPRITEPOINTER	= $07f8
+	.label spriteMemory	= $2000	// assumes sprite font from $2000 to $3000
+	
+*=$0801
+	BasicUpstart($0810)
+*=$0810
+	sei
+	jsr $e544			// KERNAL: clear screen
+	lda #$00			// reset sine wave pointers
+	sta sinreset+1
+	sta sinwave+1
+
+	ldx #<scrolltext		// reset scroll text pointer
+	ldy #>scrolltext
+	stx textpointer+1
+	sty textpointer+2
+	        		
+	lda #$ff	
+	sta $d015			// turn on all sprites
+	
+	ldx #$00	
+!:	lda #$a0			// init with spaces in all sprite pointers
+	sta SPRITEPOINTER,x
+	lda #$0e			// light blue
+	sta $d027,x			// set sprite colours
+	inx
+	cpx #$08
+	bne !-
+
+	lda #$01			// init IRQ
+	sta $d01a
+	lda #$7f
+	sta $dc0d
+	sta $dd0d
+	lda $dc0d
+	lda $dd0d
+
+	lda #$32			// arbitrary value
+	sta $d012
+	lda #$1b
+	sta $d011
+
+	ldx #<irq			// set pointers to FLD IRQ routine
+	ldy #>irq
+	stx $0314
+	sty $0315
+
+	cli
+	
+	jmp *
+	
+irq:
+	inc $d019
+
+	lda scrollpos+1			// X-position of 1st sprite
+	sec
+	sbc #SCROLLSPEED		// decrease with SCROLLSPEED
+	bpl notext			// skip text fetch if sprite 1 can still move left
+
+		ldx #$00		// shift content of sprites pointers
+	scrollpointers:
+		lda SPRITEPOINTER+1,x
+		sta SPRITEPOINTER,x
+		inx
+		cpx #$07	
+		bne scrollpointers
+		lda sinreset+1		// shift sine wave
+		clc
+		adc SINLEAP		// this fixes sine offset
+		adc #$03		//  when resetting sprite position
+		sta sinreset+1
+	textpointer:
+		lda scrolltext		// get next letter from scroll text
+		bne noreset		// if not #$00 (end indicator)
+	
+		lda #<scrolltext	// reset scroll text pointer when letter is $00
+		sta textpointer+1
+		lda #>scrolltext
+		sta textpointer+2
+		jmp textpointer		// read new letter
+	
+	noreset:
+		clc
+		adc #(>spriteMemory<<2)	// correct for location of sprite font
+		sta SPRITEPOINTER+7	// store new letter in sprite 8 pointer
+
+		inc textpointer+1	// increase scroll text pointer
+		bne !+
+		inc textpointer+2
+	!:	 
+		lda #SPRITESPACING	// move sprite 1 to right most position
+notext:
+	sta scrollpos+1
+
+	ldx #$00			// position other sprites relative to sprite 1
+scrollpos:
+	lda #$18			// set new X-coord for all sprites
+	sta $d000
+	clc
+	adc #SPRITESPACING
+	sta $d002
+	clc
+	adc #SPRITESPACING
+	sta $d004
+	clc
+	adc #SPRITESPACING
+	sta $d006
+	clc
+	adc #SPRITESPACING
+	sta $d008
+	clc
+	adc #SPRITESPACING
+	sta $d00a
+	bcc !+
+	ldx #%11100000			// take care of MSB
+	clc
+!:	adc #SPRITESPACING
+	sta $d00c
+	bcc !+
+	ldx #%11000000
+	clc
+!:	adc #SPRITESPACING
+	sta $d00e
+	bcc !+
+	ldx #%10000000
+!:	stx $d010			// set proper sprite MSB
+
+sinreset:
+	ldx #$00			// sine wave counter
+	stx sinwave+1			// store in sine wave pointer
+	inc sinreset+1
+	ldy #$00
+sinwave:
+	lda sindata			// read sine wave data
+	sta $d001,y			// store in Y-coords sprites
+	lda sinwave+1
+	clc
+	adc #SINLEAP			// to make wave more interesting
+	sta sinwave+1			// increase sine wave pointer by SINLEAP
+	iny
+	iny
+	cpy #$10			// next sprites
+	bne sinwave	
+	jmp $ea31			// end of IRQ1
+	
+.align $100
+sindata:
+	.fill 256, 120 + 15.5*sin(toRadians(i*(3*360)/256))
+
+scrolltext:
+	.text "this is a sprite scroller for codebase64.net        "
+	.byte $00
+</code>

@@ -1,0 +1,38 @@
+# PAGE: base:create_labels_on_the_fly_using_macros
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:create_labels_on_the_fly_using_macros
+
+====== Create labels on the fly using macros (in ca65) ======
+
+This was written by RadiantX on [[http://noname.c64.org/csdb/forums/?roomid=11&topicid=74546#74692|CSDb]], and put on Codebase by me (FTC). 
+
+It is a description of how to create labels on the fly in the ca65 assembler by using macros. In this particular example, the labels are generated using a repeat counter in a loop. The macro that is used goes like this:
+
+<code>
+.macro makeident lname, count
+    .ident(.concat(lname,.sprintf("%d", count))):
+.endmacro
+</code>
+
+
+Using a macro like this it's possible to create labels using a repeat counter.
+
+<code>
+.repeat $100, I
+    makeident "foo", I
+    lda $1000 + I
+    sta $2000 + I
+.endrepeat
+</code>
+
+This produces the following code:
+
+<code>
+foo0:
+    lda $1000
+    sta $2000
+foo1:
+    lda $1001
+    sta $2001
+foo2:
+    [...]
+</code>

@@ -1,0 +1,58 @@
+# PAGE: base:rr_detect
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:rr_detect
+
+====== Detect Retro Replay hardware ======
+
+By FMan.
+
+This is a straight-forward detection routine to find out if a Retro Replay is active on the system. It works by writing different bytes to the same address in the $8000-$9FFF range. If there is no cart, all of the writes will go to normal RAM and the latest byte will be the one read back. Otherwise some of them go to different RR RAM banks. Successful readback of both bytes written to the RR RAM will be taken to signal the presence of a Retro Replay.
+
+Find the print routine [[base:string manipulation routines|elsewhere]]. This routine is well tested and is believed to reliably identify either the presence or nonexistence of an RR.
+
+<code>
+; Retro Replay detection using RR RAM writes by FMan/Tropyx
+
+	!to "rrdetect.prg",cbm
+
+; note that this code puts the computer in Ultimax mode
+; a few times, so it must be located below $1000 in RAM
+
+	*=$c00
+
+RRDetect
+
+	sei
+	lda #66
+	sta $de01	; configure the cart
+	ldx #$a4
+	ldy #$6a
+	lda #$2b	; select RAM bank 1 and
+	sta $de00	; invoke Ultimax mode to
+	sty $8080	; write into the RR RAM
+	lda #$23
+	sta $de00
+	sta $8080	; write to normal RAM now
+	lda #$3b
+	sta $de00	; select RAM bank 3 and
+	stx $8080	; write another byte there
+	lda #$28
+	sta $de00
+	cli
+	cpy $8080	; see if the original byte survived
+	bne NoRR	; subsequent writes to same address
+	lda #$38
+	sta $de00	; do another check with the second
+	cpx $8080	; byte that was written to bank 3
+	beq RRFound
+NoRR	lda #<NoRRstr
+	sta dst
+	lda #>NoRRstr
+	sta dst+1
+	jsr print	; see note above
+	rts
+
+RRFound	nop		; continue your program using the Retro Replay
+	rts
+
+NoRRstr	!pet 13,"no retro replay was found.",13,0
+</code>

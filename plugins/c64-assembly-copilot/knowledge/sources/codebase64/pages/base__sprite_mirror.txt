@@ -1,0 +1,71 @@
+# PAGE: base:sprite_mirror
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:sprite_mirror
+
+===== Sprite Mirror ====
+Sometimes 16Kb are not enough to contain all the frames of your animations. A common trick used by many games, such as Impossible Mission, is to mirror sprites horizontally at runtime so that only the frames for the main character facing one direction must be stored at any time. This is a simple routine in Kick Assembler that flips a sprite horizontally. If source and destination sprites are the same, as it's often the case, initialization code can be simplified.
+  
+<code>
+//===========================================================================
+//Flips a sprite horizontally - by Antonio Savona
+//===========================================================================
+
+//initialization
+			ldy #<source_sprite
+			sty mirror_sprite.src1 + 1
+			iny 
+			sty mirror_sprite.src2 + 1
+			iny
+			sty mirror_sprite.src3 + 1
+				
+			ldy #<destination_sprite
+			sty mirror_sprite.dst1 + 1
+			iny 
+			sty mirror_sprite.dst2 + 1
+			iny
+			sty mirror_sprite.dst3 + 1
+
+			ldy #>source_sprite
+			sty mirror_sprite.src1 + 2
+			sty mirror_sprite.src2 + 2
+			sty mirror_sprite.src3 + 2
+
+			ldy #>destination_sprite
+
+			sty mirror_sprite.dst1 + 2
+			sty mirror_sprite.dst2 + 2
+			sty mirror_sprite.dst3 + 2
+
+			jsr mirror_sprite
+			...
+
+	mirror_sprite:
+	{				
+			ldx #$3c //bottom left byte offset
+	!:		
+						
+		src1:	ldy $e000,x
+			lda sprmir,y
+		src3:	ldy $e002,x	
+		dst3:	sta $e002,x
+			lda sprmir,y
+		dst1:	sta $e000,x
+	
+		src2:	ldy $e001,x
+			lda sprmir,y
+		dst2:	sta $e001,x
+			
+			txa
+			axs #$03 //dex * 3. We save 2 cycles.
+				
+			bpl !-
+
+			rts
+
+.align $100
+// The following table is for multicolor sprites. Changes for hires sprites are trivial.
+sprmir:
+.fill 256, [[i & %00000011] << 6] | [[i & %00001100] << 2] | [[i & %00110000] >> 2] | [[i & %11000000] >> 6]
+
+
+	}
+</code>

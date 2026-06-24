@@ -1,0 +1,206 @@
+# PAGE: base:various_techniques_to_calculate_adresses_fast_common_screen_formats_for_pixel_graphics
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:various_techniques_to_calculate_adresses_fast_common_screen_formats_for_pixel_graphics
+
+The basic idea always is to have two tables. One which stores the addresses according to the Y coordinate, and one for the X coordinates. To get the onscreen address these two tables should be looked up indexed with the Y&X coordinate and added together. We'll need a mask table as well to be able to lookup the bit combination fast to plot our dot.
+
+for example for a stock hires bitmap mode our tables would look like this:
+
+<code>
+Y table:
+
+Y coord | value
+
+0 -> 0+(320*0)  (first character row)
+1 -> 1+(320*0)
+2 -> 2+(320*0)
+3 -> 3+(320*0)
+4 -> 4+(320*0)
+5 -> 5+(320*0)
+6 -> 6+(320*0)
+7 -> 7+(320*0)
+
+8 -> 0+(320*1)  (second character row)
+9 -> 1+(320*1)
+10-> 2+(320*1)
+11-> 3+(320*1)
+12-> 4+(320*1)
+13-> 5+(320*1)
+14-> 6+(320*1)
+15-> 7+(320*1)
+
+etc.
+
+X table:
+
+X coord | value
+
+0 -> 0*8 (first character column)
+1 -> 0*8
+2 -> 0*8
+3 -> 0*8
+4 -> 0*8
+5 -> 0*8
+6 -> 0*8
+7 -> 0*8
+
+8 -> 1*8 (second character column)
+9 -> 1*8
+10-> 1*8
+11-> 1*8
+12-> 1*8
+13-> 1*8
+14-> 1*8
+15-> 1*8
+
+etc.
+
+mask table:
+
+X coord | value
+
+0 -> %10000000 (first character column)
+1 -> %01000000
+2 -> %00100000
+3 -> %00010000
+4 -> %00001000
+5 -> %00000100
+6 -> %00000010
+7 -> %00000001
+
+8 -> %10000000 (second character column)
+9 -> %01000000
+10-> %00100000
+11-> %00010000
+12-> %00001000
+13-> %00000100
+14-> %00000010
+15-> %00000001
+
+etc.
+</code>
+
+the x&y tables contain 16 bit values, for easier indexing into them its better to separate the upper/lower bytes into distinct tables. (low/high)
+
+to plot a pixel at x,y then you need the following code:
+
+<code>
+bitmapstart = $2000
+
+ldy y
+ldx x
+
+lda ytablelow,y
+clc
+adc xtablelow,x
+sta address
+
+lda ytablehigh,y
+adc xtablehigh,x
+sta address+1
+
+lda address
+clc
+adc #<bitmapstart
+sta address
+
+lda address+1
+adc #>bitmapstart
+sta address+1
+
+ldy #$00
+lda (address),y
+ora mask,x
+sta (address),y
+
+</code>
+That code will work for 0 < x < 255, So that will work well in 160x200 multicolor resolution. If you need to draw pixels along all the 320 pixels forming each horizontal line, you'll need some form of 16 bit access through the look up table for X:
+
+<code>
+bitmapstart = $2000
+
+ldy y
+ldx x
+lda #>xtablehigh
+sta XTBmdf+2
+lda x+1
+beq skipadj
+			
+lda #>xtablehigh + $FF
+sta XTBmdf+2		
+skipadj:
+
+lda ytablelow,y
+clc
+adc xtablelow,x
+sta address
+
+lda ytablehigh,y
+XTBmdf:
+adc xtablehigh,x
+sta address+1
+
+lda address
+clc
+adc #<bitmapstart
+sta address
+
+lda address+1
+adc #>bitmapstart
+sta address+1
+
+ldy #$00
+lda (address),y
+ora mask,x
+sta (address),y
+</code>
+
+Notice that only the hi address of the adc operations for the X table need to be adjusted, 
+the bit mask table doesn't need to be 320 * 8 bytes in size as only the low part tells us the
+repeating pattern of masks, so we don't need to adjust that table index for 16 bit accessing. 
+
+Make it faster:
+
+first of all we can incorporate the bitmapstart into our Y tables, simply add bitmapstart to each entry. then our code will change to:
+
+<code>
+
+ldy y
+ldx x
+
+lda ytablelow,y
+clc
+adc xtablelow,x
+sta address
+
+lda ytablehigh,y
+adc xtablehigh,x
+sta address+1
+
+ldy #$00
+lda (address),y
+ora mask,x
+sta (address),y
+
+</code>
+
+if you look at the xtable, its interesting to note that it can be reduced to 8 bits if you can live with an only 32 char wide plotting area.
+
+<code>
+ldy y
+ldx x
+
+lda ytablelow,y
+sta address
+
+lda ytablehigh,y
+sta address+1
+
+ldy xtable,x
+
+lda (address),y
+ora mask,x
+sta (address),y
+
+</code>
+
+notice how we can skip the addition by using the (),y addressing mode wisely.

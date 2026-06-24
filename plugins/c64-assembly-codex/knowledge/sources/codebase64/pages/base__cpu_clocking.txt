@@ -1,0 +1,31 @@
+# PAGE: base:cpu_clocking
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:cpu_clocking
+
+====== Clock Frequency ======
+
+All clock frequencies in the C64 are derived from a single clock quartz which has the frequency of 4 times the frequency of the color carrier used for PAL or NTSC.
+
+PAL C64 master clock: 17.734475 MHz
+
+NTSC C64 master clock: 14.31818 MHz
+
+The CPU frequency is then calculated from that by simply dividing the frequency by 18 (PAL) or 14 (NTSC).
+The VIC-II runs at a frequency which is exactly 8 times that of the CPU. This is the so called "dot clock" which has to be very precise in order to keep the right timing needed to generate a video signal compatible with all TVs. The CPU of the time could not go that fast, max. 1MHz, but the CPU still needs to be phase synchronous to the VIC-II because they share control of the address/data bus of the machine. That's why the VIC-II internally provides a clock divider which feeds the CPU.
+
+<code>
+CLOCK_PAL  =  985248 Hz
+CLOCK_NTSC = 1022727 Hz
+
+CLOCK_VICII_PAL = 7881984 Hz
+CLOCK_VICII_NTSC = 8181816 Hz
+</code>
+
+The service manual (march 1992 original from Commodore, part number 314001-03) explains the clock circuitry the following way, using an NTSC machine as a reference. This is valid also for the PAL version when the appropriate differences in the figures are considered.
+
+<< Crystal Y1 develops a 14.31818MHz fundamental frequency clock signal. U31 is a Dual Voltage Controlled Oscillator. The output on pin 10 is a 14.31818 MHz clock signal called the color clock. R27 can be adjusted to obtain exact output frequency. U30 is a frequency divider that outputs a 2MHz signal on pin 6. U29 is a D flip flop which outputs a 1 MHz signal on pin 9. U32 is a Phase/Frequency Detector which compares the output of the U29 to the phase 0 clock, and outputs a dc voltage on pin 8 that is proportional to the phase difference between the inputs. The second half of the Dual Voltage Controlled Oscillator U31 generates an 8.1818MHz clock signal called the DOT Clock. The VIC IC divides the DOT clock by eight and outputs this as the phase 0 clock on pin 17. The output of the Phase/Frequency Detector is applied to the frequency control input pin 2 of U31. This causes tracking of the dot clock and the color clock because one input, pin 3 of U32, is the phase 0 clock which is derived from the dot clock, and the other input pin 1 of U32, is derived from the color clock. >>
+
+In later models of the C64 (starting from version B, PCB ASSY#250425 Schematic #251469) the above gets integrated into a single chip labelled 8701, designed and manufactured on purpose by MOS technology. The description in this case is much more simple:
+
+<< Crystal Y1 develops the fundamental 16MHz clock signal. U31 is a Clock Generator IC that outputs the 8.1818MHz DOT clock on pin 6, and the 14.31818 MHz color clock on pin 8. >>
+
+Note by Karoshier: my C64 schematic (1982 original taken from the programmer's reference guide) states the PAL master clock to be 17.734472MHz instead of 17.734475MHz, which does not actually make much of a difference with regard to the stated figure of CLOCK_PAL.

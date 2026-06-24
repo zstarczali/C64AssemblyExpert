@@ -1,0 +1,13 @@
+# PAGE: base:irq_disk_loader
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:irq_disk_loader
+
+====== IRQ Disk Loader ======
+===== Documentation =====
+
+This source is a fairly normal IRQ loader that is of course unaffected by badlines, NMIs, IRQs or sprites. In its default operation it does not use any speed loading code or synchronisation to get faster transfer.
+
+TestIRQDisk.a and TestIRQDisk2.a are both examples of how to use the library and display some raster effects to demonstrate the loader does not interfere with the C64's IRQs etc. TestIRQDisk2.a is the Martyload example used in the Berzerk Redux game project which can also be found in the source archive. The game uses the IRQDisk_WriteSetPulseSpeed functionality to flash the drive LED faster when there are more robots on the screen. The game also uses the IRQDisk_WriteData functionality to replace data on the disk for one drive block. New files cannot be created with this method and the length of the files cannot be changed.
+
+===== Source code =====
+
+[[projects:resurrection|Sources available in the large archive here]]

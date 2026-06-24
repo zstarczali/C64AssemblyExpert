@@ -1,0 +1,60 @@
+# PAGE: base:displaying_a_picture_at_2000
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:displaying_a_picture_at_2000
+
+==== Displaying a bitmap at $2000 the most simplest way ====
+You may have wondered how is this possible to display a multicolour bitmap pic at $2000 the most simplest way? How can I do it with a Koala paint picture? Well, it is simple. Before you're able to display the picture's bitmap (which will be at $2000), you will be required to use Brix/Plush's picture splitter (Take a look in CSDB for Tools 4 Fools disk #7), once done, save your bitmap to $2000, Videoram to $4000 and Colour RAM to $4400. Ok, now here is the source code for the picture display in ACME format)
+<code>
+
+;Picture displayer
+
+bordercolour = 0
+backgroundcolour = 0
+vidmem = $4000 
+colmem = $4400
+
+      !to "picdisplayer.prg",cbm
+      * = $2000
+      !binary "mypicture.prg"
+      * = $4000
+      !binary "myvideoram.prg"
+      * = $4400
+      !binary "mycolourram.prg"
+
+      * = $4800 ;Where main code lies
+      sei
+      
+      lda #bordercolour
+      ldx #backgroundcolour
+      sta $d020
+      stx $d021
+      lda #$3b ;<--- Turn on bitmap mode
+      ldx #$18 ;<--- Turn on all bitmap characters     
+      ldy #$03
+      sta $d011
+      stx $d018
+      stx $d016
+      sty $dd00
+      ldx #$00
+setpic lda vidmem,x
+       sta $0400,x
+       lda vidmem+$100,x
+       sta $0500,x
+       lda vidmem+$200,x
+       sta $0600,x
+       lda vidmem+$2e8,x
+       sta $06e8,x
+       lda colmem,x
+       sta $d800,x
+       lda colmem+$100,x
+       sta $d900,x
+       lda colmem+$200,x
+       sta $da00,x
+       lda colmem+$2e8,x
+       sta $dae8,x
+       inx
+       bne setpic
+hold   lda $dc01
+       cmp #$ef
+       bne hold
+       jmp $fce2 ; C64 reset
+</code>

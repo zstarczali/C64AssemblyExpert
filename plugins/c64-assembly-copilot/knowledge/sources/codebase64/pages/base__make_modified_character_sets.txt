@@ -1,0 +1,37 @@
+# PAGE: base:make_modified_character_sets
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:make_modified_character_sets
+
+=====Application of modified character sets====
+The bits in the register $d018 of the VIC encodes the adresses, where the
+memory areas which represents the text screen, the charset or the bitmap are located.
+See http://www.codebase64.net/doku.php?id=base:built_in_screen_modes for more information.
+Besides the locations, where the rom charsets are mirrored ($1000-$2000 and $9000-$a000)
+and the zeropage the charset may be placed anywhere in the memory.
+Use an font editor like the Faces editor, to create your own chars: [[http://noname.c64.org/csdb/release/?id=38933]] (1x1 up to 4x2 charsets!)
+===Country specific symbols===
+By copying the rom charset to ram, the existing charset may be modified so that
+characters which are seldomly used can be replaced.
+For example the characters [,],π or £ could be used to implement 
+country specific characters like öäüß in german 
+or é è in french, for example.
+===Bigger letters===
+More interesting anyways for demos or games 
+is to make bigger letters than 8x8 points by using 2 or more characters 
+for a symbol together. See [[Bigger letters]] 
+===Game scenery===
+The charset memory may not only contain latin symbols. It can also hold parts of scenery for games. The characters then represent small parts of the background which is build up by these characters like a puzzle. This way the scenery can be easily scrolled like text.
+[[rant4|Block graphics]]
+===Paralax scrolling===
+Realtime modification of the charset is used for paralax scrolling.
+A part of all the game scenery characters is then reserved for far distance backgrounds.
+While the whole screen is soft scrolling with a speed of one pixel per frame, the 
+reserved chars are bit shifted in the opposite direction of the overall scrolling.
+This way they look like moving at another speed or not moving at all.
+[[base:simple_parallax_shifting|Simple parallax shifting]]
+===16x16 character display===
+[[16x16_char_matrix]]
+===Plotters===
+The 16x16 character display can also be used for plotters.
+It can also be extended to 3 32x8 fields, with different charsets in each fields to cover
+the whole screen.
+This way very fast plot can be done.

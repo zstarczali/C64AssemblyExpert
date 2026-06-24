@@ -1,0 +1,115 @@
+# PAGE: base:thirdparty
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:thirdparty
+
+====== Third party hardware programming ======
+ 
+Information about programming REU's, cartridges such as Action Replay/Final Cartridge/Retro Replay, RR-net/SilverSurfer, and so on.
+
+===== Cartridges =====
+
+==== General cartridge info ===
+
+  * [[Cartridge bugs]] - A collection of bugs in common cartridges like Action Replay, Retro Replay and Final Cartridge. Original version of this text was by GRG.
+  * [[Cartridge detection]] - Article by AlexC.
+  * [[Assembling your own cart ROM image]] - info collected by FTC.
+  * [[Code frame for 16 KB crt-images]] - by enthusi.
+  * [[Code frame for 64 KB crt-images, i.e. for RGCD]] - by enthusi.
+  * [[.crt file format|"crt.txt"]] - Emu cart file format. By Peter Schepers (and Per Hakan Sundell, Markus Brenner, Marco Van Den Heuvel)
+  * [[IO addresses|"io_stnd.txt" - IO addresses]] - Swiftlink, MIDI interfaces, IDE64, ETH64, REUc etc.. by T. Pribyl
+  * [[http://www.unusedino.de/ec64/technical/aay/c64/cartmain.htm|Hardware Expansions Info at AAY64]] -  by Ninja
+  * [[C64GS detection]] - by encore.
+
+==== Retro Replay ====
+
+  * [[Inside Retro Replay]] - Jens Schoenfeld
+  * [[RR detect]] - detecting the presence of a Retro Replay by FMan
+  * [[RR chip data]] - obtaining chip type and manufacturer by FMan
+  * [[RR flashing]] - programming the FlashROM and Block & Chip Erase by FMan
+
+  * [[https://rr.pokefinder.org|Official website]]
+  * [[http://hitmen.c02.at/html/tools_rr.html|Info on Hitmen's site]]
+
+==== 1541U ====
+  * {{:base:safely_freezing_the_c64.pdf|Safely freezing the C64 on an asynchronous event}} - Gideon Zweijtzer - How the 1541U freezer works
+
+  * [[http://www.1541ultimate.net|Official website]] - some useful info is hidden among the forum posts
+
+==== 1541U-II ====
+  * {{:base:1541u2doc_v0.3.pdf|1541 Ultimate-II Technical Documentation v0.3}} - Gideon Zweijtzer
+
+==== EasyFlash ====
+EasyFlash is a 1 MByte Flash memory card for the expansion port.
+
+  * [[About Easyflash]] - Some basic info on this cart by enthusi
+  * [[Code Sample]] - Minimal framework for an EasyFlash cart by skoe/enthusi
+
+  * [[http://skoe.de/easyflash/|Official website]] - Specs, schematics
+  * [[http://hg.berlios.de/repos/easyflash|Development website]] - Tool chain, SDK
+
+==== REU ====
+
+This is about the 17xx "RAM Expansion Unit" and compatible clones such as the CMD REU and the 1541U. (Note that not all C64 PSU's can handle the extra current consumed by the REU, in case you experience problems.)
+
+  * [[REU detect]] - by M. Sachse
+  * [[REU registers]] - by Marko Mäkelä
+  * [[REU read and write]] - using the RAM Expansion by FMan
+  * [[REU programming]] - by Richard Hable
+
+  * [[https://zimmers.net/anonftp/pub/cbm/documents/chipdata/CSG8726TechRefDoc-1.0.zip|Technical Reference]] ({{:base:csg8726techrefdoc-1.0.zip|local copy}}) - most complete REU reference manual by Wolfgang Moser
+  * {{:base:1750-1764-reu-serviceschematics.pdf|1750/1764 REU Service Schematics}} - by Commodore
+
+==== geoRAM ====
+Not Similar to REUs. Memory banked in between $de00-$deff.
+  * [[geoRAM registers]] - The simple spec for how to use it - White Flame
+  * [[Tiny screenselection]] - example on how to code for it by enthusi
+
+==== SuperCPU ====
+  * [[SuperCPU & Kickassembler]] - SuperCPU Kickassembler Library by TWW
+
+
+==== Swiftlink ====
+RS-232 interface cartridge by CMD.
+
+  * [[IO addresses|"io_stnd.txt" - IO addresses]] - Brief info on Swiftlink, among other things. By T. Pribyl
+
+==== MIDI cartridges ====
+
+See the [[base:midi_on_the_c64 | MIDI section]] for information on MIDI cart programming.
+
+==== Stereo SID carts ====
+
+  * [[FB-SSID]] - Hardware created by Fotios
+
+==== Wersiboard Music 64 ===
+
+  * [[Wersiboard Music 64]] - by FTC
+
+
+===== Other third party hardware =====
+
+==== CMD HD ====
+
+  * [[HD-Park-Switch - How to Patch a CMD-HD to your own needs]] - in Domination #17 by Ninja/The Dreams.
+
+==== RR-Net ====
+This hardware is an add-on to be used with the Retro Replay or the MMC64 interface.
+
+  * [[RR-Net memory map & docs]] - by Jens Schoenfeld
+
+==== Silversurfer ====
+This hardware is an add-on to be used with the Retro Replay or the MMC64 interface.
+
+  * [[Inside_RetroSurfer]] - how to code it on the C64 with Retro Replay, by Groepaz
+  * [[Inside_Surfer]] - how to code it on Amiga, by Jens Schoenfeld
+
+  * [[Silversurfer Hardware-defines|silversurfer.inc ]] - Silversurfer Hardware-defines, by Groepaz
+  * [[silversurfer_polling|silversurfer_polling.s]] - simple and small polling-mode driver for the SilverSurfer, by Groepaz
+
+Below is a quick hack of a serial driver for use with the [[http://www.cc65.org/|CC65]] c-compiler.
+WARNING: this *really* is a hack, not even implementing half of what it should!
+  * [[rs232silversurfer.h|rs232silversurfer.h]] - by Groepaz
+  * [[rs232silversurfer.s|rs232silversurfer.s]] - by Groepaz
+
+==== DTV ====
+
+  * [[DTV detect|Detect DTV Type]] - by TLR, also detects c64/c128 and pal/ntsc

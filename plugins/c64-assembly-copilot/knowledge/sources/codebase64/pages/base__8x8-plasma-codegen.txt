@@ -1,0 +1,256 @@
+# PAGE: base:8x8-plasma-codegen
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:8x8-plasma-codegen
+
+<code>
+//--------------------------------------------------------------------------------------------------
+// 8x8 Plasma Crap w/ Runtime Generated Speedcode
+// For Codebase64
+// By Cruzer/CML 2009
+// Asm: KickAss 3.0
+//--------------------------------------------------------------------------------------------------
+// memory...
+.var plasmaCnt =	$02
+.var add =		$04
+.var codePnt =		$05
+.var xPos =		$07
+.var yPos =		$08
+.var screen =		$0400
+.var basic =		$0801
+.var sine64 =		$1000
+.var sine128 =		$1200
+.var colorTable =	$1400
+.var bitmap =		$2000
+.var code =		$4000
+.var plasmer =		$5000
+//--------------------------------------------------------------------------------------------------
+.pc = sine64 "sine64"
+.for (var i=0; i<$200; i++)
+	.by 32 + 32 * sin(i/[$100/2/PI])
+.pc = sine128 "sine128"
+.for (var i=0; i<$200; i++)
+	.by 64 + 64 * sin(i/[$100/2/PI])
+//--------------------------------------------------------------------------------------------------
+.pc = $0801 "basic"
+:BasicUpstart(code)
+//--------------------------------------------------------------------------------------------------
+.pc = code "code"
+	jmp start
+//--------------------------------------------------------------------------------------------------
+// plasma params...
+.var width = 40
+.var height = 25
+.var sineSpreadX = 	$03
+.var sineSpreadY =	$01
+.var colorSpreadX = 	$01
+.var colorSpreadY = 	$02
+.var realtimeSpread0 =	$04
+.var realtimeSpread1 =	$07
+sineSpeeds:	.byte $03,$fe
+addSpeed:	.byte $ff
+colors:		.byte $a7,$aa,$8a,$2a,$b8,$95,$b5,$c5,$55,$5f,$cd,$5d,$37,$dd,$d1,$11
+//--------------------------------------------------------------------------------------------------
+start:
+	sei
+	jsr generateSpeedcode
+
+// fill bitmap...
+	ldx #0
+	ldy #$1f
+	lda #%01010101
+!:	sta bitmap,x
+	eor #%11111111
+	inx
+	bne !-
+	inc !- +2
+	dey
+	bpl !-
+
+// generate color table...
+	ldx #0
+!loop:
+	txa
+	asl
+	asl
+	asl
+	bcc !+
+	eor #$ff
+!:	lsr
+	lsr
+	lsr
+	lsr
+	tay
+	lda colors,y
+	sta colorTable,x
+	sta colorTable+$100,x
+	inx
+	bne !loop-
+
+// init vic...
+	lda #$3b
+	sta $d011
+	lda #$18
+	sta $d018
+
+//--------------------------------------------------------------------------------------------------
+mainLoop:
+	lda #$00
+	sta $d020
+	lda #$44
+!:	cmp $d012
+	bne !-
+	sta $d020
+
+	lda plasmaCnt+0
+	clc
+	adc sineSpeeds+0
+	sta plasmaCnt+0
+	lda plasmaCnt+1
+	clc
+	adc sineSpeeds+1
+	sta plasmaCnt+1
+	lda add
+	clc
+	adc addSpeed
+	anc #$3f
+	sta add
+
+	jsr plasmer
+	jmp mainLoop
+
+//--------------------------------------------------------------------------------------------------
+// Generates the plasmer speedcode by modifying and copying two different chunks of code to
+// memory. One for every start of a char line (lineInitSrc) and one for every char in that line
+// (plasmerSrc)
+
+generateSpeedcode:
+{
+	//get length of the source chunks
+	.var lineInitLength = _lineInitSrc - lineInitSrc
+	.var plasmerLength = _plasmerSrc - plasmerSrc
+
+	//set destination pointer...
+	lda #<plasmer
+	sta codePnt+0
+	lda #>plasmer
+	sta codePnt+1
+
+	//start looping through all char lines...
+	lda #0
+	sta yPos
+yLoop:
+	//copy the line-init chunk to memory...
+	ldy #0
+!:	lda lineInitSrc,y
+	sta (codePnt),y
+	iny
+	cpy #lineInitLength
+	bne !-
+	jsr addCodePnt
+
+	//init plasmer source for the current line...
+	lda pSineY
+	sta pSine+1
+	lda pColorY
+	sta pColor+1
+
+	//start looping through all chars at the current y-position...
+	lda #0
+	sta xPos
+xLoop:
+	inc $d020
+
+	//copy the plasmer chunk for the current char...
+	ldy #0
+!:	lda plasmerSrc,y
+	sta (codePnt),y
+	iny
+	cpy #plasmerLength
+	bne !-
+	jsr addCodePnt
+
+	//update load/store addresses in plasmer source...
+	inc pScr+1
+	bne !+
+	inc pScr+2
+!:	lda pSine+1
+	clc
+	adc #sineSpreadX
+	sta pSine+1
+	lda pColor+1
+	clc
+	adc #colorSpreadX
+	sta pColor+1
+
+	//next char...
+	inc xPos
+	lda xPos
+	cmp #width
+	bne xLoop
+	
+	//update line init routine for the next line...
+	lda lSine0+1
+	clc
+	adc #realtimeSpread0
+	sta lSine0+1
+	lda lSine1+1
+	clc
+	adc #realtimeSpread1
+	sta lSine1+1
+
+	//update plasmer params for the next line...
+	lda pSineY
+	clc
+	adc #sineSpreadY
+	sta pSineY
+	lda pColorY
+	clc
+	adc #colorSpreadY
+	sta pColorY
+	
+	//next y-pos...
+	inc yPos
+	lda yPos
+	cmp #height
+	bne yLoop
+
+	//add the final "rts" instruction
+	ldy #0
+	lda #RTS
+	sta (codePnt),y
+	
+	rts
+
+//the source chunks...
+
+lineInitSrc:
+	ldx plasmaCnt+0
+	ldy plasmaCnt+1
+	clc
+lSine0:	lda sine128,x
+lSine1:	adc sine64,y
+	tax
+_lineInitSrc:
+
+plasmerSrc:
+pSine:	lda sine64,x
+	adc add
+	tay
+pColor:	lda colorTable,y
+pScr:	sta screen
+_plasmerSrc:
+
+}
+
+pSineY:	.by 0
+pColorY:.by 0
+
+//increment codePnt with the value of the y-reg...
+addCodePnt:
+	tya
+	clc
+	adc codePnt+0
+	sta codePnt+0
+	bcc !+
+	inc codePnt+1
+!:	rts
+</code>

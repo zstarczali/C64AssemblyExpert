@@ -1,0 +1,20 @@
+# PAGE: base:pds
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:pds
+
+====== PDS (Programmers Development System) ======
+
+PDS is a cross development system from the 80's that is hardly in use anymore. Still, there are some old sources around, and sometimes people want to convert these sources to something which can be compiled with modern cross assemblers. This is the topic of the present page, as well as general info on this system.
+
+====== Info on source code conversion ======
+
+See the following CSDb thread for some info on converting PDS sources to something that present day cross assemblers are able to handle:
+
+  * [[http://noname.c64.org/csdb/forums/?roomid=9&topicid=74874&showallposts=1|CSDb thread]]
+
+If someone has the time, it would be nice if you could write this up (and possibly add some more info) and place it here instead.
+
+====== Manuals ======
+
+  * {{:books:pds_6502_assembler_n_monitor_manual.pdf|PDS Assembler and Monitor Manual}}
+  * {{:books:pds_ibm_editor_manual.pdf|PDS IBM Editor Manual}}
+

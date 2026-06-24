@@ -1,0 +1,17 @@
+# PAGE: base:scpu_setchermode
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:scpu_setchermode
+
+====== SetCharMode ======
+
+Set Character Set Mode (reset bit #5 of $d011).
+
+| SYNTAX:     | :SetCharMode |
+| EXAMPLE:    | :SetCharMode |
+| PARAMETERS: |  N/A         |
+
+<code>
+    .pseudocommand SetChar {
+        lda #%0010000000000000
+        trb $d010
+    }
+</code>

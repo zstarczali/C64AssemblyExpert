@@ -1,0 +1,110 @@
+# PAGE: base:reu_read_and_write
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:reu_read_and_write
+
+====== Theory ======
+
+The three RAM Expansion Modules 1700, 1764 and 1750 that provide 128, 256 and 512 kilobytes of expanded memory, respectively, are utilized by means of DMA transfers performed by the REC or RAM Expansion Controller. The REC has 11 registers mapped to $DF00-$DF0A in the external IO2 area.
+
+These registers specify each DMA operation as described in the provided source code. Only the status register at $DF00 can be read. The most important register is at $DF01. This is the control register that launches a DMA operation and sets some important parameters for it.
+
+Bit 7 in the control register, when set to 1, starts a DMA transfer. Bit 0 determines whether the the transfer is from C64 to REU (bit 0 is zero) or from REU to C64 (bit 0 is one). The REC can also swap and compare, but those operations do not fall within the scope of this introductory article.
+
+The REC has an AUTOLOAD feature, which automatically reloads the starting addresses upon finishing a DMA operation. Thus, they don't have to be set again for subsequent transfers at same addresses. Set bit 5 in the control register to enable this. The length is always retained.
+
+Only due to the examples having also bit 4 set, I am briefly discussing it here. It has to be 1, for immediate execution of DMA, and will normally always be 1. Setting it to zero will make the REC wait for the CPU to change the memory configuration on a Commodore 128 system.
+
+Finally, the REC can also fix either address. This means that the C64 address or the REU address (or indeed, both) aren't incremented. This way you can push a huge amount of data through a single address, for example an I/O port. However, the DMA speed is 1 megabyte per second.
+
+This limits this feature's use in, for example, feeding video or audio data. The REC also supports interrupts, but there is no need for them. Since the DMA takes up all the CPU time for the duration of the transfer, the CPU will continue execution of code not until the DMA is finished.
+
+===== Basic read/write operation =====
+
+Here is an example that copies the BASIC ROM into the expanded memory. To test that it actually does said task, change the command byte to $91 and C64 address to $4000 and run again. This will copy the BASIC interpreter back from the RAM expansion to $4000-$5FFF in your C64's address space.
+
+<code>
+; example routine to read or write 17xx expanded memory by FMan/Tropyx
+
+	!to "RAMExp.prg",cbm		; compile using ACME
+	*=$2000
+
+; this is the easiest form of using the RAM Expansion: simply preset your arguments
+; into the RECdata region and then copy it into the registers of the REC chip
+
+; note that the copyloop must run backwards so that the control register is
+; written last, because this will start the DMA, and addresses must be valid
+
+	ldx #9
+loop	lda RECdata,x
+	sta $df01,x		; $DF00 is a read-only status register
+	dex
+	bpl loop
+	rts
+
+RECdata	!byte $90		; command byte (see text for detailed description)
+	!word $a000		; start address in C64 memory
+	!word $6800		; start address in RAM expansion
+	!byte 1			; RAM expansion bank number (0...7 max)
+	!word $2000		; length of DMA transfer
+	!byte 0,0		; clear flags and don't fix either address
+</code>
+===== Useful example =====
+
+This is another example that takes a different approach to use the first 256 kilobytes of expansion memory for storing copies of RAM area $400-$7E7. When loaded, first issue SYS50006 to copy the initial values into the REC registers. Then do SYS50000,<n> to store and SYS50003,<n> to fetch a screen from the RAM expansion.
+
+The subroutine SetScr calls $B79B in the BASIC interpreter to read a comma-separated 8-bit number into the X register. This is then used to point to 0, $400, $800 and so on, in the expansion memory. This creates 256 slots to save a text screen. Note that 1764 only has 128 kilobytes of expanded memory and only indices 0-127 can be used.
+
+The control register stored in the initial setup has its bit 7 zero, because it is not intended that the initialization starts a DMA operation. However, this time bit 5 is set to keep the starting address from incrementing. This way the C64 base address will remain at $400 for each operation.
+
+<code>
+; routines to save up to 256 text screens in REU by FMan/Tropyx
+
+	!to "RAMExp2.prg",cbm		; compile using ACME
+	*=$c350
+
+	temp = $fe
+
+	jmp store
+	jmp fetch
+	ldx #9			; initialize the REC
+loop	lda RECdata,x
+	sta $df01,x
+	dex
+	bpl loop
+	rts
+store	jsr SetScr
+	lda #$b0		; store from C64 into REU
+	sta $df01
+	rts
+fetch	jsr SetScr
+	lda #$b1		; fetch from REU into C64
+	sta $df01
+	rts
+
+; this subroutine gets the screen index in the RAM expansion (0-255)
+; and extends it to a 24-bit address that steps at $400 in the REU
+
+SetScr	jsr $b79b		; get argument from BASIC line
+	txa
+	ldx #0			; initialize high byte to zero
+	stx temp
+	asl			; multiply by two
+	rol temp
+	asl			; do same again
+	rol temp
+	sta $df05		; MSB of address
+	lda temp
+	sta $df06		; bits 16 and 17 of address
+	rts
+
+; preset REC chip register values
+
+RECdata	!byte $20		; command byte for autoload & no-operation
+	!word $400		; start address in C64 memory
+	!word 0			; start address in RAM expansion
+	!byte 0			; RAM expansion bank number (0...7 max)
+	!word $3e8		; length
+	!byte 0,0		; clear flags and don't fix either address
+</code>
+Alternatively, you could be working on the local copy of the register set to create the expansion address. In that case, work out your parameters for the DMA transfer, including the command byte, and then call the setup routine. This would remove the need for a temporary variable and pre-initialization.
+
+For more information, refer to chapter 5 of the RAM Expansion Module user's manual. http://project64.ath.cx/hw/1700re10.zip

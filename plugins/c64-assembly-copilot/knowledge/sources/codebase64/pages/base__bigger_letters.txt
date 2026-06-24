@@ -1,0 +1,43 @@
+# PAGE: base:bigger_letters
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:bigger_letters
+
+=====Using modified charsets to make bigger letters=====
+Often it is the case, that you need only the 26 alphabet letters, the
+numbers and the interpunction symbols. Then 64 chars are more than enough
+to fit all the symbols. All in all we have room for 256 characters. 
+Why not use more than one char to represent one letter? 
+====1x2====
+The simplest case is to make a 2x1 font, where the normal chars (No. 0-127)
+are reserved for the upper part of the letters and the other half (the 
+reverse characters with numbers 128 and above)
+for the lower parts. 
+
+Look this example:\\ 
+{{:base:1x2_font.jpg|}}
+and this one:\\
+{{{{:base:1x1example.jpg|}}\\
+The first line shows my handle in 1x2 font,
+the abcd in black and white shows how the characters are merged together.
+Of course the black respectively the white chars can be at arbitrary locations
+in the character set, but it is common to reserve the first 128 characters in a row for the upper half and the second 128 for the lower one like in the above example.
+
+====2x1, 2x2, 3x2, 2x3====
+These sized scrollers can be done like the 1x2 scrollers, only that you need 
+more characters to assemble one letter.
+The 2x2, 3x2, 2x3 charsets can be setup row wise or column wise. This can lead
+to confusion, if you made your own charset with an editor and then want to use it in your demopart. Let me explain this pitfall on the image of the chars used for the 2x2 font, it will be clear for the other sizes then.\\
+{{:base:2x2_example.jpg|}}\\
+For the upper left edge of the 2x2 letter always the first 64 chars are used. 
+For the upper right edge, it is not so easy, because if you count from left to right and then from top to bottom, it is clear to use chars 64 to 127 for this part.
+But if you count from top to bottom and then from left to right, it would be more logically to use chars 64 to 127 for the lower left edge and the chars 128 to 191 for the upper right one.
+For the lower right edge things are clear again, because either way of counting you come to use the chars 192 to 255 of course.
+Now, you can imagine, that the number for logical arrangements of the chars building up the letters are larger for the bigger the letter gets.
+====3x3 and 4x4 and bigger====
+All the alphabet letters and the numbers and the special characters like ,.!" etc.
+wouldn't fit into the 2048 bytes of a charset. 
+This means, that some characters must be repeatedly used for different symbols.
+For example 'D' and 'B' share the upper left and the lower left edge. 'P' and 'R'
+the upper right one and so on.
+This way you can save memory. But you need a table telling you which letters consists
+of which chars. 
+''''Code Text''''

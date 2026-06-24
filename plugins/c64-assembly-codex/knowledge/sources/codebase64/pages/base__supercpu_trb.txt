@@ -1,0 +1,63 @@
+# PAGE: base:supercpu_trb
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:supercpu_trb
+
+====== TRB ======
+
+<code>
+    /*-------------------------------------------------------------------------
+    OP CODE: TRB (Test and Reset memory Bits against accumulator)
+    =============================================================
+    
+    Addressing Modes:
+        Absolute                        ($1c - 3 bytes, 6 cycles¹)
+        Direct Page                     ($14 - 2 bytes, 5 cycles¹²)
+        ¹ - Add 2 cycles if m = 0 (16-bit memory/accumulator)
+        ² - Add 1 cycle if low byte of Direct Page register is other than zero
+            (DL< >0)
+
+    Flags Affected:
+        z - Set if memory value AND’ed with accumulator value is zero; else
+            cleared.
+
+    Description:
+        Logically AND together the complement of the value in the accumulator
+        with the data at the effective address specified by the operand. Store
+        the result at the memory location.
+
+        This has the effect of clearing each memory bit for which the
+        corresponding accumulator bit is set, while leaving unchanged all
+        memory bits in which the corresponding accumulator bits are zeroes.
+
+        Unlike the BIT instruction, TRB is a read-modify-write instruction, not
+        only calculating a result and modifying a flag, but also storing the
+        result to memory as well.
+
+        The z zero flag is set based on a second and different operation the
+        ANDing of the accumulator value (not its complement) with the memory
+        value (the same way the BIT instruction affects the zero flag). The
+        result of this second operation is not saved; only the zero flag is
+        affected by it.
+
+        8-bit accumulator/memory (65C02;65802/65816, m=1): Values in
+        accumulator and memory are eight-bit.
+
+        16-bit accumulator/memory(65C02;65802/65816, m=1): Values in
+        accumulator and memory are sixteen-bit: the low-order eight bits are
+        located at the effective address; the high-order eight bits are at the
+        effective address plus one.
+
+    Notes:
+
+    -------------------------------------------------------------------------*/
+
+    .pseudocommand trb val {
+        .if (val.getType()==AT_ABSOLUTE) {
+            .if (val.getValue()<256) {
+                .byte $14, <val.getValue()  // Direct Page
+            } else {
+                .byte $1c, <val.getValue(), >val.getValue()
+            }
+        }
+    }
+
+</code>

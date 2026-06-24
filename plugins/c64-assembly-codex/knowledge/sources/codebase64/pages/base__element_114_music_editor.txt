@@ -1,0 +1,29 @@
+# PAGE: base:element_114_music_editor
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:element_114_music_editor
+
+===== Element 114 Music editor =====
+
+This archive contains the source for the Element 114 Music editor. This editor was used for a few demo projects and a game project I worked on many many years ago.
+The original sources from circa 1992 were converted from 6510+ assembler format to ACME. There is a VisualStudio6 workspace (.DSW) which can be used to view and compile the project or just use "ACME MusicEditor.asm" from the a command line. The archive also contains an assembled "MusicEditor.prg" file that can be run.
+
+The editor help files are also included as a help note viewer. The contact details listed on the last page are no longer valid, but I did not want to change the original data.
+
+After the editor loads if you hit "P" it will play the default music track which is the title music from Tusari (the game project mentioned above).
+
+MusicFiles.d64 contains several demonstration music files which can be loaded using the "Load All" menu item.
+
+Stability fixes have been made to the block and track editor. New block commands have been added to control the filter registers:
+
+FLL controls the value sent to $d415 SIDFilterCutoffFreqLo. So FLL:10 will put $10 into $d415
+
+FLH does the same but for $d416 SIDFilterCutoffFreqHi
+
+FLC does the same but for $d417 SIDFilterControl. So FLC:F7 will set filter resonance F with voices 0,1 and 2 active (bits 0/1/2 = 7).
+
+FLP does the same with $d418 SIDVolumeFilter. So FLP:10 will set bit 4 which is the low pass filter. The lower nybble maps to the volume control, don't set these values, keep it at 0 for now.
+
+ 
+The VOL command has also been added which adjust the volume. Using VOL:08 will set a volume of 8. The higher nybble maps to the filter control register, don't set this value, keep it at 0 for now.
+
+
+[[projects:resurrection|Sources available in the large archive here]]

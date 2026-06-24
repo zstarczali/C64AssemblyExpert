@@ -1,0 +1,25 @@
+# PAGE: base:cia
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:cia
+
+====== CIA (6526) Programming ======
+ 
+A lot of stuff is controlled by the CIA chips, such as keyboard/joystick reading, serial IO, timer interrupts, VIC bank switching and... You name it!
+
+===== Interrupts =====
+
+There are many kinds of interrupts on the C64. The CIA generates Timer interrupts, which can be set to be trigged at specific timed intervals. Other kinds of interrupts, such as raster interrupts are trigged by the VIC chip. Information on interrupts in general is collected in one place:
+
+  * [[base:interrupts|Interrupts and timing]]
+
+
+===== Keyboard/joystick and serial IO =====
+
+See the IO page for this.
+
+  * [[cia:io_programming|IO Programming]]
+
+===== Time-of-Day Clock aka TOD =====
+
+  * [[cia:initialize_tod_clock_on_all_platforms|Initialize TOD Clock on all platforms]] - by Devia
+  * [[cia:efficient_tod_initialisation|Efficient TOD initialisation]] - by Silver Dream !/W.F.M.H.
+  * [[cia:tod_calibration|TOD calibration]] - by Soci / Singular

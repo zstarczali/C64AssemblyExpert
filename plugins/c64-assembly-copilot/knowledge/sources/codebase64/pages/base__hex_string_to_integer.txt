@@ -1,0 +1,56 @@
+# PAGE: base:hex_string_to_integer
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:hex_string_to_integer
+
+====== Hex String to Integer ======
+
+
+This is a very simple routine that converts a string containing a hexadecimal number to the corresponding integer. The string can be any length (up to 128 chars) and the routine will find its end (null-terminated) and start working from the last digit backwards, as the 6502 is backwards (little-endian). The "bmi l4" instruction makes sure the routine exits safely, if a zero-length string is passed in, and everything else should be obvious.
+
+<code>
+; hexadecimal string to integer conversion routine by FMan/Tropyx
+
+	!to "strtoint.prg",cbm	; use ACME to assemble this
+
+; very straight-forward, does no error checking on the input values,
+; converts a string containing a hexadecimal number of any length
+
+	tmp = $63		; temporary variable
+	str = $64		; pointer to the null-terminated string
+	out = $1f00		; address of the output buffer
+
+	*=$2000
+
+	ldy #0			; strlen
+l0	lda (str),y
+	beq l1
+	iny
+	bpl l0
+l1	dey			; set Y to point to the last character of
+	bmi l4			; the string (least significant digit)
+	ldx #0
+l2	lda (str),y		; read digit for low nybble of this byte
+	jsr hex
+	dey
+	bmi l3
+	sta tmp			; store it temporarily
+	lda (str),y
+	jsr hex			; convert the high nybble of this byte and
+	asl			; slide it to occupy the corresponding bits
+	asl
+	asl
+	asl
+	ora tmp			; add the low nybble stored earlier
+l3	sta out,x		; write the resulting byte out
+	inx
+	dey
+	bpl l2			; loop until there is no more input
+l4	rts
+
+hex	sec			; subroutine that converts a single hex digit
+	sbc #$30		; in Akku to the corresponding numeric value
+	cmp #$a
+	bcc h0
+	sec
+	sbc #7
+h0	rts
+</code>

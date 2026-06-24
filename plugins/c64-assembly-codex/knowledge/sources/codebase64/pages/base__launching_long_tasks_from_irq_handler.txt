@@ -1,0 +1,143 @@
+# PAGE: base:launching_long_tasks_from_irq_handler
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:launching_long_tasks_from_irq_handler
+
+====== Launching long tasks from inside a IRQ handler ======
+
+by Bitbreaker/Oxyron/*
+
+When executing code within an IRQ handler you have to finish things before the next IRQ occurs. But sometimes tasks just take some more time, for that you can spin off those tasks from inside the handler, and allow then upcoming IRQs to happen.
+
+Basically there is two scenarios that we can handle in an easy and an more sophisticated way. The first scenario is, if you have a long task that takes several frames, and that is only spin off seldom. Imagine you shift a bitmap 8 pixels wide and move the whole bitmap each 8 frames. Lets say the moving takes 7 frames. This can all be done from IRQ.
+
+When the IRQ handler finishes it would fetch 3 bytes from stack and return to the code that was interrupted by the IRQ. Here is the point where we start with this scenario. We simply squeeze in our new task by adding another 3 bytes to the stack. Thus before continuing with the interrupted code our new task will be executed first. Also, this way further code after the spin off can be done by the interrupt-handler. If this is not wanted, we could also do a mixture of both scenarios. Then the copy over of the registers is enough and we can just start our task after we clear the interrupt flag with a jmp.
+
+<code>
+irq
+       ;save registers
+       sta reg_a
+       stx reg_x
+       sty reg_y
+
+       ;... your desired irq handler code goes here
+       lda some_condition
+       beq skip_long
+       
+       ;now push 3 more bytes on stack
+       lda #>task
+       pha
+       lda #<task
+       pha
+       ;flags, can even be used to signal stuff to task by setting carry/overflow/negative/...
+       lda #$00
+       pha
+       
+skip_long
+       ;here, further code can happen that has nothing to do with our task
+
+       ;restore registers
+       lda reg_a
+       ldx reg_x
+       ldy reg_y
+       ;rti will now finish this interrupt and continue with the new task instead of the code
+       ;being executed before this IRQ occurred.
+       rti
+    
+task
+       ;store registers again
+       sta reg_a_
+       stx reg_x_
+       sty reg_y_
+
+       ;...some long long code
+    
+       ;restore registers
+       lda reg_a_
+       ldx reg_x_
+       ldy reg_y_
+       ;now finally continue with code being executed before IRQ that spun of our task
+       rti
+</code>
+
+The second scenario spins off a task in every frame, with the task being finished until the next IRQ occurs.
+In this case it is sufficient to just clear the IRQ flag and let the next IRQ happen. But this only works if the next IRQ is a different IRQ with different handler, else we would have a clash in the saved registers, and values piling up on stack. Imagine you have one interrupt happening at rasterline $32 and it will usually take until line $120 or shorter. Now you want to have your music play at line $ff constantly to have no sound glitches. To solve that conflict you can do:
+
+<code>
+irq1
+        dec $d019
+        ;save your registers
+        sta reg_a
+        stx reg_x
+        sty reg_y
+        
+        ;set up next irq to play music
+        lda #<irq2
+        sta $fffe
+        lda #>irq2
+        sta $ffff
+        
+        lda #$ff
+        sta $d012
+        
+        ;now allow irq2 to happen on top of this task and return to this task when done
+        cli
+        
+        ... effect that takes much cycles ...
+        
+        ;restore registers
+        ldy reg_y
+        ldx reg_x
+        lda reg_a
+        rti
+        
+irq2
+        dec $d019
+        ;use different locations to store registers (we might still need those that we saved in the previous IRQ)
+        sta reg_a_
+        stx reg_x_
+        sty reg_y_
+        
+        jsr $1003
+        
+        ;setup next irq1
+        lda #$32
+        sta $d012
+        
+        lda #<irq1
+        sta $fffe
+        lda #>irq1
+        sta $ffff
+
+        ldy reg_y_
+        ldx reg_x_
+        lda reg_a_
+        rti
+</code>
+
+A even more convenient variant is to use the stack for register saving:
+
+<code>
+irq1
+        pha
+        txa
+        pha
+        tya
+        pha
+        dec $d019
+        
+        dec counter
+        bne +
+        
+        lda #$08
+        sta counter
+        cli
+        jsr long_task
++
+        pla
+        tay
+        pla
+        tax
+        pla
+        rti
+</code>
+
+Now you can run a long task that can finish somewhen between the next 8 interrupts.

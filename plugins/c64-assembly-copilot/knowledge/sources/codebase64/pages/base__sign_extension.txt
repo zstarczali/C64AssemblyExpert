@@ -1,0 +1,10 @@
+# PAGE: base:sign_extension
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:sign_extension
+
+Convert a signed 8-bit number to a signed 16-bit number, with .Y holding the high byte:
+
+<code asm> ldy #$00
+ lda value
+ bpl :+
+  dey
+:</code>

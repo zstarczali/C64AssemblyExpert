@@ -1,0 +1,1220 @@
+# PAGE: base:macro_player
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:macro_player
+
+====== Macro Player ======
+
+by Geir Tjelta.
+
+
+The binary include file (and the source) is included in this archive: {{:base:macroplayersource.rar}}.
+
+<code>
+;---------------------------- Macro Player, $180 hex bytes of code approx. +/- (made just for fun) ----------------
+;
+;The reason: How small and efficient can a player be, and still sound like A-class ? Plus I want to compose tunes in text/assembler.
+;It has been paid attention of code length and rastertime, not data length, but still taken notice of.
+;
+;Macro Player handles ADSR, calc-frequency changes, pulse, and waveforms using one table that includes branch jumps (to macros).
+;These branch jumps triggers other tables aswell, like Filter and pulse sweeps. This method free's up the player for init code.
+;Branch calls also free's up code when usually CMP's is used for what tasks to do. Tempo is also used in a similar way.
+;
+;The conductor has patterns that looks just like an Amiga/PC tracker, but has commands for crunching rests/holds (used when tune is done)
+;You can compose music directly in text format, all channels synchronized. Make notice that pattern data left to right is voice 3-1, when using ring-mod.
+;The sequencer handles note data, gate on/off, and triggers "fxt" table, that includes all branches for the main player.
+;Tie-notes, arpeggio, filter, slides and vibrato (etc..) can be made in the sound-table (fxt). When understood, everything is readable..
+;How you edit determines the length of the tunes. 
+;
+;Player by Geir Tjelta (C) 2008.
+;Music composed by Jeroen Tel (C) 1987. 
+;Cloned by Geir, March 2009. 
+;
+;Make notice that this tune doesn't use all features originally, then not improven either. Like Hard Restart, gate on/offs...
+;But when that is said, it doesn't have to be improved. Hard Restart didn't sound any good at all on this tune...
+;With all respect of Jeroen Tel, I still had to add a few slides to show that the player could handle such, since this tune didn't have any originally.
+;Also the Bass guitar has vibrato, which is not in the original. 
+;
+;------------------------------------------------------------------------------------------------------------------
+
+         *= $0810 ;-------> Location for IRQ
+
+notebit  = $4a   ;Only used on framecall
+zero     = $4b	 ;Can not be used outside player, this is the pattern zeropage
+zero2    = $4d   ;Only used on framecall
+sid	 = $3400 ;SID register
+
+key      = $9090 ;$8080=0,$8282=2  / Transpose all note >definitions<
+
+;------------------------- Patttern commands
+ooo      = $8080 ; >c3-ooo = "ooo" is a command so that pattern only uses one byte for each voice on note calls
+efx      = $80   ; efx,xxx = xxx=macro definition
+fix      = $81   ; fix,xxx = xxx=macro definition
+end      = $ff   ; .byte end = Pattern end
+
+xxxxxxx  = $00 ;gate off command
+ooooooo  = $f8 ;1 rest
+ooxxxxx  = $f9 ;2 rests, used when tune is finished to crunch data (see patterns in this tune for examples)
+oooxxxx  = $fa ;3 rests, -"-
+ooooxxx  = $fb ;4 rests, -"-
+oooooxx  = $fc ;5 rests, -"-
+oooooox  = $fd ;6 rests, -"-
+
+;------------------------- Note definitions / macro examples for pattern
+;Example1: >c3-ooo = C-3   
+;Example2: ooooooo = one note rest
+;Example3: xxxxxxx = gate off
+;Example4: <c3-ooo = C#3
+;Example5: >c3,bd1 = c-3 + start macro definition "bd1" (bassdrum sound)
+;Example6: efx,vib = start macro definition "vib". efx means just an xx call for "fxt" macro definitions.
+;Example7: efx,pi1 = start macro definition "pi1", a pitch-bend macro call from the "fxt" macro definitions.
+
+c0       = $0101+key
+d0       = $0203+key
+e0       = $0404+key
+f0       = $0506+key
+g0       = $0708+key
+a0       = $090a+key
+b0       = $0b0b+key
+c1       = $0c0d+key
+d1       = $0e0f+key
+e1       = $1010+key
+f1       = $1112+key
+g1       = $1314+key
+a1       = $1516+key
+b1       = $1717+key
+c2       = $1819+key
+d2       = $1a1b+key
+e2       = $1c1c+key
+f2       = $1d1e+key
+g2       = $1f20+key
+a2       = $2122+key
+b2       = $2323+key
+c3       = $2425+key
+d3       = $2627+key
+e3       = $2828+key
+f3       = $292a+key
+g3       = $2b2c+key
+a3       = $2d2e+key
+b3       = $2f2f+key
+c4       = $3031+key
+d4       = $3233+key
+e4       = $3434+key
+f4       = $3536+key
+g4       = $3738+key
+a4       = $393a+key
+b4       = $3b3b+key
+c5       = $3c3d+key
+d5       = $3e3f+key
+e5       = $4040+key
+f5       = $4142+key
+g5       = $4344+key
+a5       = $4546+key
+b5       = $4747+key
+c6       = $4849+key
+d6       = $4a4b+key
+e6       = $4c4c+key
+f6       = $4d4e+key
+g6       = $4f50+key
+a6       = $5152+key
+b6       = $5353+key
+c7       = $5455+key
+d7       = $5657+key
+e7       = $5858+key
+f7       = $595a+key
+g7       = $5b5c+key
+a7       = $5d5e+key
+b7       = $5f5f+key
+
+;------------------------------ IRQ routine
+	 jsr $e544
+	 
+	 lda #<tekst
+	 ldy #>tekst
+	 jsr $ab1e
+	 
+	 lda #$16
+	 sta $d018
+         sei
+         lda #$01
+         sta $d01a
+         sta $dc0d
+         lda #$37
+         sta $01
+         jsr $1800
+         lda #start-patternl
+         jsr playinit
+         lda #<int
+         sta $0314
+         lda #>int
+         sta $0315
+         cli
+         jmp *
+         
+int      lsr $d019
+         lda #$1b
+         sta $d011
+         lda #$8a
+         sta $d012
+         lda #$0c
+         sta $d020
+         lda $d012
+         sta raster+1
+tuneras  jsr player
+	 lda $d012
+         ldy #$00
+         sty $d020
+         sty $d021
+         sec
+raster   sbc #$8b
+	 
+         pha
+         lsr
+         lsr
+         lsr
+         lsr
+         cmp #$0a
+         ora #$30
+         bcc *+4
+         sbc #$39
+         sta $05b9
+         pla
+         and #$0f
+         cmp #$0a
+         ora #$30
+         bcc *+4
+         sbc #$39
+         sta $05ba
+         
+         lda #$24
+         sta $05b8
+         
+tunebac  jsr $1806
+
+	 lda #<player
+	 sta tuneras+1
+	 lda #>player
+	 sta tuneras+2
+	 lda #6
+	 sta tunebac+1
+	 lda #$18
+	 sta tunebac+2
+
+	 ldx #$18 
+	 lda #>sid       
+         ldy $dc01
+         cpy #$ef
+         bne nospace
+	 lda #6
+	 sta tuneras+1
+	 lda #$18
+	 sta tuneras+2
+	 lda #<player
+	 sta tunebac+1
+	 lda #>player
+	 sta tunebac+2
+
+         lda #$24
+nospace  sta sc_jt+2       
+         
+sc_jt    lda sid,x
+         sta $d400,x
+         dex
+         bpl sc_jt
+
+         jmp $ea7e
+         
+tekst
+.byte $99,$93,$05
+.text "macro player BY geir tjelta (c) 2009",$0d,$99
+.text "music composed BY jeroen tel/mon (c)1987",$0d
+.text "nEW SIZE/RASTERTIME: $7E8/$0D",$0d
+.text "oLD SIZE/RASTERTIME: $983/$25",$0d,$0d
+.text "hOLD SPACE FOR ORIGINAL SOUND AND PLAYER"
+.text "mACRO PLAYER CODE SIZE: $164",0
+
+;------------------------------------ Player Code
+         *= $1000		    
+
+conduct  ldx #<frame_end-frametask
+pattern  ldy patternc+1
+         lda (zero),y
+         adc #1
+         bne filter
+         sta patternc+1
+
+patternp ldy #$00
+         cpy #<patt_end-patternh
+         bcc *+3
+         tay
+         lda patternl,y
+         sta zero
+         lda patternh,y
+         sta zero+1
+         iny
+         sty patternp+1
+         bne filter
+;------------------------------- Start of Player (IRQ call -> jsr player)
+player   sec
+         ldx #$0e
+loop_    bpl *+2
+
+tempoc   ldx #0
+         lda frametask,x
+         sta loop_+1
+         dex
+;------------------------------- Filter routine table
+         bmi conduct           
+filter   ldy #$00      
+         lda d416,y
+         beq nofilt
+         sta sid+22
+filtdir  iny
+         sty filter+1
+nofilt   stx tempoc+1
+         rts
+;-------------------------------
+chk_seq  lda note2,x
+;         bne seq_2		;Pattern gate control, not used in this tune
+;gateoff  lda #$f6
+;         sta gate,x
+seq_2    cmp #$f6
+         bcs table_
+         and #$7f
+         beq settable
+         sta note,x
+         sta freqadd,x
+;        inc gate,x
+settable ldy tabley2,x
+         bcc jp_chk
+
+clr_sr;  lda gate,x		;Hard Restart, not used in this tune	
+      ;  adc #1
+      ;  bne table_
+      ;  lda #2 
+      ;  sta sid+6,x
+      ;  bne table_
+
+;-----------------------------> Pattern code, with a duration/rest packer command ($f8 and above).. See pattern data and source header for info.
+patternc ldy #$00
+         lda (zero),y
+         sta note2,x
+         beq nonote
+hold     cmp #$f8
+         bcc nohold
+         bne holdinc
+         lda #$f8
+         sta hold+1
+         bne nonote
+holdinc  inc hold+1
+         bne table_
+
+nohold   asl a
+         beq efxonly
+;        lda #$fe		;Gate off in pattern, not used in this tune
+;        sta gate,x
+         bcc nonote
+efxonly  iny
+         lda (zero),y
+         sta tabley2,x
+nonote   iny
+         sty patternc+1
+         
+;-----------------------------> Start of macro codes... (wavetable if you like..)         
+table_   clc
+         ldy tabley,x
+jp_chk   lda fxt,y
+         bmi jp_pitch
+         sta jp1-1
+         iny
+         lda fxt,y
+         iny
+         bne jp1
+jp1
+jp_goto  tay
+         bne jp_chk
+
+jp_wadsr sta wavef,x
+         lda fxt,y
+         sta sid+5,x
+	 iny
+         lda fxt,y
+         iny
+jp_sr    sta sid+6,x
+         bne jp_pitch-3
+
+jp_fi0   sta filter+1
+         bne jp_chk
+
+jp_pprg  sta pulsex,x
+         bne jp_chk
+
+jp_finad adc freqadd,x
+         sta freqadd,x
+         bne jp_chk
+
+jp_gf6 ; sta gate,x		;Gate control, not used in this tune
+       ; bne jp_pitch-3
+
+         sec
+jp_wf    sta wavef,x
+         bcc *+4
+         lda #$80
+jp_mode  sta wavef2,x
+         lda fxt,y
+
+jp_pitch iny
+         sta notebit
+         tya
+         sta tabley,x
+         lda wavef,x
+;        and gate,x		;Tune do not use gate control
+         sta sid+4,x
+         asl a
+         bpl nopulse            ;Only run Pulse Routine if pulse waveform is used... Look in Pulse table for its features.
+
+         ldy pulsex,x
+         lda put,y
+         cmp #1
+         beq p_dir
+         cmp #$fd
+         bne p_sum
+         lda #$ff
+p_dir    sta pulsdir,x
+         tya
+         adc put,y
+         tay
+         lda put,y
+p_sum    sta sid+2,x
+         sta sid+3,x
+         tya
+         clc
+         adc pulsdir,x
+         sta pulsex,x
+nopulse
+
+;----------------------------------------> Pitch-routine... Handles everything that has to do with the frequency register.
+         lda #0
+         sta zero2+1
+         lda notebit
+         ldy wavef2,x
+         bpl finetune
+         tay
+         bmi fqfixed
+         clc
+         adc note,x
+fqfixed  and #$7f
+         tay
+         lda #0
+         beq fqcenter+3
+
+finetune and #$7f
+         beq fqcenter
+         clc
+         adc freqadd,x
+         tay
+         cmp #$60
+         bcc nohival
+         lda fqhi-$60,y
+         sta zero2+1
+nohival  lda fqhi,y
+fqcenter ldy note,x
+         sta zero2
+         lda fqlo,y
+         bit notebit
+         bmi bm1
+         clc
+         adc zero2
+         sta sid+0,x
+
+         lda fqhi,y
+         adc zero2+1
+         bcc sethi
+bm1      sec
+         sbc zero2
+setfreq  sta sid+0,x
+         lda fqhi,y
+         sbc zero2+1
+sethi    sta sid+1,x
+
+         lda #$ff
+         .byte $cb,7
+         jmp loop_
+
+pulsdir  .byte 1
+tabley2  .byte 0
+freqadd  .byte 0
+wavef2   .byte 0
+note2    .byte 0
+pulsex   .byte 0
+gate     .byte 0
+
+         .byte 1
+         brk
+         brk
+         brk
+         brk
+         brk
+         brk
+
+         .byte 1
+         brk
+         brk
+         brk
+         brk
+         brk
+         brk
+
+notes    = <chk_seq-loop_-2
+;soft     = <gateoff-loop_-2
+hard     = <clr_sr-loop_-2
+seq      = <patternc-loop_-2
+table    = <table_-loop_-2
+
+frametask .byte notes
+          .byte table
+          .byte table   ;change this to ".byte hard", and remember to enable hard restart code above for Hard Restart
+          .byte seq
+          .byte table
+frame_end .byte table
+;----------------------------------------------- This tune used NTSC table..
+fqhi
+.byte $01,$01,$01,$01,$01,$01,$01,$01		;note freqs high
+.byte $01,$01,$01,$01,$02,$02,$02,$02 
+.byte $02,$02,$02,$03,$03,$03,$03,$03 ;10
+.byte $04,$04,$04,$04,$05,$05,$05,$06
+.byte $06,$07,$07,$07,$08,$08,$09,$09 ;20
+.byte $0a,$0b,$0b,$0c,$0d,$0e,$0e,$0f
+.byte $10,$11,$12,$13,$15,$16,$17,$19 ;30
+.byte $1a,$1c,$1d,$1f,$21,$23,$25,$27
+.byte $2a,$2c,$2f,$32,$35,$38,$3b,$3f ;40
+.byte $43,$47,$4b,$4f,$54,$59,$5e,$64
+.byte $6a,$70,$77,$7e,$86,$8e,$96,$9f ;50
+.byte $a8,$b3,$bd,$c8,$d4,$e1,$ee,$fd
+
+fqlo
+.byte $0c,$1c,$2d,$3e,$51,$66,$7b,$91		;note freqs low
+.byte $a9,$c3,$dd,$fa,$18,$38,$5a,$7d
+.byte $a3,$cc,$f6,$23,$53,$86,$bb,$f4 ;10
+.byte $30,$70,$b4,$fb,$47,$98,$ed,$47
+.byte $a7,$0c,$77,$e9,$61,$e1,$68,$f7 ;20
+.byte $8f,$30,$da,$8f,$4e,$18,$ef,$d2
+.byte $c3,$c3,$d1,$ef,$1f,$60,$b5,$1e ;30
+.byte $9c,$31,$df,$a5,$87,$86,$a2,$df
+.byte $3e,$c1,$6b,$3c,$39,$63,$be,$4b ;40
+.byte $0f,$0c,$45,$bf,$7d,$83,$d6,$79
+.byte $73,$c7,$7c,$97,$1e,$18,$8b,$7e ;50
+.byte $fa,$06,$ac,$f3,$e6,$8f,$f8,$2e
+
+wavef    .byte 0
+note     .byte 0
+tabley   .byte 0
+unused1  .byte 0
+unused2  .byte 0
+unused3  .byte 0
+unused4  .byte 0
+
+         brk
+         brk
+         brk
+         brk
+         brk
+         brk
+         brk
+
+         brk
+         brk
+         brk
+         brk
+         brk
+         brk
+         brk
+
+;---------------------------------------- Player init, A = conductor position.
+playinit sta patternp+1
+	 ldx #0
+       ; ldx #<frame_end-frametask
+         lda #$f8
+         sta hold+1
+	 lda #seq
+	 sta loop_+1
+         lda #$b4
+         sta sid+23
+         lda #$1f
+         sta sid+24
+         ldy #$14
+         lda #0
+clr      sta sid+0,y
+         dey
+         bpl clr
+         jmp patternp-3
+
+;---------------------------------------------------------------------------> SOUND DATA
+;Macros for "fxt" table
+;
+;$80-$ff =				;Since branches is not longer than $00-$7f, $80-$ff is used as a direct jump to pitch routine.. 
+filt     = <jp_fi0-jp1 			;filt,xx  	then checks next macro
+puls     = <jp_pprg-jp1                 ;puls,xx  	then checks next macro 
+fineadd  = <jp_finad-jp1                ;fineadd,xx	then checks next macro
+gt       = <jp_gf6-jp1  		;gt,$f7,xx / gt,$f6,xx (gate on/off)  xx=pitch. Then exits macro routine
+wadsr    = <jp_wadsr-jp1 		;wadsr,$11,8,$e9,xx  Waveform,AD,SR,pitch. Then exits macro routine
+sr       = <jp_sr-jp1   		;sr,$88,xx	Set SR only xx=pitch. Then exits macro routine
+n        = <jp_pitch+1-jp1 ;+yy		;n,xx		xx=note ($80+ is fixed notes). Then exits macro routine
+goto     = <jp_goto-jp1 ;+yy		;goto,xx	jump, then checks next macro
+wf       = <jp_wf-jp1			;wf,$41,xx	xx=pitch, wf means waveform with finetune pitch value ($80 is center,$81+ is finetune subtract). Then exits macro routine
+wn       = <jp_wf-1-jp1			;wn,$41,xx	xx=note, wn means waveform with note value ($80+ is fixed notes). Then exits macro routine
+mode     = <jp_mode-jp1			;mode,0,xx / mode,$80,xx  toggle between wf / wn mode   xx=finetune/note
+;
+;Make notice that macro code above $80-$ff means either note values or finetune values depending on the "mode" command you're in...
+;---------------------------------------------------------------------------
+;
+;					The Macro Table with definitions used in the patterns...
+;
+fxt
+
+pi1      = <*-fxt 	;Pitch		;pitch-bend, then runs directly into vib datas
+         .byte $a7,$a0,$98,$93,$8a,$84
+
+vib      = <*-fxt	;Vibrato	;Trick to find correct xx/yy values by names instead of numbers...
+         .byte $80,$8e,$97,$8e        	;Vibrate subs    $80=center
+         .byte $80,n,$0e,n,$17,n,$0e  	;Vibrate Adds
+         .byte fineadd,3	      	;Vibrate/finetune expander
+         .byte goto,vib			;jump to "vib" start....
+
+bas      = <*-fxt ;Bass guitar
+         .byte wadsr,$41,0,$ee,0
+         .byte filt,0
+         .byte puls,p3
+         .byte wn,$81,$c9
+	 .byte wf,$40,0
+bs2      = <*-fxt
+	 .byte $80,$80
+         .byte goto,vib
+
+ld1      = <*-fxt ;Lead1
+         .byte wadsr,$21,0,$be,0
+         .byte puls,p1
+         .byte goto,ld2_
+
+ld2      = <*-fxt ;Lead2
+         .byte wadsr,$21,0,$be,0
+         .byte puls,p2
+ld2_     = <*-fxt    
+         .byte wf,$21,0,wf,$20,0
+ 	 .byte wf,$40,0
+         .byte goto,vib
+
+arp      = <*-fxt ;Intro arpeggio stab
+         .byte wadsr,$41,$00,$a7,0
+         .byte puls,p4
+         .byte wn,$41,$18,wn,$40,$0c
+arp_     = <*-fxt
+	 .byte n,$00,n,$18,n,$0c
+	 .byte goto,arp_
+
+sin      = <*-fxt ;Drums fill-in sound
+         .byte wadsr,$11,0,$e8,0
+	 .byte wn,$81,$c9
+	 .byte wf,$11,0
+	 .byte wf,$10,0
+sin_     = <*-fxt
+	 .byte $80
+	 .byte goto,sin_
+         
+bd1      = <*-fxt ;Bassdrum
+         .byte wadsr,$11,0,$c8,0
+         .byte puls,p08
+         .byte wn,$81,$c4
+         .byte wn,$41,$a7
+	 .byte wn,$40 
+         .byte $a3,$9e,$9b,$97,$92,$92,$8b,$8b,$80,$80,$8b,$92,$8b
+bd1_     = <*-fxt
+         .byte $80
+         .byte goto,bd1_
+
+sn1      = <*-fxt ;Snaredrum
+         .byte wadsr,$11,0,$e8,0
+	 .byte puls,p08
+         .byte wn,$81,$bb
+         .byte wn,$41,$ad,wn,$40,$aa
+         .byte wn,$80,$c3,$b5,$bb,$af,$c3
+sn1_     = <*-fxt         
+         .byte wn,$10,$ac
+         .byte goto,sn1_+2
+
+;--------------------------------------------------> Pulse table <-----------------------------------
+; Pulse routine use a method of ping-pong, or loopback.. 1=forward, $fd(253)=backwards
+; Make note that first value after command "1" is not heard, this is due to the ping-pong method, not to repeat the same value next frame.
+; Only 8-bits used, instead of 14... lo/hi stored in one byte...
+;
+put     
+
+p08      = <*-put ;Drums pulse
+         .byte 1,$08,$08,253
+
+p1       = <*-put ;Lead1 pulse    ;Slow pulse sweep, but this data was needed... I wanted to keep it as original as possible.
+         .byte 1,$01,$81,$02,$12 
+         .byte $22,$32,$42,$52
+         .byte $62,$72,$82,$92
+         .byte $a2,$b2,$c2,$d2
+         .byte $e2,$f2,$03,$13
+         .byte $23,$33,$43,$53
+         .byte $63,$73,$83,$93
+         .byte $a3,$b3,$c3,$d3 
+         .byte $e3,$f3,$04,$14
+	 .byte $24,$34,$44,$54,$64,$74,$84,$94
+	 .byte $a4,$b4,$c4,$d4,$e4,$f4,$05,$15
+	 .byte $25,$35,$45,$55,$65,$75,$85,$95
+	 .byte $a5,$b5,$c5,$d5,$e5,$f5,$06,$16
+	 .byte $26,$36,$46,$56,$66,$76,$86,$96
+	 .byte $a6,$b6,$c6,$d6,$e6,$f6,$07,$17
+	 .byte $27,$37,$47,$57,$67,$77,$87,$97
+	 .byte 253
+
+p2       = <*-put ;Lead 2 pulse  ;This lead instrument has a more varied pulse sweep, then possible to backwards the data earlier...
+         .byte 1,$0a,$8a,$ca,$0b,$4b,$8b,$cb
+         .byte $0c,$4c,$8c,$cc,$0d,$4d,$8d,$cd
+         .byte $4e,$ce,$4f,$ce,$4e,$cd,$4d,$cc
+	 .byte $4c,$cb,$4b,$ca,$4a,$c9,$49,$c8
+	 .byte $48,$c7,$47,$c6,$46,$c5,$45,$c4
+	 .byte $44,$c3,$43,$c2,$42,$c1,$41,$c0
+	 .byte 253
+
+p3       = <*-put ;Bass pulse    ;This program uses two "1" commands, so you can loop the pulse "tale". 
+         .byte 1,$00,$42,$e2,$83
+         .byte 1,$83,$e3,$44,$a4 ;I add an extra $83, because command "1" will skip it, but not on the return... 
+         .byte $05,$45,$85,$c5,$06
+	 .byte $07,$47,$87,$c7,$08
+         .byte 253                ;I'll explain this command.. It will reverse the direction, but jump back to value $c7 in this program, so that value $08 doesn't get repeated again.
+                                  ;Player was designed with this value ($fd, or 253), because this value will make it reverse correctly.
+                                  
+p4       = <*-put ;Arp stab pulse
+         .byte 1,$08,$a8,$49,$e9,$8a
+         .byte 1,$8a,$ea,$4b,$ab
+         .byte $0c,$8c,$0d,$8d
+	 .byte $0e,$8e,$0f
+         .byte 253
+         
+         
+;--------------------------------------------------> Filter table <-----------------------------------
+;Routine explains itself...
+
+         ;0 = end table
+
+d416     .byte $c0,$b0,$a0,$90,$80,$78,$70,$68,$60,$58,$50,$44,$38,$2c,$20,$12
+         .byte $04,0
+
+;--------------------------------------------------> Conductor calls <-----------------------------------         
+
+patternl
+	 ;Intro
+start	 .byte <noisy
+	 .byte <noisy
+	 
+	 ;Melody1 
+	 .byte <noisy2
+	 .byte <noisy3
+ 	 .byte <noisy2
+	 .byte <noisy4
+	 
+	 .byte <noisy2
+	 .byte <noisy3
+ 	 .byte <noisy2
+	 .byte <noisy4
+	 
+	 ;Melody2
+	 .byte <noisy5
+	 .byte <noisy6
+	 .byte <noisy7
+	 .byte <noisy8
+
+	 ;intro
+	 .byte <noisy
+	 .byte <noisy
+	 
+	 ;Funky end 
+	 .byte <noisy9
+	 .byte <noisy9_2
+	 .byte <noisy10
+	 .byte <noisy10_2
+	 .byte <noisy9
+	 .byte <noisy9_3
+	 .byte <noisy10_3
+	 .byte <noisy10_3_2
+	 .byte <noisy10_4
+	 
+	 .byte <noisy9
+	 .byte <noisy9_2
+	 .byte <noisy10
+	 .byte <noisy10_2
+	 .byte <noisy9
+	 .byte <noisy9_3
+	 .byte <noisy10_3
+	 .byte <noisy10_3_2
+	 .byte <noisy10_4
+    
+patternh
+	 .byte >noisy
+         .byte >noisy
+         
+         .byte >noisy2
+	 .byte >noisy3
+ 	 .byte >noisy2
+	 .byte >noisy4
+	 
+	 .byte >noisy2
+	 .byte >noisy3
+ 	 .byte >noisy2
+	 .byte >noisy4
+	 
+     	 .byte >noisy5
+	 .byte >noisy6
+	 .byte >noisy7
+	 .byte >noisy8  
+	 
+	 .byte >noisy
+         .byte >noisy
+
+	 .byte >noisy9
+	 .byte >noisy9_2
+	 .byte >noisy10
+	 .byte >noisy10_2
+	 .byte >noisy9
+	 .byte >noisy9_3
+	 .byte >noisy10_3
+	 .byte >noisy10_3_2
+	 .byte >noisy10_4
+	 
+	 .byte >noisy9
+	 .byte >noisy9_2
+	 .byte >noisy10
+	 .byte >noisy10_2
+	 .byte >noisy9
+	 .byte >noisy9_3
+	 .byte >noisy10_3
+	 .byte >noisy10_3_2
+	 .byte >noisy10_4
+         
+patt_end
+
+;--------------------------------------------------> Patterns <-----------------------------------   
+;This source has had the patterns packed... 15 mins of slavework by the way.... :-)  (ooxxxxx, oooxxxx, meaning: two and three rests etc...)
+
+noisy	.byte >c1,bas,fix,bd1,<d3,arp
+	.byte ooxxxxx,>d3-ooo
+	.byte ooooooo,>c5,sin,>c3-ooo
+	.byte >c1-ooo,>c4-ooo,<d3-ooo
+	
+	.byte ooooooo,fix,sn1,>d3-ooo
+	.byte ooxxxxx,>c3-ooo
+	.byte <a0-ooo,fix,bd1,<d3-ooo
+	.byte ooxxxxx,>f3-ooo
+
+	.byte >c1-ooo,ooooooo,>g3-ooo
+	.byte ooooooo,>c4,sin,<d3-ooo
+	.byte ooooooo,>c5-ooo,>c3-ooo
+	.byte >c1-ooo,fix,bd1,>g3-ooo
+	
+	.byte ooooooo,fix,sn1,<d3-ooo
+	.byte >c1-ooo,fix,bd1,>c3-ooo
+	.byte >d1-ooo,>c4,sin,>g3-ooo
+	.byte <d1-ooo,>c5-ooo,<a3-ooo
+
+	.byte <g0-ooo,fix,bd1,<g3-ooo
+	.byte ooxxxxx,<d3-ooo
+	.byte ooooooo,>c5,sin,>c3-ooo
+	.byte <g0-ooo,>c4-ooo,<g3-ooo
+	
+	.byte ooooooo,fix,sn1,<d3-ooo
+	.byte ooxxxxx,>c3-ooo
+	.byte <g0-ooo,fix,bd1,<g3-ooo
+	.byte ooooooo,<c0-ooo,>c4-ooo
+
+	.byte <a0-ooo,ooooooo,<a3-ooo
+	.byte ooooooo,>c5,sin,>f3-ooo
+	.byte ooxxxxx,>d3-ooo
+	.byte <a0-ooo,>c4-ooo,<a3-ooo
+	
+	.byte ooooooo,fix,sn1,>f3-ooo
+	.byte ooxxxxx,>d3-ooo
+	.byte >b0-ooo,<c0-ooo,<a3-ooo
+	.byte ooooooo,<c0-ooo,>f3-ooo
+	
+	.byte end
+
+noisy2  .byte >c1,bas,fix,bd1,>c3,ld1
+	.byte ooxxxxx,>c3-ooo
+	.byte ooooooo,>c5,sin,>c3-ooo
+	.byte >c1-ooo,>c4-ooo,>c3-ooo
+	
+	.byte ooooooo,fix,sn1,>c3-ooo
+	.byte oooxxxx;ooooooo,ooooooo
+	.byte <a0-ooo,fix,bd1,>c3-ooo
+	.byte ooxxxxx,<d3-ooo
+
+	.byte >c1-ooo,ooxxxxx;ooooooo
+	.byte ooooooo,>c4,sin,<d3-ooo
+	.byte ooooooo,>c5-ooo,>d3-ooo
+	.byte >c1-ooo,fix,bd1,ooxxxxx
+	
+	.byte fix,sn1,>c3-ooo
+	.byte >c1-ooo,fix,bd1,ooooooo
+	.byte >d1-ooo,>c4,sin,<a2-ooo
+	.byte <d1-ooo,>c5-ooo,ooooooo
+	
+	.byte end
+
+noisy3  .byte <g0-ooo,fix,bd1,>c3-ooo
+	.byte ooxxxxx,>c3-ooo
+	.byte ooooooo,>c5,sin,>c3-ooo
+	.byte <g0-ooo,>c4-ooo,>c3-ooo
+	
+	.byte ooooooo,fix,sn1,>c3-ooo
+	.byte oooxxxx;ooooooo,ooooooo
+	.byte <g0-ooo,fix,bd1,>c3-ooo
+	.byte ooooooo,<c0-ooo,<d3-ooo
+
+	.byte <a0-ooo,oooxxxx;ooooooo
+	.byte >c5,sin,<d3-ooo
+	.byte ooxxxxx,>d3-ooo
+	.byte <a0-ooo,>c4-ooo,ooxxxxx
+	
+	.byte fix,sn1,>c3-ooo
+	.byte oooxxxx;ooooooo,ooooooo
+	.byte >b0-ooo,<c0-ooo,<a2-ooo
+	.byte ooooooo,<c0-ooo,ooooooo
+	
+	.byte end
+	
+noisy4  .byte <g0-ooo,fix,bd1,>c3-ooo
+	.byte ooxxxxx,>c3-ooo
+	.byte ooooooo,>c5,sin,>g3-ooo
+	.byte <g0-ooo,>c4-ooo,ooxxxxx
+	
+	.byte fix,sn1,>f3-ooo
+	.byte oooxxxx;ooooooo,ooooooo
+	.byte <g0-ooo,fix,bd1,<d3-ooo
+	.byte ooooooo,<c0-ooo,>f3-ooo
+
+	.byte <a0-ooo,oooxxxx;ooooooo
+	.byte >c5,sin,ooooxxx
+       ;.byte ooooooo,ooooooo,ooooooo
+	.byte <a0-ooo,>c4-ooo,ooxxxxx
+	
+	.byte fix,sn1,ooooxxx
+       ;.byte ooooooo,ooooooo,ooooooo
+	.byte >b0-ooo,<c0-ooo,ooxxxxx
+	.byte <c0-ooo,ooooooo
+	
+	.byte end
+	
+noisy5	.byte >c1,bas,fix,bd1,<d3,ld2
+	.byte ooooxxx;ooooooo,ooooooo
+	.byte >c5,sin,ooooooo
+	.byte >c1-ooo,>c4-ooo,>d3-ooo
+	
+	.byte ooooooo,fix,sn1,ooooxxx
+       ;.byte ooooooo,ooooooo,ooooooo
+	.byte <a0-ooo,fix,bd1,<a2-ooo
+	.byte oooxxxx;ooooooo,ooooooo
+
+	.byte >c1-ooo,ooooooo,>c3-ooo
+	.byte ooooooo,>c4,sin,ooxxxxx
+	.byte >c5-ooo,ooooooo
+	.byte >c1-ooo,fix,bd1,>g2-ooo
+	
+	.byte ooooooo,fix,sn1,ooooooo
+	.byte >c1-ooo,fix,bd1,ooooooo
+	.byte >d1-ooo,>c4,sin,>c3-ooo
+	.byte <d1-ooo,>c5-ooo,ooooooo
+
+	.byte <g0-ooo,fix,bd1,<d3-ooo
+	.byte ooooxxx;ooooooo,ooooooo
+	.byte >c5,sin,>d3-ooo
+	.byte <g0-ooo,>c4-ooo,ooxxxxx
+	
+	.byte fix,sn1,<d3-ooo
+	.byte oooxxxx;ooooooo,ooooooo
+	.byte <g0-ooo,fix,bd1,>f3-ooo
+	.byte ooooooo,<c0-ooo,>g3,pi1
+
+	.byte <a0-ooo,oooxxxx;ooooooo
+	.byte >c5,sin,ooooxxx
+       ;.byte ooooooo,ooooooo,ooooooo
+	.byte <a0-ooo,>c4-ooo,ooxxxxx
+	
+	.byte fix,sn1,ooooxxx
+       ;.byte ooooooo,ooooooo,ooooooo
+	.byte >b0-ooo,<c0-ooo,ooxxxxx
+	.byte <c0-ooo,ooooooo
+	
+	.byte end
+
+noisy6	.byte >c1,bas,fix,bd1,>c4,ld2
+	.byte ooooxxx;ooooooo,ooooooo
+	.byte >c5,sin,ooooooo
+	.byte >c1-ooo,>c4-ooo,<a3-ooo
+	
+	.byte ooooooo,fix,sn1,ooooxxx
+       ;.byte ooooooo,ooooooo,ooooooo
+	.byte <a0-ooo,fix,bd1,>g3-ooo
+	.byte oooxxxx;ooooooo,ooooooo
+
+	.byte >c1-ooo,ooooooo,<a3-ooo
+	.byte ooooooo,>c4,sin,ooxxxxx
+	.byte >c5-ooo,ooooooo
+	.byte >c1-ooo,fix,bd1,>c4-ooo
+	
+	.byte ooooooo,fix,sn1,ooooooo
+	.byte >c1-ooo,fix,bd1,ooooooo
+	.byte >d1-ooo,>c4,sin,<d4,pi1
+	.byte <d1-ooo,>c5-ooo,ooooooo
+
+	.byte <g0-ooo,fix,bd1,>d4,ld2
+	.byte ooooxxx;ooooooo,ooooooo
+	.byte >c5,sin,ooooooo
+	.byte <g0-ooo,>c4-ooo,ooxxxxx
+	
+	.byte fix,sn1,>c4-ooo
+	.byte oooxxxx;ooooooo,ooooooo
+	.byte <g0-ooo,fix,bd1,ooxxxxx
+	.byte <c0-ooo,ooooooo
+
+	.byte <a0-ooo,ooooooo,<a3-ooo
+	.byte ooooooo,>c5,sin,ooooxxx
+       ;.byte ooooooo,ooooooo,ooooooo
+	.byte <a0-ooo,>c4-ooo,ooxxxxx
+	
+	.byte fix,sn1,ooooxxx
+       ;.byte ooooooo,ooooooo,ooooooo
+	.byte >b0-ooo,<c0-ooo,ooxxxxx
+	.byte <c0-ooo,ooooooo
+	
+	.byte end
+
+noisy7	.byte >c1,bas,fix,bd1,>c4-ooo
+	.byte ooooxxx;ooooooo,ooooooo
+	.byte >c5,sin,ooooooo
+	.byte >c1-ooo,>c4-ooo,>g3-ooo
+	
+	.byte ooooooo,fix,sn1,ooooxxx
+       ;.byte ooooooo,ooooooo,ooooooo
+	.byte <a0-ooo,fix,bd1,>c4-ooo
+	.byte oooxxxx;ooooooo,ooooooo
+
+	.byte >c1-ooo,ooooooo,<d4-ooo
+	.byte ooooooo,>c4,sin,ooxxxxx
+	.byte >c5-ooo,ooooooo
+	.byte >c1-ooo,fix,bd1,>d4-ooo
+	
+	.byte ooooooo,fix,sn1,ooooooo
+	.byte >c1-ooo,fix,bd1,ooooooo
+	.byte >d1-ooo,>c4,sin,>c4-ooo
+	.byte <d1-ooo,>c5-ooo,ooooooo
+
+	.byte <g0-ooo,fix,bd1,<g3-ooo
+	.byte ooooxxx;ooooooo,ooooooo
+	.byte >c5,sin,ooooooo
+	.byte <g0-ooo,>c4-ooo,>c4-ooo
+	
+	.byte ooooooo,fix,sn1,ooooxxx
+       ;.byte ooooooo,ooooooo,ooooooo
+	.byte <g0-ooo,fix,bd1,<g3-ooo
+	.byte ooooooo,<c0-ooo,ooooooo
+
+	.byte <a0-ooo,ooooooo,>f3,pi1
+	.byte ooooooo,>c5,sin,ooooxxx
+       ;.byte ooooooo,ooooooo,ooooooo
+	.byte <a0-ooo,>c4-ooo,ooxxxxx
+	
+	.byte fix,sn1,ooooxxx
+       ;.byte ooooooo,ooooooo,ooooooo
+	.byte >b0-ooo,<c0-ooo,ooxxxxx
+	.byte <c0-ooo,ooooooo
+	
+	.byte end
+
+noisy8	.byte >c1,bas,fix,bd1,>g3,ld2
+	.byte ooooxxx;ooooooo,ooooooo
+	.byte >c5,sin,ooooooo
+	.byte >c1-ooo,>c4-ooo,>c4-ooo
+	
+	.byte ooooooo,fix,sn1,ooooxxx
+       ;.byte ooooooo,ooooooo,ooooooo
+	.byte <a0-ooo,fix,bd1,>g3-ooo
+	.byte oooxxxx;ooooooo,ooooooo
+
+	.byte >c1-ooo,ooooooo,<d3,pi1
+	.byte ooooooo,>c4,sin,ooxxxxx
+	.byte >c5-ooo,ooooooo
+	.byte >c1-ooo,fix,bd1,>c4,ld2
+	
+	.byte ooooooo,fix,sn1,ooooooo
+	.byte >c1-ooo,fix,bd1,ooooooo
+	.byte >d1-ooo,>c4,sin,<d3-ooo
+	.byte <d1-ooo,>c5-ooo,ooooooo
+
+	.byte <g0-ooo,fix,bd1,>d3-ooo
+	.byte ooooxxx;ooooooo,ooooooo
+	.byte >c5,sin,ooooooo
+	.byte <g0-ooo,>c4-ooo,ooxxxxx
+	
+	.byte fix,sn1,ooooxxx
+       ;.byte ooooooo,ooooooo,ooooooo
+	.byte <g0-ooo,fix,bd1,ooxxxxx
+	.byte <c0-ooo,ooooooo
+
+	.byte <a0-ooo,ooooooo,<a2-ooo
+	.byte ooooooo,>c5,sin,ooooxxx
+       ;.byte ooooooo,ooooooo,ooooooo
+	.byte <a0-ooo,>c4-ooo,ooxxxxx
+	
+	.byte fix,sn1,ooooxxx
+       ;.byte ooooooo,ooooooo,ooooooo
+	.byte >b0-ooo,<c0-ooo,ooxxxxx
+	.byte <c0-ooo,ooooooo
+	
+	.byte end
+
+noisy9	.byte >f1,bas,fix,bd1,>f4,ld1
+	.byte oooxxxx;ooooooo,ooooooo
+	.byte >f1-ooo,>c5,sin,ooxxxxx
+	.byte >c4-ooo,ooooooo
+	
+	.byte >f2-ooo,fix,sn1,ooooooo
+	.byte >f1-ooo,oooxxxx;ooooooo
+	.byte >c5,sin,ooooooo
+	.byte <d1-ooo,fix,bd1,ooooooo
+
+	.byte >f1-ooo,<c0-ooo,ooxxxxx
+	.byte >c5,sin,ooooooo
+	.byte >f1-ooo,fix,bd1,ooxxxxx
+	.byte >c4,sin,ooooooo
+	
+	.byte >f2-ooo,fix,sn1,ooooooo
+	.byte <d2-ooo,>c5,sin,ooooooo
+	.byte >c2-ooo,fix,bd1,ooooooo
+	.byte <d2-ooo,>c4,sin,ooooooo
+
+	.byte end
+
+noisy9_2 .byte >f1-ooo,fix,bd1,<d4,ld1
+	.byte oooxxxx;ooooooo,ooooooo
+	.byte >f1-ooo,>c5,sin,ooooooo
+	.byte >f1-ooo,>c4-ooo,ooooooo
+	
+	.byte >f2-ooo,fix,sn1,>f4-ooo
+	.byte >f1-ooo,ooxxxxx;ooooooo
+	.byte ooo-ooo,>c5,sin,ooooooo
+	.byte <d1-ooo,fix,bd1,ooooooo
+
+	.byte >f1-ooo,<c0-ooo,>c4-ooo
+	.byte >f2-ooo,>c5,sin,ooxxxxx
+	.byte fix,bd1,ooooooo
+	.byte >c2-ooo,>c4,sin,ooooooo
+	
+	.byte >c2-ooo,fix,sn1,<a3-ooo
+	.byte <d2-ooo,>c5,sin,ooooooo
+	.byte <a1-ooo,fix,sn1,ooooooo
+	.byte >c2-ooo,<c0-ooo,ooooooo
+	
+	.byte end
+	
+noisy9_3 .byte >f1-ooo,fix,bd1,>g4,ld1
+	.byte oooxxxx;ooooooo,ooooooo
+	.byte >f1-ooo,>c5,sin,ooooooo
+	.byte >f1-ooo,>c4-ooo,ooooooo
+	
+	.byte >f2-ooo,fix,sn1,<a4-ooo
+	.byte >f1-ooo,oooxxxx;ooooooo
+	.byte >c5,sin,ooooooo
+	.byte <d1-ooo,fix,bd1,ooooooo
+
+	.byte >f1-ooo,<c0-ooo,>g4-ooo
+	.byte >f2-ooo,>c5,sin,ooxxxxx
+	.byte fix,bd1,ooooooo
+	.byte >c2-ooo,>c4,sin,ooooooo
+	
+	.byte >c2-ooo,fix,sn1,<a4-ooo
+	.byte <d2-ooo,>c5,sin,ooooooo
+	.byte <a1-ooo,fix,sn1,ooooooo
+	.byte >c2-ooo,<c0-ooo,ooooooo
+	
+	.byte end
+
+noisy10 .byte >c1,bas,fix,bd1,>c4-ooo
+noisy10_3_2 .byte oooxxxx;ooooooo,ooooooo
+	.byte >c1-ooo,>c5,sin,ooxxxxx
+	.byte >c4-ooo,ooooooo
+	
+	.byte >c2-ooo,fix,sn1,ooooooo
+	.byte >c1-ooo,oooxxxx;ooooooo
+	.byte >c5,sin,ooooooo
+	.byte <a0-ooo,fix,bd1,ooooooo
+
+	.byte >c1-ooo,<c0-ooo,ooxxxxx
+	.byte >c5,sin,ooooooo
+	.byte >c1-ooo,fix,bd1,ooxxxxx
+	.byte >c4,sin,ooooooo
+	
+	.byte >c2-ooo,fix,sn1,ooooooo
+	.byte <a1-ooo,>c5,sin,ooooooo
+	.byte >g1-ooo,fix,bd1,ooooooo
+	.byte <a1-ooo,>c4,sin,ooooooo
+
+	.byte end
+
+noisy10_2 .byte >c1-ooo,fix,bd1,>c4,arp
+	.byte oooxxxx;ooooooo,ooooooo
+	.byte >c1-ooo,>c5,sin,>c4-ooo
+	.byte >c1-ooo,>c4-ooo,ooooooo
+	
+	.byte >c2-ooo,fix,sn1,<a3-ooo
+	.byte >c1-ooo,oooxxxx;ooooooo
+	.byte >c5,sin,>g3-ooo
+	.byte <a0-ooo,fix,bd1,>f3-ooo
+
+	.byte >c1-ooo,<c0-ooo,ooooooo
+	.byte >c2-ooo,>c5,sin,<d3-ooo
+	.byte ooooooo,fix,bd1,ooooooo
+	.byte >g1-ooo,>c4,sin,>f3-ooo
+	
+	.byte >g1-ooo,fix,sn1,>g3-ooo
+	.byte <a1-ooo,>c5,sin,>f3-ooo
+	.byte >f1-ooo,fix,sn1,<d3-ooo
+	.byte >g1-ooo,<c0-ooo,>c3-ooo
+	
+	.byte end
+
+noisy10_3 .byte >c1,bas,fix,bd1,>c5-ooo
+	
+	.byte end
+
+noisy10_4 .byte >c1-ooo,fix,bd1,>c4,arp
+	.byte oooxxxx;ooooooo,ooooooo
+	.byte >c1-ooo,>c5,sin,>c4-ooo
+	.byte >c1-ooo,>c4-ooo,ooooooo
+	
+	.byte >c2-ooo,fix,sn1,<a3-ooo
+	.byte >c1-ooo,oooxxxx;ooooooo
+	.byte >c5,sin,>g3-ooo
+	.byte <a0-ooo,fix,bd1,<a3-ooo
+
+	.byte >c1-ooo,<c0-ooo,ooooooo
+	.byte >c2-ooo,>c5,sin,>c4-ooo
+	.byte ooooooo,fix,bd1,ooooooo
+	.byte >g1-ooo,>c4,sin,<d4-ooo
+	
+	.byte >g2-ooo,>c1,bas,>c3,bas
+	.byte oooxxxx;ooooooo,ooooooo
+	.byte >g2-ooo,>c1-ooo,>c3-ooo
+	.byte >g2-ooo,>c1-ooo,>c3-ooo
+	
+	.byte end
+	
+;--------------------------------------------------> The End <-----------------------------------         
+
+* =$1800
+
+.binary noisyjt.bin
+</code>
+
+

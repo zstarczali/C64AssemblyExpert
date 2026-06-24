@@ -1,0 +1,143 @@
+# PAGE: base:supercpu_kickassembler
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:supercpu_kickassembler
+
+====== SuperCPU KickAssembler Library ======
+
+Over the years after the SuperCPU became emulated in Vice, I've developed a series of pseudocommands and macros for KickAssembler to take advantage of the SuperCPU merely out of curiosity. It is now somewhat complete and ported into the wiki.
+
+NB! Opcode descriptions are ripped from the "Programming the 65816" by WDC, there may be errors. Feel free to rectify or adjust as neccessary (in the routines as well as they are not fully tested and may contain bugs.
+===== Regular opcodes =====
+
+The following opcodes does not need any special pseudocommands as they use the exact same opcode values as the 6510/6502 (NB! Some opcodes behaves differently as briefly indicated (and may also use a different amount of cycles)):
+<code>
+    asl - 16 bit accumulator mode shifts 16 bits
+    bcc
+    bcs
+    beq
+    bmi
+    bne
+    bpl
+    brk - Resets Decimal Flag in native mode
+    bvc
+    bvs
+    clc
+    cld
+    cli
+    clv
+    dex - 16 bit index register mode decreases 16 bit X with 1 (dex16 pseudo available)
+    dey - 16 bit index register mode decreases 16 bit Y with 1 (dey16 pseudo available)
+    inx - 16 bit index register mode increases 16 bit X with 1 (inx16 pseudo available)
+    iny - 16 bit index register mode increases 16 bit Y with 1 (iny16 pseudo available)
+    lsr - 16 bit accumulator mote shifts 16 bits
+    nop
+    php - Does not push the e-flag
+    plp - Does not pull the e-flag
+    rol - 16 bit accumulator mode shifts 16 bits
+    ror - 16 bit accumulator mode shifts 16 bits
+    rti - Pulls 4 bytes in native mode (+PB)
+    rts
+    sec
+    sed
+    sei
+    stx - Stores 16 bits in 16 bit index register mode
+    sty - Stores 16 bits in 16 bit index register mode
+    tax - 16 bit index register mode copies 16 bits
+    tay - 16 bit index register mode copies 16 bits
+    tsx - 16 bit index register mode copies 16 bits
+    txa - 16 bit accumulator register mode copies 16 bits
+    txs - 16 bit index register mode copies 16 bits
+    tya - 16 bit accumulator register mode copies 16 bits
+</code>
+
+===== Pseudocommands =====
+
+  * [[SuperCPU_ADC|ADC]]
+  * [[SuperCPU_AND|AND]]
+  * [[SuperCPU_BIT|BIT]]
+  * [[SuperCPU_BRA|BRA / BRL]] - Merged
+  * [[SuperCPU_CMP|CMP]]
+  * [[SuperCPU_CPX|CPX]]
+  * [[SuperCPU_CPY|CPY]]
+  * [[SuperCPU_DEC|DEC]] - Decreases A or M with 1
+  * [[SuperCPU_DEX|DEX]] - Decreases X with passed parameter
+  * [[SuperCPU_DEY|DEY]] - Decreases Y with passed parameter
+  * [[SuperCPU_EOR|EOR]]
+  * [[SuperCPU_INC|INC]] - Increases A or M with 1
+  * [[SuperCPU_INX|INX]] - Increases X with passed parameter
+  * [[SuperCPU_INY|INY]] - Increases Y with passed parameter
+  * [[SuperCPU_JMP|JMP]]
+  * [[SuperCPU_JSR|JSR]]
+  * [[SuperCPU_LDA|LDA]]
+  * [[SuperCPU_LDX|LDX]]
+  * [[SuperCPU_LDY|LDY]]
+  * [[SuperCPU_MVN|MVN]]
+  * [[SuperCPU_MVP|MVP]]
+  * [[SuperCPU_ORA|ORA]]
+  * [[SuperCPU_PEA|PEA]]
+  * [[SuperCPU_PEI|PEI]]
+  * [[SuperCPU_PER|PER]]
+  * [[SuperCPU_PHB|PHB]]
+  * [[SuperCPU_PHD|PHD]]
+  * [[SuperCPU_PHK|PHK]]
+  * [[SuperCPU_PHX|PHX]]
+  * [[SuperCPU_PHY|PHY]]
+  * [[SuperCPU_PLB|PLB]]
+  * [[SuperCPU_PLD|PLD]]
+  * [[SuperCPU_PLX|PLX]]
+  * [[SuperCPU_PLY|PLY]]
+  * [[SuperCPU_REP|REP]]
+  * [[SuperCPU_RTL|RTL]]
+  * [[SuperCPU_SBC|SBC]]
+  * [[SuperCPU_SEP|SEP]]
+  * [[SuperCPU_STA|STA]]
+  * [[SuperCPU_STP|STP]]
+  * [[SuperCPU_STZ|STZ]]
+  * [[SuperCPU_TCD|TCD]]
+  * [[SuperCPU_TCS|TCS]]
+  * [[SuperCPU_TDC|TDC]]
+  * [[SuperCPU_TRB|TRB]]
+  * [[SuperCPU_TSB|TSB]]
+  * [[SuperCPU_TSC|TSC]]
+  * [[SuperCPU_TXY|TXY]]
+  * [[SuperCPU_TYX|TYX]]
+  * [[SuperCPU_WAI|WAI]]
+  * [[SuperCPU_XBA|XBA]]
+  * [[SuperCPU_XCE|XCE]]
+
+The following opcodes are not implemented:
+  * COP - Coprocessor, Not usefull.
+  * WDM - Future Expansion, does not do anything.
+
+
+===== Macros =====
+
+This section contains some usefull macros which will simplify coding the SuperCPU.
+
+  * [[SCPU_BitMode8]]
+  * [[SCPU_BitMode16]]
+  * [[SCPU_EmulatedMode]]
+  * [[SCPU_MemCpy]]
+  * [[SCPU_NativeMode]]
+  * [[SCPU_RasterCompare]]
+  * [[SCPU_RasterIRQ_Init]]
+  * [[SCPU_RasterIRQ_LeadIn]]
+  * [[SCPU_RasterIRQ_LeadOut]]
+  * [[SCPU_SetScrnCol]]
+  * [[SCPU_SetBitmapMode]]
+  * [[SCPU_SetCherMode]]
+  * [[SCPU_SetGraphicsBank]]
+  * [[SCPU_SetRAMBank]]
+
+NB! They are implemented as pseudos, but should be made into Macros instead. Perhaps a future exercise.
+===== Issues =====
+
+There are some hurdles which currently presents some of challenges;
+
+ - The VICE monitor (as far as I know), as of now, cannot handle 16 bit immediate values. So when stepping through code or listing code in the monitor all immediate values are treated as 8 bits (it's emulated as 16 but listed as 8!). This makes following code in the monitor a bit harder.
+
+ - KickAssembler does not allow you to do conditional trickery (.if) to an unresolved label. This is an issue for example when implementing a branch pseudo as it will not accept unresolved lables when calculating the relative branch distance in the pseudo when branching forwards (backwards works as the previous label is already resolved).
+
+ - Zero (Direct) Page addressing modes is also suffering from the unresolved label issue as the size of the absolute value is determined by a .if. If I remeber correctly, KickAssembler has a hard time passing ZP,x as KA automatically treats all as 16 bit but does some trickery later to shave down to 8 bits which does not pass well to pseudos. This may have been fixed though / I may recall wrong, so should be verified.
+
+
+

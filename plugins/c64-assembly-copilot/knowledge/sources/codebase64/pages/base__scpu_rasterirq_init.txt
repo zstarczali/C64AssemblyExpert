@@ -1,0 +1,39 @@
+# PAGE: base:scpu_rasterirq_init
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:scpu_rasterirq_init
+
+====== RasterIRQ ======
+
+Raster Interrupt initialisation code. Grounds NMI and disable IRQ's from CIA Timers.
+        
+After all initialisation is completed, the routine clears the interrupt flag and allows an interrupt to occurr once a raster IRQ is triggered by the raster compare value passed to the routine.
+
+Standard Memoryconfiguration set to RAM+IO
+
+| SYNTAX:            | :RasterIRQ RasterCompareValue : VectorIRQ |||
+| EXAMPLE:           | :RasterIRQ 52 : #IRQ                      |||
+|                    | cli                                       |||
+|                    | jmp *                                     |||
+|                    | IRQ: rti                                  |||
+| PARAMETERS:        |  Type   |  Minimum  |  Maximum              |
+| RasterCompareValue |   U9    |     0     |   312                 |
+| VectorIRQ          |  Label  |    N/A    |   N/A                 |
+
+<code>
+    .pseudocommand RasterIRQ RasterCompareValue : IRQVector {
+        sei
+        :NativeMode            // Switch to 658C16 Native CPU mode
+        :BitMode16             // Switch to 16 bit registers
+        :lda #$007f
+        sta $dc0d              // Disable CIA #1 Interrupts
+        lda $dc0d              // Acknowledge pending CIA #1 Interrupts
+        :RasterCompare RasterCompareValue.getValue()
+        :lda #$0101
+        sta $d019              // Ack. Raster IRQ and enable Raster IRQ
+        :lda #$352f
+        sta $00                // Bank all RAM except IO
+        :lda #IRQVector.getValue()
+        sta $ffee              // Set IRQ Vector.
+        cli                    // Clear Interrupt Flag - Allow IRQs to trigger
+                               // IRQ Interrupt Handler.
+    }
+</code>

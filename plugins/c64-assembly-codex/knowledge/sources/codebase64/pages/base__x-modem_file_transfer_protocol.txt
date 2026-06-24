@@ -1,0 +1,19 @@
+# PAGE: base:x-modem_file_transfer_protocol
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:x-modem_file_transfer_protocol
+
+====== X-Modem File Transfer Protocol ======
+by Daryl Rictor
+
+> Comment by FTC: This file is taken from [[http://www.6502.org|www.6502.org]]. Note that the C64 does NOT have a 6551 serial port, as required by these routines. The code is included here anyway, since it would be quite easy to patch it to work with the SilverSurfer (16c550 UART chip) or a Swiftlink (6551 ACIA chip).
+
+Here are my XMODEM/CRC file transfer routines for 6502-based computers with a 6551 serial port. I've included three files for your use.
+
+[[xmodem-send]] - contains the routines to send a file from your 65c02 system to a terminal program on another computer. Use this file if you plan to only send data from your 65C02 to another Computer.
+
+[[xmodem-receive]] - contains the routines to send a file from another computer to your 65C02 system. Use this file if you plan to only send data from another Computer to your 65C02 system.
+
+[[xmodem-send_and_receive]] - contains both routines, combining several common routines to save space. Use this file if you plan to send and receive data.
+
+All three files are well documented and were tested using Windows 98's HyperTerminal.
+
+Daryl (65c02@softcom.net) 

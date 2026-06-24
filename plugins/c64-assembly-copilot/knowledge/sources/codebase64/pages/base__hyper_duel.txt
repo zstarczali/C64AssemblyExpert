@@ -1,0 +1,2389 @@
+# PAGE: base:hyper_duel
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:hyper_duel
+
+====== Hyper Duel ======
+What is Hyper Duel? Hyper Duel is a game for 2 players only. The idea of the game is very simple, blast your opponent and survive. :-). Here is the source code for the game. If you want the binaries for it, then simply download the whole package from [[http://www.redesign.sk/tnd64/games/Hyper_Duel.zip|here]]. It also includes the source code. :-)
+
+{{base:hd1.png|}}
+
+<code>
+;--------------------------------------------------
+;Hyper Duel V1.4 - 13/02/2008
+;
+;Written for the Commodore C64/128 by Richard Bayliss
+;Copyright 2008 The New Dimension
+;
+;This game is a weird fun shoot 'em game for only
+;two players, written in ACME cross assembler. 
+;The idea of the game is to fly through the game
+;arena blasting hell out of your oppenent and 
+;score a certain amount of points to win the game
+;but the opponents can also fight back.
+;Based on Super Dogfight by Terminal Software,
+;but set in a weird style. 
+;
+;Simple, but fun. That's what we have to say for
+;ourselves.
+
+;Turn all source code + binary data into actual C64 code/routines
+;(Best compressed with a packer and cruncher (or Exomizer if
+;you prefer)
+
+;Global constants
+
+sync = $0340 ;Synchronize standard data
+starcontrol = $0341 ;Delay of the starfield
+xpause = $0342 ;Smooth-X for scrolling message in title screen
+spincontrol = $0343 ;Spin control ;Useless now, it was for an older title screen
+objpos = $0370 ;The virtual sprite position
+collision = $03f0 ;Sprite to Sprite collision storage
+p1dir = $02 ;Player 1 direction (So we know which direction the player faces)
+p1bdir = $03 ;Player 1 bullet direction
+p2dir = $04 ;(Same for the previous 2 constants, but for player 2)
+p2bdir = $05
+p1defaultx = $07 ;Default x position for player 1
+p1defaulty = $08 ;Default y position for player 2
+p2defaultx = $09 ;(As the previous two constants but for player 2)
+p2defaulty = $0a
+bouncetime = $0c ;Bounce counter for counting the bounce routine for the score sprites
+p1turndelay = $0e ;Delay before player can turn
+p2turndelay = $0f ;
+p1bull_locked = $11 ;Constant to disable firebutton when bullet is active
+p2bull_locked = $12 ;----------------------------------------------------
+p1isdead = $13 ;You can guess what this is eh? This is where player 1 is dead.
+p2isdead = $14 ;and also the same for player 2. Toasted :D
+killpointer = $15 ;Delay routine for the player death animation
+colsinepointer = $18 ;Colour sinus routine for the title screen (Something I never tried before)
+winpoints = $06f6 ;Screen char in title - setting up the number of points to be won before ending game
+gamespeed = $071b ;Screen char in title - setting up slow/fast speed for game play
+winscore = $49 ;Storage counter for win
+
+			!to "hyper_duel.prg",cbm ;Target of Commodore C64 program!
+		
+			*= $0801 ;We shall start this as BASIC run.
+			!byte $0c,$08,$0a,$00,$9e,$31,$34,$34,$33,$36,$00,$00,$00,$00
+                        ;^ Data table to form the SYS start address to $3800
+						
+
+			;Import Richard's music done in Goat Tracker to $1000
+
+			* = $1000-2
+			!binary "music.dat" 
+						
+			;Import game sprites here
+			* = $2000
+			!binary "gamesprites.spr"
+						
+			;Import game charset here
+			* = $3000
+			!binary "charset.chr"
+						
+			;The starfield char data here. Hell yeah! 
+			;That's what we want :o)
+
+						* = $3200
+						
+						;Shift + * (Blank it)
+						!byte %00000000 ;Weird eh? Those are for the stars
+						!byte %00000000
+						!byte %00000000
+						!byte %00000000
+						!byte %00000000
+						!byte %00000000
+						!byte %00000000
+						!byte %00000000
+						;Shift + A
+						!byte %00000000
+						!byte %00000000
+						!byte %00000000
+						!byte %00000000
+						!byte %00100000
+						!byte %00000000
+						!byte %00000000
+						!byte %00000000
+						!byte %01000000
+						;Shift + B
+						!byte %00000000
+						!byte %00000000
+						!byte %00010000
+						!byte %00000000
+						!byte %00000000
+						!byte %00000000
+						!byte %00000100
+						!byte %00000000
+						;Shift + C
+						!byte %00000000
+						!byte %01000000
+						!byte %00000000
+						!byte %00000000
+						!byte %00000000
+						!byte %00000000
+						!byte %00001000
+						!byte %00000000
+						;Shift + D
+						!byte %00000010
+						!byte %00000000
+						!byte %00000000
+						!byte %00010000
+						!byte %00000000
+						!byte %00000000
+						!byte %00000000		
+</code>
+Okay, enough of the above bunf. The code below is for the title screen. When assembled the source, and maybe crunched it. If you really want to that is, the result should look something like the screen shot of the actual game. Except when the title is active, you will see nice colour sinus effect and also active options, etc on your C64/emu.
+
+{{base:h2.png|}}
+
+Now for the code<code>
+;The game screen
+	
+					* = $3800 ;Start area
+title					sei 
+						
+						lda #$37
+						sta $01 ;Kernal on
+						lda #$05
+						
+						jsr $e544
+						lda #$00
+						sta $d01a
+						lda #$81
+						sta $dc0d
+						sta $dd0d
+						cli
+						lda #$1b
+						sta $d011
+					
+						
+xx						lda #0
+						sta starcontrol
+						sta spincontrol
+						sta colsinepointer
+						sta p1bull_locked
+						sta p2bull_locked
+						sta $33
+						sta $31
+						sta $38
+						
+						lda #$02
+						sta yspeed
+						lda #$01
+						sta xspeed
+
+						
+						
+						
+;Clear entire screen			
+						lda #<message
+						ldx #>message
+						sta read+1
+						stx read+2
+						ldx #$00
+fillchar					lda #$00
+						sta $3000,x
+						inx
+						cpx #$08
+						bne fillchar
+						
+;Prepare the bitmap colour set
+
+						ldx #$00
+colourset					lda $8800+0,x
+						sta $d800+0,x
+						lda $8800+40,x
+						sta $d800+40,x
+						lda $8800+80,x
+						sta $d800+80,x
+						lda $8800+120,x
+						sta $d800+120,x
+						lda $8800+160,x
+						sta $d800+160,x
+						lda $8800+200,x
+						sta $d800+200,x
+						lda $8800+240,x
+						sta $d800+240,x
+						lda $8800+280,x
+						sta $d800+280,x
+						lda $8800+320,x
+						sta $d800+320,x
+						lda $8800+360,x
+						sta $d800+360,x
+						lda #$00
+						sta $d800+400,x
+						
+						
+						inx
+						cpx #$28
+						bne colourset
+						ldx #$00
+dark						lda #$00
+						sta $d990,x
+						sta $da00,x
+						sta $dae8,x
+						inx
+						bne dark
+						ldx #$00
+makescreen					lda titlescreentext,x
+						sta $05e0,x
+						lda titlescreentext+40,x
+						sta $05e0+40,x
+						lda titlescreentext+80,x
+						sta $05e0+80,x
+						lda titlescreentext+120,x
+						sta $05e0+120,x
+						lda titlescreentext+160,x
+						sta $05e0+160,x
+						lda titlescreentext+200,x
+						sta $05e0+200,x
+						lda titlescreentext+240,x
+						sta $05e0+240,x
+						lda titlescreentext+280,x
+						sta $05e0+280,x
+						lda titlescreentext+320,x
+						sta $05e0+320,x
+						lda titlescreentext+360,x
+						sta $05e0+360,x
+						lda titlescreentext+400,x
+						sta $05e0+400,x
+						inx
+						cpx #$28
+						bne makescreen
+						sei
+						lda #$35
+						sta $01
+						lda #$00
+						sta $d020
+						sta $d021
+						sta $d015
+						lda #<irq1
+						ldx #>irq1
+						ldy #$00
+						sta $fffe
+						stx $ffff
+						lda #<nmi
+						ldx #>nmi
+						sta $fffa
+						stx $fffb
+						sta $fffc
+						stx $fffd
+						lda #$00
+						sta $d012
+						lda #$7f
+						sta $dc0d
+						
+						lda #$1b
+						sta $d011
+						lda #$01
+						sta $d01a
+
+						rol $d019
+						lda #$00
+						jsr $1000
+						cli
+titloop					lda #$00
+						sta sync
+						cmp sync
+						beq *-3
+						jsr scrolltext
+						jsr coleffect
+						jsr makewinscore
+						lda $dc00
+						lsr
+						bcs tdown1
+						jsr addround
+						jmp titloop
+tdown1					lsr
+						bcs tleft1
+						jsr subround
+						jmp titloop
+tleft1					lsr
+						bcs tright1
+						jsr setslow
+						jmp titloop
+tright1					lsr
+						bcs tfire1
+						jsr setfast
+						jmp titloop
+tfire1					lsr
+						bcs tp1
+						jmp game
+tp1						lda $dc01
+						lsr
+						bcs tdown2
+						jsr addround
+						jmp titloop
+tdown2					lsr
+						bcs tleft2
+						jsr subround
+						jmp titloop
+tleft2					lsr
+						bcs tright2
+						jsr setslow
+						jmp titloop
+tright2					lsr
+						bcs tfire2
+						jsr setfast
+						jmp titloop
+tfire2					lsr
+						bcs nojoyt
+						jmp game
+nojoyt						jmp titloop
+						
+;Add 1 to the no of rounds
+
+addround					inc $38
+						lda $38
+						cmp #$08
+						beq nodelay1
+						rts
+nodelay1					lda #$00
+						sta $38
+						inc winpoints
+						lda winpoints
+						cmp #$3a
+						beq resetpoints
+						rts
+resetpoints				lda #$39
+						sta winpoints
+						rts
+						
+;Subtract 1 to the no of rounds
+
+subround					inc $38
+						lda $38
+						cmp #$08
+						beq nodelay2
+						rts
+nodelay2					lda #$00
+						sta $38
+						dec winpoints
+						lda winpoints
+						cmp #$30
+						beq resetpoints2
+						rts
+resetpoints2				lda #$31
+						sta winpoints
+						rts
+						
+;Set game mode as slow
+
+setslow					ldx #$00
+slowtxt					lda slow,x
+						sta gamespeed,x
+						inx
+						cpx #$04
+						bne slowtxt
+						lda #$02
+						sta yspeed
+						lda #$01
+						sta xspeed
+						rts
+						
+;Set game mode as fast
+setfast					ldx #$00
+fasttxt					lda fast,x
+						sta gamespeed,x
+						inx
+						cpx #$04
+						bne fasttxt
+						lda #$04
+						sta yspeed
+						lda #$02
+						sta xspeed
+						rts
+						
+						
+;Make the winscore
+
+makewinscore				lda winpoints
+						cmp #$31
+						bne *+5
+						jmp setast1
+						cmp #$32
+						bne *+5
+						jmp setast2
+						cmp #$33
+						bne *+5
+						jmp setast3
+						cmp #$34
+						bne *+5
+						jmp setast4
+						cmp #$35
+						bne *+5
+						jmp setast5
+						cmp #$36
+						bne *+5
+						jmp setast6
+						cmp #$37
+						bne *+5
+						jmp setast7
+						cmp #$38
+						bne *+5
+						jmp setast8
+						cmp #$39
+						bne *+5
+						jmp setast9
+						rts
+						
+setast1					lda #$8a
+						sta winscore
+						rts
+setast2					lda #$8b
+						sta winscore
+						rts
+setast3					lda #$8c
+						sta winscore
+						rts
+setast4					lda #$8d
+						sta winscore
+						rts
+setast5					lda #$8e
+						sta winscore
+						rts
+setast6					lda #$8f
+						sta winscore
+						rts
+setast7					lda #$90
+						sta winscore
+						rts
+setast8					lda #$91
+						sta winscore
+						rts
+setast9					lda #$92
+						sta winscore
+						rts
+
+
+						
+						
+						
+						
+						
+;Irq interrupts for the title screen.
+
+;Raster 1. The title scrolltext
+
+irq1						pha
+						tya
+						pha
+						txa
+						pha
+						inc $d019
+						lda $dc0d
+						sta $dd0d
+						lda #$2e
+						sta $d012
+						nop
+						nop
+						nop
+						nop
+						nop
+						nop
+						nop
+						nop
+						nop
+						lda #$1b
+						sta $d011
+						lda xpause
+						sta $d016
+						lda #$03
+						sta $dd00
+						lda #$1c
+						sta $d018
+						lda #$01
+						sta sync
+						jsr $1003
+						lda #<irq2
+						ldx #>irq2
+						sta $fffe
+						stx $ffff
+						pla
+						tax
+						pla
+						tay
+						pla
+						rti
+						
+irq2						pha
+						tya
+						pha
+						txa
+						pha
+						inc $d019
+						lda #$92
+						sta $d012
+						
+						lda #$3b
+						sta $d011
+						lda #$18
+						sta $d016
+						sta $d018
+						lda #$01
+						sta $dd00
+						lda #<irq3
+						ldx #>irq3
+						sta $fffe
+						stx $ffff
+						pla
+						tax
+						pla
+						tay
+						pla
+						rti
+						
+irq3						pha
+						tya
+						pha
+						txa
+						pha
+						inc $d019
+						lda #$f1
+						sta $d012
+						nop
+						nop
+						nop
+						nop
+						nop
+						nop
+						nop
+						nop
+						nop
+						lda #$1b
+						sta $d011
+						lda #$08
+						sta $d016
+						lda #$1c
+						sta $d018
+						lda #$03
+						sta $dd00
+						lda #<irq1
+						ldx #>irq1
+						sta $fffe
+						stx $ffff
+						pla
+						tax
+						pla
+						tay
+						pla
+						rti
+					
+						
+						
+;The actual scroll text code
+
+scrolltext				lda xpause
+						sec
+						sbc #2
+						and #7
+						sta xpause
+						bcs endscroll
+						ldx #0
+wrapscroll				lda $07c1,x
+						sta $07c0,x
+						inx
+						cpx #40
+						bne wrapscroll						
+read					lda $07e7
+						cmp #0
+						bne endpoint
+						lda #$00
+						ldx #$64
+						sta read+1
+						stx read+2
+						jmp read
+endpoint				sta $07e7
+						inc read+1
+						bne endscroll
+						inc read+2
+endscroll				rts
+
+;Set up the sprite type, colours and positions
+
+titlesprites			lda #$80
+						sta $07f8 
+						sta $07f9
+						lda #$03
+						sta $d015
+						lda #0
+						sta $d01b
+						sta $d01d
+						sta $d01c
+						sta $d017
+						lda #$20
+						sta objpos+0
+						lda #$52
+						sta objpos+1
+						sta objpos+3
+						lda #$88
+						sta objpos+2
+                                                lda #$02
+						sta $d027
+                                                lda #$0e
+						sta $d028
+						rts
+						
+;The cool colour sinus effect ;Probably collect fast
+
+coleffect				jsr makesine
+					jsr pastecols
+						rts
+						
+makesine					ldx colsinepointer
+						lda colsinus,x
+						pha
+						and #$07
+						;eor #$d7
+						;sta $33 ;Temp variable
+						pla
+						lsr
+						lsr
+						lsr
+						tay
+						ldx #$00
+makecols					lda colours,y
+						sta $dbc0,x
+						inx
+						iny
+						cpx #$28
+						bne makecols
+						inc colsinepointer
+						inc colsinepointer
+						
+						rts
+						
+pastecols					lda $31
+						sec
+						sbc #$03
+						and #$07
+						sta $31
+						bcs end
+						jsr uplift
+end						rts
+
+uplift					ldx #$00
+lift						lda #0
+						sta $dbc0-480,x
+						lda $dbc0-400,x
+						sta $dbc0-440,x
+						lda $dbc0-360,x
+						sta $dbc0-400,x
+						lda $dbc0-320,x
+						sta $dbc0-360,x
+						lda $dbc0-280,x
+						sta $dbc0-320,x
+						lda $dbc0-240,x
+						sta $dbc0-280,x
+						lda $dbc0-200,x
+						sta $dbc0-240,x
+						lda $dbc0-160,x
+						sta $dbc0-200,x
+						lda $dbc0-120,x
+						sta $dbc0-160,x
+						lda $dbc0-80,x
+						sta $dbc0-120,x
+						lda $dbc0-40,x
+						sta $dbc0-80,x
+						lda $dbc0-0,x
+						sta $dbc0-40,x
+						inx
+						cpx #$28
+						bne lift
+						rts
+						
+;---------------------------------------------------------------------------------</code>
+
+Now it is on to the game, which should turn out like the picture below. 
+
+{{base:h3.png|}}	
+<code>					
+game						sei
+						lda #$81
+						sta $dc0d
+						sta $dd0d
+						lda #0
+						sta $d01a
+						
+						lda #$37
+						sta $01
+						
+						
+					
+						
+						
+;I do have to admit, for star fields we usually
+;use a black frame and black screen, but I 
+;thought it would be more cool to invert the
+;colours for the game screen as black is always
+;boring.
+					
+						lda #$0b
+						sta $d020
+						lda #$00
+						sta $d021
+						lda #$1c ;Game char
+						sta $d018
+						lda #$ff
+						sta $d015 ;All sprites are on
+						lda #$35
+						sta $01
+
+;Build the game background (The strange starfield
+;as in the title screen)
+
+						ldx #$00
+makefield				lda gamesfield,x
+						sta $0400,x
+						lda gamesfield+$100,x
+						sta $0500,x
+						lda gamesfield+$200,x
+						sta $0600,x
+						lda gamesfield+$300,x
+						sta $06e8,x
+						lda #$04
+						sta $d800,x
+						sta $d900,x
+						sta $da00,x
+						sta $dae8,x
+						inx
+						bne makefield
+						
+;
+						lda #0
+						sta starcontrol
+						sta p1isdead
+						sta p2isdead
+						
+;Make a new interrupt			;lda #$35
+						;sta $01
+
+						
+						lda #<gameirq
+						ldx #>gameirq
+						sta $fffe
+						stx $ffff
+						lda #$7f
+						sta $dc0d
+						lda #$00
+						sta $d012
+						sta p1turndelay
+						sta p2turndelay
+						lda #$1b
+						sta $d011
+						lda #$01
+						sta $d01a
+						rol $d019
+						lda #$01
+						jsr $1000
+						cli
+						
+						
+;Set default sprite types for the game.
+
+;Player 1 - Face downwards for a start
+
+						lda #$84
+						sta $07f8
+						sta $07f9
+						
+;Set the default value of the direction the
+;player is facing, and also the direction for
+;which the bullet should fire if on screen.
+
+						lda #$04
+						sta p1dir
+						sta p1bdir
+						sta p2dir
+						sta p2bdir
+						lda #$20
+						sta objpos+0
+						lda #$52
+						sta objpos+1
+						sta objpos+3
+						lda #$8c
+						sta objpos+2
+						lda #2
+						sta $d027
+						lda #$0e
+						sta $d028
+						lda objpos+0
+						sta p1defaultx
+						lda objpos+1
+						sta p1defaulty
+						lda objpos+2
+						sta p2defaultx
+						lda objpos+3
+						sta p2defaulty
+						
+;Set up the sprites for the players bullets
+;then zero the position and turn off bullet
+;mode
+
+						lda #$88
+						sta $07fe
+						sta $07ff
+						lda #2
+						sta $d02d
+						lda #$0e
+						sta $d02e
+						lda #$00
+						sta objpos+$0c
+						sta objpos+$0d
+						lda #$00
+						sta objpos+$0e
+						sta objpos+$0f
+						
+;Set up and inititialize the scoreboard and
+;energy bars.			
+						lda #$ff
+						sta $d015		
+						
+						lda #$89
+						sta $07fa
+						sta $07fb
+						lda #$02
+						sta $d029
+						lda #$0e
+						sta $d02a
+						lda #$10
+						sta objpos+4
+						lda #$e0
+						sta objpos+5
+						sta objpos+7
+						lda #$9b
+						sta objpos+6	
+main						
+						lda #$95
+						sta $07fc
+						sta $07fd
+						lda #$02
+						sta $d02b
+						lda #$0e
+						sta $d02c
+						lda #$32
+						sta objpos+9
+						sta objpos+11
+						lda #$14
+						sta objpos+8
+						lda #$96
+						sta objpos+10
+						lda #$00
+						sta $22
+						sta $21
+						lda #$04
+						sta p1dir
+						sta p1bdir
+						sta p2dir
+						sta p2bdir
+						lda #$20
+						sta objpos+0
+						lda #$52
+						sta objpos+1
+						sta objpos+3
+						lda #$8c
+						sta objpos+2
+						lda #2
+						sta $d027
+                                                lda #$0e
+						sta $d028
+						lda objpos+0
+						sta p1defaultx
+						lda objpos+1
+						sta p1defaulty
+						lda objpos+2
+						sta p2defaultx
+						lda objpos+3
+						sta p2defaulty
+
+						lda #0
+						sta killpointer
+						sta p1isdead
+						sta p2isdead
+;Synchronized game loop so everything is running smooth
+gameloop				lda #0
+						sta sync
+						cmp sync
+						beq *-3
+						jsr expand   
+						jsr starfield
+						jsr bouncer
+						lda p1isdead
+						cmp #$01
+						bne isp2dead
+						jsr killplayer1
+						jmp gameloop
+isp2dead					lda p2isdead
+						cmp #$01
+						bne noplayersdead
+						jsr killplayer2
+						
+						jmp gameloop
+						
+noplayersdead				jsr read_joystick
+						jsr fire1
+						jsr fire2
+						jsr checkp1dir
+						jsr checkp2dir
+						jsr checkp1mv
+						jsr checkp2mv
+						jsr framecol
+						jsr bullmove
+						jsr collision_detect
+					    
+						jmp gameloop
+						
+;Main IRQ interrupt to activate the synchronization
+;of the game code.
+
+gameirq					pha
+						tya
+						pha
+						txa
+						pha
+						inc $d019
+						lda $dc0d
+						sta $dd0d
+						lda #0
+						sta $d012
+						lda #1
+						sta sync
+						jsr $1003
+				
+stack3					pla
+						tax
+						pla
+						tay
+						pla
+nmi2						rti
+;To make things fun. Let's bounce the score
+;sprites.
+
+bouncer					ldx bouncetime
+						lda sinus1+0,x
+						sta objpos+5
+						lda sinus2+0,x
+						sta objpos+7
+						inx
+						cpx #100
+						beq resetbounce
+						inc bouncetime
+						rts
+resetbounce				ldx #0
+						stx bouncetime
+						rts
+
+;Read joystick 
+;=======================================
+;Left / Right turn player slightly
+;Up = Accellerate
+;Down = Decellerate
+;Fire = Shoot
+;=======================================
+
+read_joystick	jsr port2
+				jsr port1
+				rts
+				
+;=======================================
+
+
+;The controls for player 1. Read from
+;joystick plugged via port 2
+
+port2				lda $dc00 ;Read joystick port 2
+				lsr       ;Joystick up
+				bcs p1down ;Down
+				jsr fire1
+				jsr checkp1mv
+				jsr p1right
+				jsr p1left
+				rts
+				;Accellerate
+				rts
+p1down			lsr
+				bcs p1left
+				;Decellerate
+				jsr fire1
+				
+p1left			lda $dc00
+				lsr
+				lsr
+				lsr
+				bcs p1right
+				jsr p1_anticlockwise
+				jsr fire1
+				rts
+p1right			lda $dc00
+				lsr
+				lsr
+				lsr
+				
+				lsr
+				bcs nojoyport2
+				jsr p1_turnclockwise
+				jsr fire1
+				;inc $d020 ;Temporary
+nojoyport2			;sta button1reg
+				rts
+
+button1reg = $21
+button2reg = $22
+;Read the fire button for joystick port 2
+;isolate to single firebutton taps
+
+fire1			lda $dc00
+				lsr
+				lsr
+				lsr
+				lsr
+				lsr
+				bcs notpressed
+				inc $21
+				lda $21
+				cmp #$08 ;firedelay
+				bne notpressed
+				lda #$0e
+				sta $d028
+				lda #$00
+				sta $21
+				
+				;lsr
+				;lsr
+				;lsr
+				;lsr
+				;lsr
+				;and #$10 ;Isolatefirebutton
+				;beq notpressed
+				;bcs notpressed
+								
+;Because of the fire being pressed. Check that the player's
+;bullet is offset (If offset then the p1bull_locked parameter
+;is turned off, else terminate routine, until bullet is offset.
+
+				lda p1bull_locked
+				cmp #1
+				beq notpressed
+				
+				lda p1dir		;Make value of the direction player 1 is facing
+				sta p1bdir		;into the direction which the bullet should move
+				lda objpos+$00	;
+				sta objpos+$0c	;Place bullet where player is set
+				lda objpos+$01
+				sta objpos+$0d
+				
+				lda #1
+				sta p1bull_locked
+				
+				;inc $d020
+notpressed		rts
+				
+
+				
+				
+;Check the direction which the player is
+;actually facing.
+
+checkp1dir		lda p1dir
+				cmp #0 ;Player faces up
+				bne notup1
+				lda #$80 ;Player faces up
+				sta $07f8
+				rts
+notup1			cmp #1
+				bne notupleft1
+				lda #$81 ;Player faces up and left
+				sta $07f8
+				rts
+notupleft1		cmp #2
+				bne notleft1
+				lda #$82 ;Player faces left
+				sta $07f8
+				rts
+notleft1		cmp #3
+				bne notdownleft1
+				lda #$83
+				sta $07f8
+				rts
+notdownleft1	cmp #4
+				bne notdown1
+				lda #$84
+				sta $07f8
+				rts
+notdown1		cmp #5
+				bne notdownright1
+				lda #$85
+				sta $07f8
+				rts
+notdownright1	cmp #6
+				bne notright1
+				lda #$86
+				sta $07f8
+				rts
+notright1		cmp #7
+				bne notupright1
+				lda #$87
+				sta $07f8
+notupright1		rts
+
+;Make the player sprite turn clockwise
+				
+p1_turnclockwise				
+				inc p1turndelay
+				lda p1turndelay
+				cmp #4
+				beq nowturnp1
+				rts
+nowturnp1		lda #0
+				sta p1turndelay
+				inc p1dir
+				lda p1dir
+				cmp #8
+				beq resetp1face
+				rts
+resetp1face		lda #0
+				sta p1dir
+				rts
+				
+p1_anticlockwise
+				inc p1turndelay
+				lda p1turndelay
+				cmp #4
+				beq nowturnp1b
+				rts
+nowturnp1b		lda #0
+				sta p1turndelay
+				dec p1dir
+				lda p1dir
+				cmp #255
+				beq resetp1face2
+				rts
+resetp1face2	lda #7
+				sta p1dir
+				rts
+				
+;Check the direction player 1 is moving. 
+
+checkp1mv		lda p1dir
+				cmp #0
+				bne notp1up
+				lda objpos+1
+				sec
+				sbc yspeed
+				sta objpos+1
+				rts
+notp1up			cmp #1
+				bne notp1upright
+				lda objpos+1
+				sec
+				sbc yspeed
+				sta objpos+1
+				lda objpos+0
+				clc
+				adc xspeed
+				sta objpos+0
+				rts
+notp1upright	cmp #2
+				bne notp1right
+				lda objpos+0
+				clc
+				adc xspeed
+				sta objpos+0
+				rts
+notp1right		cmp #3
+				bne notp1downright
+				lda objpos+0
+				clc
+				adc xspeed
+				sta objpos+0
+				lda objpos+1
+				clc
+				adc yspeed
+				sta objpos+1
+				rts
+notp1downright cmp #4
+				bne notp1down
+				lda objpos+1
+				clc
+				adc yspeed
+				sta objpos+1
+				rts
+notp1down		cmp #5
+				bne notp1downleft
+				lda objpos+1
+				clc
+				adc yspeed
+				sta objpos+1
+				lda objpos+0
+				sec
+				sbc xspeed
+				sta objpos+0
+				rts
+notp1downleft		cmp #6
+				bne notp1left
+				lda objpos+0
+				sec
+				sbc xspeed
+				sta objpos+0
+				rts
+notp1left		cmp #7
+				bne notp1upleft
+				lda objpos+0
+				sec
+				sbc xspeed
+				sta objpos+0
+				lda objpos+1
+				sec
+				sbc yspeed
+				sta objpos+1
+notp1upleft		rts
+
+;=============================================================
+;Player 2 properties
+;===================
+
+
+;The controls for player 1. Read from
+;joystick plugged via port 2
+
+port1			lda $dc01 ;Read joystick port 2
+				lsr       ;Joystick up
+				bcs p2down ;Down
+				jsr fire2
+				jsr checkp2mv
+				jsr p2right
+				jsr p2left
+				rts
+				;Accellerate
+				rts
+p2down			lsr
+				bcs p2left
+				;Decellerate
+				jsr fire2
+				
+p2left			lda $dc01
+				lsr
+				lsr
+				lsr
+				bcs p2right
+				jsr p2_anticlockwise
+				jsr fire2
+				rts
+p2right			lda $dc01
+				lsr
+				lsr
+				lsr
+				
+				lsr
+				bcs nojoyport1
+				jsr p2_turnclockwise
+				jsr fire2
+				;inc $d020 ;Temporary
+nojoyport1		rts
+
+;Read the fire button for joystick port 1
+
+fire2			lda $dc01
+				lsr
+				lsr
+				lsr
+				lsr
+				lsr
+				bcs notpressed2
+				inc $22
+				lda $22
+				cmp #$08
+				bne notpressed2
+				lda #$02
+				sta $d027
+				lda #$00
+				sta $22
+				
+;Because of the fire being pressed. Check that the player's
+;bullet is offset (If offset then the p2bull_locked parameter
+;is turned off, else terminate routine, until bullet is offset.
+;
+				lda p2bull_locked 
+				cmp #01
+				beq notpressed2
+				lda p2dir		
+				sta p2bdir
+				lda objpos+$02
+				sta objpos+$0e
+				lda objpos+$03
+				sta objpos+$0f
+				lda #$01
+				sta p2bull_locked
+				
+notpressed2		rts
+				
+
+				
+				
+;Check the direction which the player is
+;actually facing.
+
+checkp2dir		lda p2dir
+				cmp #0 ;Player faces up
+				bne notup2
+				lda #$80 ;Player faces up
+				sta $07f9
+				rts
+notup2			cmp #1
+				bne notupleft2
+				lda #$81 ;Player faces up and left
+				sta $07f9
+				rts
+notupleft2		cmp #2
+				bne notleft2
+				lda #$82 ;Player faces left
+				sta $07f9
+				rts
+notleft2		cmp #3
+				bne notdownleft2
+				lda #$83
+				sta $07f9
+				rts
+notdownleft2	cmp #4
+				bne notdown2
+				lda #$84
+				sta $07f9
+				rts
+notdown2		cmp #5
+				bne notdownright2
+				lda #$85
+				sta $07f9
+				rts
+notdownright2	cmp #6
+				bne notright2
+				lda #$86
+				sta $07f9
+				rts
+notright2		cmp #7
+				bne notupright2
+				lda #$87
+				sta $07f9
+notupright2		rts
+
+;Make the player sprite turn clockwise
+				
+p2_turnclockwise				
+				inc p2turndelay
+				lda p2turndelay
+				cmp #4
+				beq nowturnp2
+				rts
+nowturnp2		lda #0
+				sta p2turndelay
+				inc p2dir
+				lda p2dir
+				cmp #8
+				beq resetp2face
+				rts
+resetp2face		lda #0
+				sta p2dir
+				rts
+				
+p2_anticlockwise
+				inc p2turndelay
+				lda p2turndelay
+				cmp #4
+				beq nowturnp2b
+				rts
+nowturnp2b		lda #0
+				sta p2turndelay
+				dec p2dir
+				lda p2dir
+				cmp #255
+				beq resetp2face2
+				rts
+resetp2face2	lda #7
+				sta p2dir
+				rts
+				
+;Check the direction player 1 is moving. 
+
+checkp2mv		lda p2dir
+				cmp #0
+				bne notp2up
+				lda objpos+3
+				sec
+				sbc yspeed
+				sta objpos+3
+				rts
+notp2up			cmp #1
+				bne notp2upright
+				lda objpos+3
+				sec
+				sbc yspeed
+				sta objpos+3
+				lda objpos+2
+				clc
+				adc xspeed
+				sta objpos+2
+				rts
+notp2upright	cmp #2
+				bne notp2right
+				lda objpos+2
+				clc
+				adc xspeed
+				sta objpos+2
+				rts
+notp2right		cmp #3
+				bne notp2downright
+				lda objpos+2
+				clc
+				adc xspeed
+				sta objpos+2
+				lda objpos+3
+				clc
+				adc yspeed
+				sta objpos+3
+				rts
+notp2downright cmp #4
+				bne notp2down
+				lda objpos+3
+				clc
+				adc yspeed
+				sta objpos+3
+				rts
+notp2down		cmp #5
+				bne notp2downleft
+				lda objpos+3
+				clc
+				adc yspeed
+				sta objpos+3
+				lda objpos+2
+				sec
+				sbc xspeed
+				sta objpos+2
+				rts
+notp2downleft		cmp #6
+				bne notp2left
+				lda objpos+2
+				sec
+				sbc xspeed
+				sta objpos+2
+				rts
+notp2left		cmp #7
+				bne notp2upleft
+				lda objpos+2
+				sec
+				sbc xspeed
+				sta objpos+2
+				lda objpos+3
+				sec
+				sbc yspeed
+				sta objpos+3
+notp2upleft		rts
+
+;Collision for the player. If it collides into the green frame
+;basically if the player is past a certain area, swap the player's
+;direction by 180 degrees
+
+framecol		jsr p1pos
+				jsr p2pos
+				rts
+
+;Check for player 1's position
+
+p1pos			lda objpos+0
+				cmp #$9e
+				bcc rebound1
+				lda p1dir
+				cmp #1
+				bne *+5
+				jmp setas7
+				cmp #2
+				bne *+5
+				jmp setas6
+				cmp #3
+				bne *+5
+				jmp setas5
+error			rts
+rebound1		lda objpos+0
+				cmp #$0e
+				bcs rebound1b
+				lda p1dir
+				cmp #5
+				bne *+5
+				jmp setas3
+				cmp #6
+				bne *+5
+				jmp setas2
+				cmp #7
+				bne *+5
+				jmp setas1
+				rts
+rebound1b		lda objpos+1
+				cmp #$32
+				bcs rebound1c
+				lda p1dir
+				cmp #0
+				bne *+5
+				jmp setas4
+				cmp #1
+				bne *+5
+				jmp setas3
+				cmp #7
+				bne *+5
+				jmp setas5
+				rts
+rebound1c		lda objpos+1
+				cmp #$ec
+				bcc norebound
+				lda p1dir
+				cmp #3
+				bne *+5
+				jmp setas1
+				cmp #4
+				bne *+5
+				jmp setas0
+				cmp #5
+				bne *+5
+				jmp setas7
+norebound		rts
+
+setas0			lda #0
+				sta p1dir
+				rts
+setas1			lda #1
+				sta p1dir
+				rts
+setas2			lda #2
+				sta p1dir
+				rts
+setas3			lda #3
+				sta p1dir
+				rts
+setas4			lda #4
+				sta p1dir
+				rts
+setas5			lda #5
+				sta p1dir
+				rts
+setas6			lda #6
+				sta p1dir
+				rts
+setas7			lda #7
+				sta p1dir
+				rts
+
+				
+;Check for player 2's position
+
+p2pos			lda objpos+2
+				cmp #$9e
+				bcc rebound2
+				lda p2dir
+				cmp #1
+				bne *+5
+				jmp set2as7
+				cmp #2
+				bne *+5
+				jmp set2as6
+				cmp #3
+				bne *+5
+				jmp set2as5
+error2			rts
+rebound2		lda objpos+2
+				cmp #$0e
+				bcs rebound2b
+				lda p2dir
+				cmp #5
+				bne *+5
+				jmp set2as3
+				cmp #6
+				bne *+5
+				jmp set2as2
+				cmp #7
+				bne *+5
+				jmp set2as1
+				rts
+rebound2b		lda objpos+3
+				cmp #$32
+				bcs rebound2c
+				lda p2dir
+				cmp #0
+				bne *+5
+				jmp set2as4
+				cmp #1
+				bne *+5
+				jmp set2as3
+				cmp #7
+				bne *+5
+				jmp set2as5
+				rts
+rebound2c		lda objpos+3
+				cmp #$ec
+				bcc norebound2
+				lda p2dir
+				cmp #3
+				bne *+5
+				jmp set2as1
+				cmp #4
+				bne *+5
+				jmp set2as0
+				cmp #5
+				bne *+5
+				jmp set2as7
+norebound2		rts
+
+set2as0			lda #0
+				sta p2dir
+				rts
+set2as1			lda #1
+				sta p2dir
+				rts
+set2as2			lda #2
+				sta p2dir
+				rts
+set2as3			lda #3
+				sta p2dir
+				rts
+set2as4			lda #4
+				sta p2dir
+				rts
+set2as5			lda #5
+				sta p2dir
+				rts
+set2as6			lda #6
+				sta p2dir
+				rts
+set2as7			lda #7
+				sta p2dir
+				rts
+				
+;Now it is time for the moving bullet
+;------------------------------------
+
+bullmove		
+				lda p1bull_locked
+				cmp #1
+				bne p1bull_notlocked
+				jsr checkp1bull
+				jsr checkp1bullpos
+p1bull_notlocked		lda p2bull_locked
+				cmp #1
+				bne p2bull_notlocked				
+				jsr checkp2bull
+				jsr checkp2bullpos
+p2bull_notlocked rts
+			
+;Check the direction of player 1's bullet
+
+checkp1bull		lda p1bdir
+				cmp #0
+				bne *+5
+				jmp p1b_up
+				cmp #1
+				bne *+5
+				jmp p1b_up_right
+				cmp #2
+				bne *+5
+				jmp p1b_right
+				cmp #3
+				bne *+5
+				jmp p1b_down_right
+				cmp #4
+				bne *+5
+				jmp p1b_down
+				cmp #5
+				bne *+5
+				jmp p1b_down_left
+				cmp #6
+				bne *+5
+				jmp p1b_left
+				cmp #7
+				bne *+5
+				jmp p1b_up_left
+				rts
+				
+;Move player bullet upwards 
+
+p1b_up			lda objpos+$0d
+				sec
+				sbc #$08
+				sta objpos+$0d
+				rts
+
+;Move player bullet up and right (diagonal)
+
+p1b_up_right	lda objpos+$0d
+				sec
+				sbc #$0a
+				sta objpos+$0d
+				lda objpos+$0c
+				clc
+				adc #$05
+				sta objpos+$0c
+				rts
+				
+;Move player 1 bullet right 
+
+p1b_right		lda objpos+$0c
+				clc
+				adc #$05
+				sta objpos+$0c
+				rts
+				
+;Move player 1 bullet down and right				
+				
+p1b_down_right	lda objpos+$0d
+				clc
+				adc #$0a
+				sta objpos+$0d
+				lda objpos+$0c
+				clc
+				adc #$05
+				sta objpos+$0c
+				rts
+				
+;Move player 1 bullet down
+
+p1b_down		lda objpos+$0d
+				clc
+				adc #$0a
+				sta objpos+$0d
+				rts
+				
+;Move player 1 bullet down and left
+
+p1b_down_left	lda objpos+$0d
+				clc
+				adc #$0a
+				sta objpos+$0d
+				lda objpos+$0c
+				sec
+				sbc #$05
+				sta objpos+$0c
+				rts
+				
+;Move player 1 bullet left
+
+p1b_left		lda objpos+$0c
+				sec
+				sbc #$05
+				sta objpos+$0c
+				rts
+				
+;Move player 1 bullet up left
+
+p1b_up_left		lda objpos+$0d
+				sec
+				sbc #$0a
+				sta objpos+$0d
+				lda objpos+$0c
+				sec
+				sbc #$05
+				sta objpos+$0c
+				rts				
+						
+;Check to see if player 1's bullet leaves the
+;game area. If it does, simply make it stop
+;shooting.
+
+checkp1bullpos	lda objpos+$0d ;Bullet leaves screen on the top
+			cmp #$2e
+			bcs b1_bottom
+			jsr homebull01
+			lda #$00
+			sta p1bull_locked
+			rts
+b1_bottom		lda objpos+$0d ;Bullet leaves screen on the bottom
+			cmp #$f8
+			bcc b1_left
+			jsr homebull01
+			lda #$00
+			sta p1bull_locked
+			rts
+b1_left		lda objpos+$0c ;Bullet leaves screen on the left
+			cmp #$02
+			bcs b1_right
+			jsr homebull01
+			lda #$00
+			sta p1bull_locked
+			rts
+b1_right		lda objpos+$0c ;Bullet leaves screen on the right
+			cmp #$b2
+			bcc b1_error ;Means something wrong with the program
+			jsr homebull01
+			lda #$00
+			sta p1bull_locked
+b1_error		rts
+
+;Home the player's bullet to the home position
+;so that there are no problems. We don't want 
+;to see the bullet around after it is offset.
+	
+homebull01	lda #$00
+		sta objpos+$0c
+		sta objpos+$0d
+		rts
+;Check the direction of player 1's bullet
+
+checkp2bull		lda p2bdir
+				cmp #0
+				bne *+5
+				jmp p2b_up
+				cmp #1
+				bne *+5
+				jmp p2b_up_right
+				cmp #2
+				bne *+5
+				jmp p2b_right
+				cmp #3
+				bne *+5
+				jmp p2b_down_right
+				cmp #4
+				bne *+5
+				jmp p2b_down
+				cmp #5
+				bne *+5
+				jmp p2b_down_left
+				cmp #6
+				bne *+5
+				jmp p2b_left
+				cmp #7
+				bne *+5
+				jmp p2b_up_left
+				rts
+				
+;Move player bullet upwards 
+
+p2b_up			lda objpos+$0f
+				sec
+				sbc #$0a
+				sta objpos+$0f
+				rts
+
+;Move player bullet up and right (diagonal)
+
+p2b_up_right	lda objpos+$0f
+				sec
+				sbc #$0a
+				sta objpos+$0f
+				lda objpos+$0e
+				clc
+				adc #$05
+				sta objpos+$0e
+				rts
+				
+;Move player 2 bullet right 
+
+p2b_right		lda objpos+$0e
+				clc
+				adc #$05
+				sta objpos+$0e
+				rts
+				
+;Move player 2 bullet down and right				
+				
+p2b_down_right	lda objpos+$0f
+				clc
+				adc #$0a
+				sta objpos+$0f
+				lda objpos+$0e
+				clc
+				adc #$05
+				sta objpos+$0e
+				rts
+				
+;Move player 2 bullet down
+
+p2b_down		lda objpos+$0f
+				clc
+				adc #$0a
+				sta objpos+$0f
+				rts
+				
+;Move player 2 bullet down and left
+
+p2b_down_left	lda objpos+$0f
+				clc
+				adc #$0a
+				sta objpos+$0f
+				lda objpos+$0e
+				sec
+				sbc #$05
+				sta objpos+$0e
+				rts
+				
+;Move player 2 bullet left
+
+p2b_left		lda objpos+$0e
+				sec
+				sbc #$05
+				sta objpos+$0e
+				rts
+				
+;Move player 2 bullet up left
+
+p2b_up_left		lda objpos+$0f
+				sec
+				sbc #$0a
+				sta objpos+$0f
+				lda objpos+$0e
+				sec
+				sbc #$05
+				sta objpos+$0e
+				rts				
+						
+;Check to see if player 2's bullet leaves the
+;game area. If it does, simply make it stop
+;shooting.
+
+checkp2bullpos	lda objpos+$0f ;Bullet leaves screen on the top
+			cmp #$2e
+			bcs b2_bottom
+			jsr homebull02
+			lda #$00
+			sta p2bull_locked
+			rts
+b2_bottom		lda objpos+$0f ;Bullet leaves screen on the bottom
+			cmp #$f8
+			bcc b2_left
+			jsr homebull02
+			lda #$00
+			sta p2bull_locked
+			rts
+b2_left		lda objpos+$0e ;Bullet leaves screen on the left
+			cmp #$02
+			bcs b2_right
+			jsr homebull02
+			lda #$00
+			sta p2bull_locked
+			rts
+b2_right		lda objpos+$0e ;Bullet leaves screen on the right
+			cmp #$b2
+			bcc b2_error ;Means something wrong with the program
+			jsr homebull02
+			lda #$00
+			sta p2bull_locked
+b2_error		rts
+
+;Home the player's bullet to the home position
+;so that there are no problems. We don't want 
+;to see the bullet around after it is offset.
+	
+homebull02	lda #$00
+		sta objpos+$0e
+		sta objpos+$0f
+		rts
+		
+;Now it is the collision detection routine
+
+collision_detect	jsr p1collision
+			jsr p2collision
+			rts
+			
+;Set up the collision pointers for player 1's bullet
+
+p1collision	lda objpos+$0c		;Player bullet x-position
+			sec
+			sbc #$06
+			sta collision+$00
+			clc
+			adc #$0c
+			sta collision+$01
+			lda objpos+$0d
+			sec
+			sbc #$0c
+			sta collision+$02
+			clc
+			adc #$18
+			sta collision+$03
+			
+;Check if player 1's bullet hits player 2. If at correct position
+;then it is a direct hit. Else if not then no collision is made
+			
+			lda objpos+$02
+			cmp collision+$00
+			bcc nop2col
+			cmp collision+$01
+			bcs nop2col
+			lda objpos+$03
+			cmp collision+$02
+			bcc nop2col
+			cmp collision+$03
+			bcs nop2col
+			
+			;Direct Hit
+			
+                        
+			lda #$00
+			sta objpos+$0c
+			sta objpos+$0d
+			jsr p2_shield_down
+			lda #$00
+			sta p1bull_locked
+			lda #$03
+			sta $d028
+					
+nop2col		rts
+
+;Player 2's shield goes down (Hit)
+
+p2_shield_down	inc $07fd
+			lda $07fd
+			cmp #$9b
+			beq p2_dies
+			
+			rts
+			
+p2_dies		lda #$9c
+			sta $07fc
+			lda #$9f
+			sta $07f9
+			lda #$01
+			sta p2isdead
+			rts
+			
+
+;Player 2's bullet collision registers
+
+p2collision	lda objpos+$0e
+			sec
+			sbc #$06
+			sta collision+$04
+			clc
+			adc #$0c
+			sta collision+$05
+			lda objpos+$0f
+			sec
+			sbc #$0c
+			sta collision+$06
+			clc
+			adc #$18
+			sta collision+$07
+			
+;Check whether or not player 2's bullet hits player 1
+
+			lda objpos+$00
+			cmp collision+$04
+			bcc nop1col
+			cmp collision+$05
+			bcs nop1col
+			lda objpos+$01
+			cmp collision+$06
+			bcc nop1col
+			cmp collision+$07
+			bcs nop1col
+			lda #$07
+			sta $d027
+			lda #$00
+			sta objpos+$0e
+			sta objpos+$0f
+			jsr p1_shield_down
+			
+			
+			lda #$00
+			sta p2bull_locked
+nop1col		rts
+
+p1_shield_down	inc $07fc
+			lda $07fc
+			cmp #$9b
+			beq p1dead
+			rts
+			
+p1dead		lda #$9c
+			sta $07fd
+			lda #$9f
+			sta $07f8
+			lda #$01
+			sta p1isdead
+			rts
+			
+;Because player 1 has been defeated. Time for the kill player 1 effect.
+
+killplayer1	lda killpointer
+			cmp #$08
+			beq delayoff1
+			inc killpointer
+			rts
+delayoff1		lda #0
+			sta killpointer
+			inc $07f8
+			lda $07f8
+			cmp #$a5
+			beq enddeath1
+			rts
+enddeath1		inc $07fb ;1 point to player2
+			lda $07fb
+			cmp winscore
+			beq enditall
+			jmp main
+enditall		lda #$93
+			sta $07fb
+			lda #$94
+			sta $07fa
+			jmp enditall3
+			
+killplayer2	lda killpointer
+			cmp #$08
+			beq delayoff2
+			inc killpointer
+			rts
+delayoff2		lda #0
+			sta killpointer
+			inc $07f9
+			lda $07f9
+			cmp #$a5
+			beq enddeath2
+			rts
+enddeath2		inc $07fa ;1 point to player1
+			lda $07fa
+			cmp winscore
+			beq enditall2
+			jmp main
+enditall2		lda #$93
+			sta $07fa
+			lda #$94
+			sta $07fb
+			jmp enditall3
+			
+waittime = $19			
+			
+enditall3		lda #$9e
+			sta $07fc
+			sta $07fd
+			lda #0
+			sta waittime
+			sta waittime+1
+			sta objpos+0
+			sta objpos+1
+			sta objpos+2
+			sta objpos+3
+			sta objpos+$0c
+			sta objpos+$0d
+			sta objpos+$0e
+			sta objpos+$0f
+			lda #$02
+			jsr $1000
+sync2		lda #0
+			sta sync
+			cmp sync
+			beq *-3
+			jsr expand
+			jsr starfield
+			jsr bouncer
+			jsr waitend
+			jmp sync2
+			
+waitend		inc waittime
+			lda waittime
+			cmp #$08
+			beq nextwait
+			rts
+nextwait		lda #0
+			sta waittime
+			;inc $d020
+			inc waittime+1
+			lda waittime+1
+			cmp #$30
+			beq titletime
+			rts
+titletime		lda #$31
+			sta $0314
+			lda #$ea
+			sta $0315
+			lda #$81
+			sta $dc0d
+			lda #$00
+			sta $d01a
+			cli
+			jmp $3800
+			
+			jmp $5000
+			
+;Expand sprite areas
+
+expand		ldx #$00
+expandloop		lda objpos+$01,x
+			sta $d001,x
+			lda objpos+$00,x
+			asl
+			ror $d010
+			sta $d000,x
+			inx
+			inx
+			cpx #$10
+			bne expandloop
+			rts
+			
+;Starfield
+
+starfield		inc starcontrol
+			lda starcontrol
+			cmp #$03
+			beq doscroll
+			rts
+doscroll		lda #0
+			sta starcontrol
+			
+			ldx #0
+			jsr starscroll
+			jsr starscroll
+			ldx #1
+			jsr starscroll
+			ldx #2
+			jsr starscroll
+			jsr starscroll
+			jsr starscroll
+			ldx #3
+			jsr starscroll
+			ldx #4
+			jsr starscroll
+			jsr starscroll
+			jsr starscroll
+			ldx #5
+			jsr starscroll
+			jsr starscroll
+			ldx #6
+			jsr starscroll
+			ldx #7
+			jsr starscroll
+			jsr starscroll
+			rts
+			
+starscroll		lda $3220,x
+			rol $3208,x
+			rol $3210,x
+			rol $3218,x
+			rol $3220,x
+			sta $3208,x
+			rts
+nmi			rti
+			
+			p1limit	!byte $93
+			p2limit	!byte $93
+
+
+
+;Now for the byte tables to finish the game & title off.
+
+
+			
+					* = $5000
+
+
+gamesfield	!scr"BCDABCDABCDABCDABCDABCDABCDABCDABCDABCDA"
+!scr"CDABCDABCDABCDABCDABCDABCDABCDABCDABCDAB"
+!scr"ABCDABCDABCDABCDABCDABCDABCDABCDABCDABCD"
+!scr"DABCDABCDABCDABCDABCDABCDABCDABCDABCDABC"
+!scr"BCDABCDABCDABCDABCDABCDABCDABCDABCDABCDA"
+!scr"CDABCDABCDABCDABCDABCDABCDABCDABCDABCDAB"
+!scr"ABCDABCDABCDABCDABCDABCDABCDABCDABCDABCD"
+!scr"DABCDABCDABCDABCDABCDABCDABCDABCDABCDABC"
+!scr"BCDABCDABCDABCDABCDABCDABCDABCDABCDABCDA"
+!scr"CDABCDABCDABCDABCDABCDABCDABCDABCDABCDAB"
+!scr"ABCDABCDABCDABCDABCDABCDABCDABCDABCDABCD"
+!scr"DABCDABCDABCDABCDABCDABCDABCDABCDABCDABC"
+!scr"BCDABCDABCDABCDABCDABCDABCDABCDABCDABCDA"
+!scr"CDABCDABCDABCDABCDABCDABCDABCDABCDABCDAB"
+!scr"ABCDABCDABCDABCDABCDABCDABCDABCDABCDABCD"
+!scr"DABCDABCDABCDABCDABCDABCDABCDABCDABCDABC"
+!scr"BCDABCDABCDABCDABCDABCDABCDABCDABCDABCDA"
+!scr"CDABCDABCDABCDABCDABCDABCDABCDABCDABCDAB"
+!scr"ABCDABCDABCDABCDABCDABCDABCDABCDABCDABCD"
+!scr"DABCDABCDABCDABCDABCDABCDABCDABCDABCDABC"
+!scr"BCDABCDABCDABCDABCDABCDABCDABCDABCDABCDA"
+!scr"CDABCDABCDABCDABCDABCDABCDABCDABCDABCDAB"
+!scr"ABCDABCDABCDABCDABCDABCDABCDABCDABCDABCD"
+!scr"DABCDABCDABCDABCDABCDABCDABCDABCDABCDABC"
+!scr"BCDABCDABCDABCDABCDABCDABCDABCDABCDABCDA"
+!scr"CDABCDABCDABCDABCDABCDABCDABCDABCDABCDAB"
+!scr"ABCDABCDABCDABCDABCDABCDABCDABCDABCDABCD"
+!scr"DABCDABCDABCDABCDABCDABCDABCDABCDABCDABC"
+!byte 0,0,0,0,00,0
+
+sinus1
+
+!byte $d0,$d0,$d0,$d0,$d1,$d1,$d2,$d3,$d4,$d5,$d6,$d7,$d8,$d9,$da,$db
+!byte $dc,$dd,$de,$df,$e0,$e0,$e1,$e1,$e1,$e1,$e1,$e1,$e1,$e0,$e0,$df
+!byte $de,$dd,$dc,$db,$da,$d9,$d8,$d7,$d6,$d5,$d4,$d3,$d2,$d1,$d1,$d0
+!byte $d0,$d0,$d0,$d0,$d0,$d0,$d1,$d1,$d2,$d3,$d4,$d5,$d6,$d7,$d8,$d9
+!byte $da,$db,$dc,$dd,$de,$df,$e0,$e0,$e1,$e1,$e1,$e1,$e1,$e1,$e1,$e0
+!byte $e0,$df,$de,$dd,$dc,$db,$da,$d9,$d8,$d7,$d6,$d5,$d4,$d3,$d2,$d1
+!byte $d1,$d0,$d0,$d0
+!byte 0,0,0,0
+
+sinus2
+!byte $e0,$e0,$e0,$e0,$e0,$df,$de,$de,$dd,$dc,$db,$da,$d9,$d8,$d7,$d6
+!byte $d5,$d4,$d3,$d3,$d2,$d1,$d1,$d1,$d1,$d1,$d1,$d1,$d1,$d1,$d2,$d3
+!byte $d3,$d4,$d5,$d6,$d7,$d8,$d9,$da,$db,$dc,$dd,$de,$de,$df,$e0,$e0
+!byte $e0,$e0,$e0,$e0,$e0,$e0,$e0,$df,$de,$de,$dd,$dc,$db,$da,$d9,$d8
+!byte $d7,$d6,$d5,$d4,$d3,$d3,$d2,$d1,$d1,$d1,$d1,$d1,$d1,$d1,$d1,$d1
+!byte $d2,$d3,$d3,$d4,$d5,$d6,$d7,$d8,$d9,$da,$db,$dc,$dd,$de,$de,$df
+!byte $e0,$e0,$e0,$e0
+!byte 0,0,0,0
+		
+yspeed !byte $02
+xspeed !byte $01
+
+;Sinus table for the colour sinus
+						
+colsinus
+!byte $00,$00,$00,$00,$00,$00,$01,$01,$02,$03,$03,$04,$05,$06,$07,$08
+!byte $09,$0b,$0c,$0d,$0f,$10,$12,$13,$15,$17,$19,$1b,$1d,$1f,$21,$23
+!byte $25,$27,$2a,$2c,$2e,$31,$33,$36,$39,$3b,$3e,$41,$43,$46,$49,$4c
+!byte $4f,$52,$55,$58,$5b,$5e,$61,$64,$67,$6a,$6d,$70,$73,$77,$7a,$7d
+!byte $80,$83,$86,$89,$8d,$90,$93,$96,$99,$9c,$9f,$a2,$a5,$a8,$ab,$ae
+!byte $b1,$b4,$b7,$ba,$bc,$bf,$c2,$c5,$c7,$ca,$cc,$cf,$d1,$d4,$d6,$d8
+!byte $da,$dd,$df,$e1,$e3,$e5,$e7,$e9,$ea,$ec,$ee,$ef,$f1,$f2,$f4,$f5
+!byte $f6,$f7,$f8,$f9,$fa,$fb,$fc,$fd,$fd,$fe,$fe,$ff,$ff,$ff,$ff,$ff
+!byte $ff,$ff,$ff,$ff,$ff,$ff,$fe,$fe,$fd,$fc,$fc,$fb,$fa,$f9,$f8,$f7
+!byte $f6,$f4,$f3,$f2,$f0,$ef,$ed,$ec,$ea,$e8,$e6,$e4,$e2,$e0,$de,$dc
+!byte $da,$d8,$d5,$d3,$d1,$ce,$cc,$c9,$c6,$c4,$c1,$be,$bc,$b9,$b6,$b3
+!byte $b0,$ad,$aa,$a7,$a4,$a1,$9e,$9b,$98,$95,$92,$8f,$8c,$88,$85,$82
+!byte $7f,$7c,$79,$76,$72,$6f,$6c,$69,$66,$63,$60,$5d,$5a,$57,$54,$51
+!byte $4e,$4b,$48,$45,$43,$40,$3d,$3a,$38,$35,$33,$30,$2e,$2b,$29,$27
+!byte $25,$22,$20,$1e,$1c,$1a,$18,$16,$15,$13,$11,$10,$0e,$0d,$0b,$0a
+!byte $09,$08,$07,$06,$05,$04,$03,$02,$02,$01,$01,$00,$00,$00,$00,$00
+!byte $00			
+			
+
+;Colours for the title screen colour SINUS
+;max 64 bytes
+
+colours	        !byte $09,$09,$02,$02,$08,$08,$0a,$0a
+		!byte $07,$07,$01,$01,$01,$01,$01,$01
+		!byte $01,$01,$01,$01,$01,$01,$07,$07
+		!byte $0a,$0a,$08,$08,$02,$02,$09,$09
+		!byte $0b,$0c,$0f,$07,$07,$0f,$0c,$0b
+		!byte $06,$06,$04,$04,$0e,$0e,$05,$05
+		!byte $0d,$0d,$01,$01,$01,$01,$01,$01
+		!byte $01,$01,$01,$01,$01,$01,$0d,$0d
+		!byte $05,$05,$0e,$0e,$04,$04,$06,$06
+		!byte $0b,$05,$03,$0d,$0d,$03,$05,$0b
+		!byte $00
+
+
+* = $6200
+
+;The actual title screen
+
+titlescreen
+titlescreentext
+!scr"                                        "
+!scr" programming .........richard bayliss   "
+!scr" graphics ............richard bayliss   "
+!scr" logo ................michael koslowski "
+!scr" music ...............richard bayliss   "
+!scr"                                        "
+!scr" points to win game ................. 9 "
+!scr" game speed ...................... slow "
+!scr"                                        "
+!scr"press fire or spacebar to start toasting"
+!scr"                                        "
+
+slow !scr "slow" ;Text we paste into the title screen
+fast !scr "fast"
+
+message				* = $6400-2
+				!binary "scrolltext.prg" ;Game title scroll text
+
+				* = $8400-2
+				!binary "vidram.prg" ;Game title logo video RAM data
+				* = $8800-2
+				!binary "colram.prg" ;Game title logo colour RAM data
+				* = $a000-2
+				!binary "bitmap.prg" ; Game title bitmap data</code> 

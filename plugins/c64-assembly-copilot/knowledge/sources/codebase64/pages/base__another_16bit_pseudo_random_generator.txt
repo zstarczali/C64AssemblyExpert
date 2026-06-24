@@ -1,0 +1,21 @@
+# PAGE: base:another_16bit_pseudo_random_generator
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:another_16bit_pseudo_random_generator
+
+Better use this one, which is more evolved: [[Two very fast 16bit pseudo random generators as LFSR]]
+<code>
+sr=$FD
+
+lda sr+1
+asl
+asl
+eor sr+1
+asl
+eor sr+1
+asl
+asl
+eor sr+1
+asl
+rol sr
+rol sr+1
+rts
+</code>

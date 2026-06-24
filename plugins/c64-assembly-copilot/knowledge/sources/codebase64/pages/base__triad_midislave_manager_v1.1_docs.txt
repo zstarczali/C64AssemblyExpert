@@ -1,0 +1,393 @@
+# PAGE: base:triad_midislave_manager_v1.1_docs
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:triad_midislave_manager_v1.1_docs
+
+TRIAD MIDISLAVE MANAGER V1.1
+
+
+This helpfile contains:
+
+<code>
+1. What is the Triad Midislave Manager?
+2. Getting started
+3. The main menu
+4. The MIDI-mode screen
+  a. Channel
+  b. Transpose
+  c. Programme
+  d. Concate
+5. The sound editor
+  a. Sound Number
+  b. Name
+  c. Definition
+  d. Pulsewidth
+  e. CTRL-byte
+  f. Attack/Decay/Sustain/Release
+  g. Macro speed
+  h. Fixed note
+  i. Pitching
+  j. Vibrato
+  k. Pulse vibrato
+  l. Filters
+  m. Macro definition
+6. Loading and saving sounds
+7. Upgrade, and the future of this program
+8. Known bugs
+9. Technical notes
+10. Thanks to...
+11. Address
+</code>
+
+====== 1. What is the triad midislave manager? ======
+
+
+So, you've just recieved this program right? OK. If you've got a DATEL /
+Siel+JMS / Passport or Sequential MIDI-interface (or compatible) and a keyboard
+or sequencer, you're a real lucky person.
+
+The whole idea of the midislave started way back in 1992, some late night in
+Ljungby, while I visited my good friend Hans Axelsson (that is: TDM of TRIAD)
+and we discussed the matter of 64-sounds. We talked about rerecording some of
+TDM's old 64-songs with our MIDI-equipment, but as we had tried it before, we
+knew the tunes never sounded the same after being transfered from the original
+note-script to the MIDI-sequencer. Ofcourse there was nothing wrong with our
+sequencer, it was the sounds that lacked.
+
+So I said: "Look, I'll construct a program that reads the MIDI-bus and
+replays the notes with the SID-chip. That should not be too hard."
+
+Now I've done it, and the "Triad Midislave Manager" is the result. And now I
+release it for the market. You can finger your keyboard, and there will be
+sounds flowing out of your C64. Isn't that just wounderful? All of you who have
+ever dreamed about using the C64 sounds in MIDI-arrangements, playing live on
+your 64 or just play around with it - this is the program you need. Share and
+enjoy!
+
+Since I believe "Intellectual Property" (ie Copyright) to be equal to theft
+from our common legacy of information, this program is released as freeware.
+Releasing it as freeware also gives me the opportunity to use rude language in
+the program and this documentation without having to worry about sensitive
+customers, and also free me from any duties in maintaining the code and making
+the users happy. Yes, it is supplied on what we call an "as-is" basis. If you
+want me to implement new features and remove bugs, all you have to do is to ask
+me nicely, and perhaps I will do it. I make no promises whatsoever, because I
+don't WANT you to believe there is some market-sensitive organization behind
+this program, it's just me.
+
+I will not supply you with any standard disclaimers or legal bullshit, so sue
+me if you think this program has made damage to your equipment or software. Any
+court would believe you to be brain-damaged if you think you can nail a
+freeware producer for supplying bad software. I assure you this program is not
+a Trojan Horse.
+
+
+====== 2. Getting started ======
+
+Switch off your computer, insert your MIDI-interface, switch it on again. Then
+load and run the midislave software. As soon as the midislave main menu is on
+the screen, your 64 is reading the MIDI-bus for incoming commands. When the
+menu is lit, turn on your keyboard. If you can't connect the MIDI-interface
+with the keyboard, the problem is likely one of the following:
+
+a. Your keyboard doesn't have a MIDI-port. You should have thought about this
+before you bought you keyboard. Sorry to say this, but your keyboard is pure
+crap.
+
+b. You have not understood the VERY simple concept of MIDI-interconnections,
+which means, you should connect a cable from MIDI OUT on your keyboard, to MIDI
+IN on your MIDI-interface. If you can't see what's IN OUT and THRU on your
+interface, LOOK ON THE BACK OF IT!
+
+c. There is something wrong with your equipment. Highly unlikely. It's
+probably your fault instead.
+
+Once you've got this far, things will hopefully solve themselves. Set the
+presets, go into MIDI mode, finger your keyboard and... Voila!
+
+
+====== 3. The main menu ======
+
+This is your command control centre. You can choose to enter MIDI-mode, the
+sound editor or to load or save your sounds. Quite self explaining with the
+exception for "Presets" described below. Oh, and by the way: you can't use your
+joystick to choose from this menu. And you never will. This is a tool, not a
+fucking game.
+
+The preset section: This is where you select your MIDI-interface type. Press
++/- to change interface type (3 in all) and RETURN when finished. The
+configuration is written to disk and the program is restarted with the new
+interface configuration. I only know about these three Interface types thanks
+to Frank Prindle who wrote a schematic for an interface, which is published on
+Internet and available if you look around for it. I haven't tested the program
+with any other interface than DATEL / Siel+JMS, so I can't assure you it will
+work with the other types.If you have some other interface, please tell me!
+
+In case you absolutely need it, you can hack the configuration yourself using
+a machine-code monitor. Load the file called "-PROGRAM SETUP-" to $1000 and
+edit the adresses used for Control, Transmit, Status, Receive, Reset and
+Enable. The first four values are adresses to the 6850 chip and the 2 last
+values are the byte-values being poked to the command register at startup.
+Doing this requires knowledge of the 6850 chip configuration used by your
+interface, something you could perhaps find out by hacking the software
+distributed along with the interface. If you have an interface which doesn't
+use the 6850 chip then WOW!, I've never seen such a thing... Almost all MIDI-
+equipment use the 6850. The Triad Midislave can't handle any other hardware.
+Sorry.
+
+
+====== 4. The MIDI-mode screen ======
+
+This is where the tricky things start. You can see a screen saying "Triad
+Midislave Manager" and some lines of text. Is this all there is? Yes. This is a
+sound program, not a graphics program.
+
+Keys you can use in this mode are:
+<code>
+  +/- To increase/decrease option
+  Arrows up/down To choose option
+  Run/Stop to return to the Main menu
+  CTRL To shortcut to the sound editor
+</code>
+
+The meanings of the different options are:
+
+a. Channel. This is the number of the MIDI-channel the midislave is currently
+reading. Valid figures are 01 thru 10 (hexadecimal) which gives you access to
+all 16 MIDI-channels. If you don't know hex numbers: LEARN!
+
+b. Transpose. Here you can transpose all played notes by a desired number of
+halfnotes. Again in hex. You can also antitranspose using the same method. For
+example +0C = up one octave, -0C = down one octave.
+
+c. Programme. This is the number of the current sound. Valid figures are 01
+thru 80, which makes a total of 128 different sounds, as on any good sound
+module. I've given you the possibility to see the decimal number of the sound
+here. Mainly because many keyboards and sequencers don't use hex... (Even
+though I think they should!)
+
+d. Concate. As you already know, the C64 has got only 3 voices, and you
+simply can't do anything about that. This option tells the midislave how to
+handle a situation where you press more than three keys at a time. If you have
+CONCATE=YES, the notes you pressed first will be kicked out and replaced with
+the newer ones. If you WANT the midislave to lock up the three first pressed,
+not yet released keys, set CONCATE=NO. There is a simple way of avoiding all
+this trouble: don't press more than three keys at a time. However, piano-
+maniacs have a strange habit of doing so.
+
+These are all options and keys on this screen really. There is aswell some
+text in the windows giving you information that you might be interested in
+during play. If you don't understand this (very simple) information, then just
+forget about it and pretend it isn't there.
+
+
+====== 5. The sound editor ======
+
+Phew, this is the heavy one. (Had to put on som coffe here, recommend Zoegas
+Skånerost.) Again you can press Run/Stop to reach the main menu, and CTRL to
+shortcut to MIDI-mode. You can press Home to get home, and CLR to clear the
+whole sound. (Careful!) I will state the rest of the options line by line:
+
+a. Sound number. Here you choose the sound you want to edit. Key in the sound
+number (in hex ofcourse) or use +/-. Very simple, really.
+
+b. Name. State/Edit the name of the current sound. Valid keys are all letters
+and numbers, space and Inst/Del.
+
+c. Definition. You can't alter this one. I had some idea of making a
+monophonic mode where you could only play one note at a time, using macros on
+all three channels with ring modulation and such funny stuff. But I've not done
+that yet. Maybe in the future, V3.0 or so of midislave.
+
+d. Pulsewidth. If you're using pulse sounds (P-bit set in the CTRL-byte) you
+state the pulsewidth of that wave here. A value of around $800 is recommended
+for beginners. You can enter the digits directly or use +/-.
+
+e. CTRL-byte. This byte tells you the main characteristics of your sound. If
+you are familiar with C64 sound editors you will easily understand this one. It
+is in hex, and you can key in the digits one by one. Since the gate bit -MUST-
+be set, you can only enter odd numbers here. Easiest way to experiment: use +/-
+. Beginners should use values of $41, $21 or $11 to get some decent sounds. To
+the right you've got a binary representation of the CTRL-byte, so you can
+easily see which bits are set. Soundwizards tend to develop a "fingertip" sense
+for these bits.
+
+f. Attack/Decay/Sustain/Release. Those four lines make up the velocity
+(volume) curve of your sound. If you don't understand it, look it up in any
+synthesizer book or the C64 programmers reference manual. Or just play around
+with them until it sounds good. General rule: avoid big figures on "Attack" and
+don't set "Decay" to 0.
+
+g. Macro speed. Use +/- to select the macro speed. That is: how often the
+crap at the bottom of the screen should step up by one, unless the end is
+reached. A frame is a fiftieth of a second, which equals, for exaple: "4 Per
+frame" means the macro is updated every 1/200th of a second. The normal is
+"Every frame".
+
+h. Fixed note. If you're making, for example, lasers or drum-sounds, this one
+will be useful. If you've chosen a certain note here, the keyboard will always
+trigger THAT note, unregarding which key was pressed. Use +/- to select note,
+or DEL to disconnect this option.
+
+i. Pitching. This defines the influence the pitch wheel will have on the
+notes you're playing. You can pitch by halfnote, note, half octave or full
+octave. (Not bad eh?) Thanks to Fredrik Schön (best swede at the computer
+olympics in Stockholm) for sketching the interpolation algorithm for me in a
+few minutes. Again press DEL to disconnect.
+
+j. Vibrato. DEL disconnects. Pressing "A" gives you a fixed amplitude, a
+certain speed divisor (relative to the macro speed) and a "Delay-before-
+vibrato" value to play around with. You can't use +/- here, sorry. But there is
+more! Press "W" and you can control the vibrato with a definable wheel on you
+keyboard! (Most keyboards use Wheel $02 "Modulation" for this.
+
+k. Pulse vibrato. Works exactly as the above, just that you can't set any
+delay for the vibrato. And that the wheel actually don't control the amplitude
+of the vibrato, it rather controls THE pulsewidth. (Pink Floyd used that kind
+of effects a lot on their "Wish you were here" album).
+
+l. Filters. Here you choose the filter settings. Here it is a lot easier to
+understand what happens than with most other sound editors. TYP sets the type
+of filter you use. Use +/- to select. LP means Lowpass, HP = highpass, BP =
+bandpass and NC = Notch filter. The lowpass cuts the higher overtones (treble),
+the highpass cuts the bass, the bandpass cuts both treble and bass (like a Wah-
+wah) and the notch cuts a certain interval. The frequency determining the -20dB
+threshold can be set with the FRQ value. The frequency will be something like
+5,8*FRQ(Decimal)+30 Hz. (You need a calculator for that.) The low and higpass
+filters attenuates by 12 dB per octave while bandpass and notchfilters
+attenuates by 6 dB per octave. The resonance nibble will peak the frequency
+nearest the threshold to make the cutoff sound sharper. But it sounds like
+distorsion really. (Useful as such too) If you don't understand a shit of this,
+don't bother. Only us electronic phreaks really bother. Play around with it,
+and you'll soon enogh have that "fingertip" sense for these values. Sorry for
+not implementing wheel reading on the filter - YET.
+
+m. Macro definition. Unless you have a value of $FE in the first position
+here, these steps will be gone through as described under "Macro speed" above.
+You can change CTRL-byte, transposing and filtervalue (low byte) for each step
+of the macro. You can use up to $46 different steps here, and either loop ($FF)
+or end ($FE) the macro after these. You have the option of reseting the Gate
+bit (bit 0 of the CTRL-register) in order to create certain effects, but be
+careful! It might make your sound sound "instable". A funny way of using the
+transpose value is to make "Arpeggio", which is: playing chords with monophonic
+instruments. The theory behind this is very simple (skip this if you don't
+understand at least a little bit of musical theory): your keyboard consists of
+12 different notes: C C# D D# E F F# G G# A A# and B, in different octaves.
+(Warning, most NORMAL musicians often use Eb instead of D#, Ab instead of G#
+and Bb instead of A#.) These twelve notes can be combined into different
+harmonies known as CHORDS. For example the Emajor-chord, consisting of the
+tones E, G# and B (known as TONIC, TIERCE and QUINT in music theory), of which
+E is usually played in the lowest pitch. To make this chord, assume that the
+user will press the E-key on the keyboard, and call that note 0. The first
+transpose value (step 01) should then also be $00. Then you want to play G#. G#
+is 4 halftones higher than E, so the next transpose value (step 02), you set it
+to $04. The last tone, B, is 7 halftones higher in pitch than E, why you set
+the last transpose value (step 03) to $07. (Pay attention to that we are
+referring to the lowest note (in this case E) all the way.) To create a
+complete arpeggio you should the loop this macro by putting a value of $FF into
+the last position (step 04). When E is triggered, all three notes will be
+played ONE AT THE TIME, and then restared, and that will sound lika a chord or
+some kind of. The funny thing about this is, that whatever key you press, the
+midislave will produce a major chord with that key as tonic (the chord main
+note). For most major and minor 3-tone chords the values of the transposemacro
+will most often be 047 for major and 037 for minor chords, but as you see,
+every chord can be calculated, even jazz if you like. Now, try to put G# as the
+lowest pitch and move E up one octave. Assuming G# is pressed on the keyboard,
+the transposemacro will be 038. Put B as the lowest and move both E and G# up
+one octave, and assuming the user pressed B, the macro will be 059. Those three
+variations of any 3-note chord, are known as VOICINGS. You can use them to
+colorize your music. (Why don't they ever tell you these things in the
+instructions for common 64-musicprograms?) Quick rundown: Major chord: 047, 038
+or 059 - Minor chord: 037, 049 or 058, 047 and 037 are easiest to handle, when
+you use 038 or 049 arpeggio you must press the tierce of the chord to play the
+proper chord, and with 059 or 058 chords you will have to press the quint of
+the chord you want to produce. (Easy, yes?)
+
+
+====== 6. Loading and saving sounds ======
+
+To load or save the soundfile, press these alternatives on the main menu. If
+there is already a soundfile on the disk, it will be scratched and replaced
+with the new one. Please note that commands (ie. program changes) sent during
+load or save will not be recognized. This occurs due to the reading of the
+MIDI-bus being switched off during load and save. (Disk routines in the ROM
+uses timing, and don't want to get interfered with.) This doesn't mean I forbid
+you to play while loading or saving, just that funny things could happen if you
+do so. Things might hook up, due to the asynchronus realtime nature of the
+MIDI-protocol.
+
+====== 7. Upgrade, and the future of this program ======
+
+If somebody else want to be involved in the evolution of this program, please
+contact me. Also I DEMAND you to fill bug reports and send them to me. That's
+the only thing you have to do. Or just PLEASE send a postcard telling me you're
+using this program, just so I know there's somebody out there. If you send me a
+disk, preferably containing your private sound-file, (so I can implement new,
+nice sounds in coming releases) I will send you the next version as soon as it
+is finished. Address at the end of this text.
+
+
+====== 8. Known bugs ======
+
+Don't report these bugs:
+
+a. Sometimes when you shortcut to the soundeditor from MIDI-mode the sound
+number goes -1 realtive to the last used.
+
+b. Notes sometimes "hook up" in the slave mode. (Solution: Use
+Sustain/Release=00 sounds if it bothers you (and it does))
+
+c. Pitch doesn't work on chord, just affects the last note.
+
+d. Author is sometimes very arrogant in the documentation.
+
+e. Misspellings in the documentation.
+
+
+====== 9. Technical notes ======
+
+Triad Midislave Manager uses memory from $0801 to $f000 with a few glitches.
+The MIDI bus is read by an $00f0-speed divisor NMI interrupt running all the
+time except during load and save. The MIDI-mode section runs with the ROM
+disconnected. The scales used for generating notes are NOT equally-tempered
+since that sounds crap, but rather tempered like a normal piano or keyboard.
+This documentation is written in Microsoft works on the PC and trasfered using
+a vert smart RTF-file converter by me called GNYLF V1.1 (get it!). Your MIDI-
+interface uses the 6850 ACIA (Asynchronus Communications Interface Adapter)
+chip, the same as is used in the Atari ST(e) computers. The midislave has been
+tested with Casio VZ-1, Roland D-50, Kawai K4 and Ensoniq SQ2 keyboards and
+with Roland stand alone, Cubase 2.0, 2.01, 3.0 and Cakewalk pro sequencers. And
+it worked out fine. The author used Zoegas coffe, Black Dog Productions, Pink
+Floyd, Hawkwind, The Prodigy and various collections of trance music to get by.
+
+====== 10. Thanks to... ======
+
+TDM / TRIAD (Hans Axelsson) for all hints and betatesting. \\
+STORMBRINGER / ONYX (Fredrik Schön) for algorithmic help. \\
+CHRIS / ONYX (Christian Luddeckens) for lending of Midicables and keyboards. \\
+ANDERS VON HOFFSTEN for lending me his Ensoniq SQ2 Keyboard. \\
+DANE / TRIAD for cheering me up. (I will do 100% work on the demo now, I promise) \\
+JERRY / TRIAD for the patience. \\
+MOTLEY / G*P for always being such a happy and nice person. \\
+TWOFLOWER / TRIAD for liking this program. \\
+FRANK PRINDLE in the States for publishing the MIDI-interface schematic on Internet. \\
+STEVE COWAN in Canada for support \\
+and YOU for using and spreading this program! \\
+
+
+====== 11. Address ======
+
+If you want to report bugs, complain about something or everything, swap
+software, music, coffe or swedish poetry and short-stories, if you just want to
+make me glad, please write to:
+
+King Fisher / TRIAD \\
+Linus Walleij \\
+Magistratsvägen 55 N:306 \\
+226 44 LUND \\
+SWEDEN \\
+Fone: +46(0)41868513 \\
+E-mail: triad@df.lth.se, linus.walleij@microbus.se \\
+Homepage: http://www.df.lth.se/~triad/ \\
+Usenet: comp.sys.cbm or alt.fan.hofstadter \\
+(But the extropian netnerds on Usenet really piss me off from time to time.) \\
+
+And remember: We are all a part of the inevitable...

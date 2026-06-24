@@ -1,0 +1,38 @@
+# PAGE: base:print_stringchain
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:print_stringchain
+
+====== Print Stringchain ======
+
+Prints a stored textchain on a C64 (like $AB1E).
+
+<code>
+
+BSOUT  = $ffd2	; print value in accu on screen
+
+TXTOUT_LB = $22	; pointer for text lb address (unused memory on zeropage)
+TXTOUT_HB = $23	; pointer for text hb address (unused memory on zeropage)
+
+
+        LDA #<txt2	; HB address of text
+	sta TXTOUT_HB	; store on HB Text pointer
+	LDY #>txt2	; LB address of text
+	sta TXTOUT_LB	; store on HB Text pointer
+	jsr TXTOUT      ; print 'HELLO WORLD.'
+        rts             ; bye
+
+
+;**************************
+; 
+;**************************
+TXTOUT	ldy #$00        ; set index to zero
+t0	lda (TXTOUT_LB),y ; get char
+	beq end		; Text end?
+	jsr BSOUT	; print char
+	iny		; index next char
+	jmp t0		; loop
+end	rts		; bye
+
+
+txt0 byte "HELLO WORLD.",$0d,0
+
+</code>

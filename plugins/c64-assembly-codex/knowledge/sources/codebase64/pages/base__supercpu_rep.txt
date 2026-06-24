@@ -1,0 +1,58 @@
+# PAGE: base:supercpu_rep
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:supercpu_rep
+
+====== REP ======
+
+<code>
+    /*-------------------------------------------------------------------------
+    OP CODE: REP (REset Status (P) Bits)
+    ====================================
+    
+    Addressing Modes:
+        Immediate                        ($c2 - 2 bytes, 3 cycles)
+
+    Flags Affected:
+        65802/65816 emulation mode e=1:
+            n - Set/Reset
+            v - Set/Reset
+            d - Set/Reset
+            i - Set/Reset
+            z - Set/Reset
+            c - Set/Reset
+        65802/65816 native mode e=0:
+            n - Set/Reset
+            v - Set/Reset
+            m - Set/Reset
+            x - Set/Reset
+            d - Set/Reset
+            i - Set/Reset
+            z - Set/Reset
+            c - Set/Reset
+            All flags for which an operand bit is set are reset to zero.
+            All other flags are unaffected by the instruction.
+
+    Description:
+        For each bit set to one in the operand byte, reset the corresponding
+        bit in the status register to zero. For example, if bit three is set in
+        the operand byte, bit three in the status register (the decimal flag)
+        is reset to zero by this instruction. Zeroes in the operand byte cause
+        no change to their corresponding status register bits.
+
+        This instruction lets you reset any flag or flags in the status register
+        with a single two-byte instruction. Further, it is the only direct means
+        of resetting several of the flags, including the m and x mode select
+        flags (although instructions that pull the P status register affect the
+        m and x mode select flags).
+
+        6502 emulation mode (65802/65816, e=1): Neither the break flag nor bit
+        five (the 6502’s undefined flag bit) are affected by REP.
+
+    Notes:
+
+    -------------------------------------------------------------------------*/
+
+    .pseudocommand rep val {
+        .byte $c2,val.getValue()
+    }
+
+</code>

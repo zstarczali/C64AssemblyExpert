@@ -1,0 +1,139 @@
+# PAGE: base:detecting_6526_vs_6526a_cia_chips
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:detecting_6526_vs_6526a_cia_chips
+
+====== Detecting 6526 vs 6526A CIA Chips ======
+
+by White Flame
+
+This sets off a single-shot NMI to interrupt immediately before an INC statement.  The older 6526 triggers one cycle later, so it will run the INC while the newer one won't.
+
+Make sure the screen & sprites are off first.
+
+oldCia should be in zeropage, and will have a 0 or 1 after this routine.
+
+<code>
+testCIAVersion:
+ ; Set NMI vector
+ lda #<continue
+ sta $fffa
+ lda #>continue
+ sta $fffb
+
+ lda #$81  ;also don't forget to set mask. Setting $01 to an appropriate value will also help :-) (Bitbreaker/Oxyron)
+ sta $dd0d
+
+ ; Set timer to 5 cycles
+ lda #4
+ sta $dd04
+ lda #0
+ sta $dd05
+
+ ; Clear the detection flag
+ sta oldCIA
+
+ ; Fire a 1-shot timer
+ lda #%10011001
+ sta $dd0e
+
+ ; This should be interrupted before the INC
+ ; only if it's a newer chip.
+ lda $dd0d
+ lda $dd0d
+ inc oldCIA
+ jmp * ; just in case
+
+continue:
+ lda $dd0d
+ pla
+ pla
+ pla</code>
+
+
+Note by Karoshier: I had problems making this work once adapted to use CIA1 instead of CIA2, as the interrupt wouldn't fire at all and the CPU remained locked in the JMP *. The cause of this was the two consecutive LDA $DC0D before the INC oldCIA instruction. It happened by chance that one of them had been cycle-exact synchronized with the CIA and cleared the interrupt flag in the very same cycle as the one in which the interrupt was asserted. The interrupt pulse didn't last enough and the CPU didn't see it (tried on both VICE 2.4 and on the real hardware). I have solved the problem by replacing those LDA $DC0D with NOPs and readjusting the number of clock cycles the timer A is set to timeout at.
+
+Modified to the following to allow detection of both CIAs and should account for the comment above from Bitbreaker & Karoshier. Note that the routine can be slimmed down considerably if you run this in a interrupt controlled environment:
+
+<code>
+
+    // Detects both CIAs and returns to BASIC after being run
+    // Based on White Flame's routine + kickass format
+    // By TWW/Creators
+
+    :BasicUpstart2(start)
+    
+start:
+
+    sei
+    lda #$35
+    sta $01              // Disable IRQs and bank out BASIC and KERNAL
+
+    lda #<continue1
+    sta $fffe
+    lda #>continue1
+    sta $ffff
+    lda #<continue2
+    sta $fffa
+    lda #>continue2
+    sta $fffb            // Set IRQ/NMI vectors
+
+    lda #$7f
+    sta $dc0d
+    sta $dd0d            // Mask out all IRQ/NMI sources
+
+    lda #$82
+    sta $dc0d
+    lda #$81
+    sta $dd0d            // Mask in Interrupt Sources from CIA #1 Timer B and CIA #2 Timer A
+
+    lda $dc0d
+    lda $dd0d            // Ack any pending interrupts
+    
+    tsx                  // Preserve STACK Pointer
+
+    lda #0
+    sta $dc06
+    sta $dc07
+    sta $dd04
+    sta $dd05            // Set timers to 1 cycle
+
+    cli                  // Allow IRQs to trigger
+    lda #%00011001
+    sta $dc0f            // Fire a 1-shot timer
+    bit $00
+    // IRQ happens here if it's the new CIA type    
+    inc oldCIA1
+    // IRQ happens here if it's the old CIA type    
+
+continue1:
+    sei
+    lda #%10011001
+    sta $dd0e            // Fire a 1-shot timer
+    bit $00
+    // NMI happens here if it's the new CIA type    
+    inc oldCIA2
+    // NMI happens here if it's the old CIA type    
+
+continue2:
+    txs                  // Restore STACK Pointer
+    lda #$7f
+    sta $dc0d
+    sta $dd0d
+    lda #$81
+    sta $dc0d            // Mask out IRQs and re-enable CIA #1 Timer A to allow BASIC to run.
+
+    lda $dc0d            // ack the IRQ
+    lda $dd0d            // ack the NMI
+
+    lda #$37
+    sta $01
+    cli                  // enable IRQs and Bank back BASIC and KERNAL 
+
+    lda oldCIA1
+    sta $0400
+    lda oldCIA2
+    sta $0402            // Show result
+    rts
+
+oldCIA1:    .byte $00
+oldCIA2:    .byte $00
+</code>

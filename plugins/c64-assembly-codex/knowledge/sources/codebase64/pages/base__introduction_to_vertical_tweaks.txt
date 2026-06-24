@@ -1,0 +1,34 @@
+# PAGE: base:introduction_to_vertical_tweaks
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:introduction_to_vertical_tweaks
+
+====== Introduction to Vertical Tweaks ======
+
+Here gathers various ways to manipulate the screen setup by fooling the VIC. Since coders developed more and more weird vic-tricks in the late 80's, more and more weird names of the effects popped up as well. The common name of all these tricks is 'd011-stretcher', which is not totally wrong but perhaps a bit inaccurate. Here is an attempt to describe the matured collection of tricks, now 20 years after, when new vic tricks are rare.
+
+===== Badline-delay =====
+By manipulating $d011 y-scroll values you avoid triggering a badline. Everything stays normal except that VIC will show $3fff-pattern instead of normal graphics. Used for [[base:fld|FLD]] and is possible with open sideborders.
+
+===== Repeating the last line =====
+It is possible to retrigger display of the last line of a char. This trick will actually read new lines of graphics each line instead of every 8:th line, but the char-matrix is not updated. The result is stretched data in char-mode and shrunken data in bitmap-mode. May be used for [[base:fpp|FPP]] in char-mode or [[base:fpd|FPD]] in bitmap-mode and [[base:linecrunch|line-crunching]]. May also be combined with open sideborders.
+
+===== Repeating char-line =====
+
+It is possible to restart display of a char-line without a badline. With this trick VIC displays the same char-line again. In bitmap-mode the graphics is unchanged, only the color-info does not get updated as no new char-data is being read. May be used for [[base:fpp|FPP]] in char-mode but does not seem to work in combination with open sideborder.
+
+===== Every line is a badline =====
+
+This is what many people call a [[:vic#custom_graphics_modes|FLI]]-timing. By retriggering badlines by periodically updating the d011 y-scroll value, badlines can be triggered every line. If you also change char-bank each line VIC will read new char-data which will be used as colors in bitmap-mode -> FLI. When reading new char-info VIC interrupts the CPU and steals cycles from you. A normal (and maximized) FLI-timing is 23 cycles long (PAL), where VIC has stolen 40 cycles (for a 40 chars wide screen). If your timing loop takes more than 23 cycles, VIC will steal less cycles from you and you will get a FLI-area less than 40 chars. Sadly VIC will leave an ugly bug on the first three chars when triggering a badline, commonly known as the 'FLI-bug'.
+
+The area left of the FLI-bug will behave like 'Repeating char-line' as described above. The FLI-timing may also be used for [[base:fpp|FPP]] in char-mode, but does not work together with open sideborders.
+
+===== Repeating the first line =====
+
+Starting from the [[:vic#custom_graphics_modes|FLI]]-timing, one may think that reducing some cycles from the loop may give me 40 chars of bug-free FLI. But no. Here we pass some timing border where VIC stops reading new graphics data. Instead we get the first graphics-line displayed again, but new char-info is read. May be used for [[base:fpp|FPP]] in both char-mode and bitmap-mode, but not with sideborder timing.
+
+There have been examples of this effect though in combination with open sideborder, in those cases the d011-trick has been used every 2:nd line.
+
+===== Choose your effect =====
+
+So, when you want to show some cool gfx in a beautiful way, there are a lot of opportunities. Mostly it depends on what kind of graphics you have. You can not have a pure FLI picture and do FPP with it, you have to compromise. Perhaps you think you need [[base:fpp|FPP]], but the type of movement you want to do may be possible with [[base:fpd|FPD]], where you have more color opportunities and possibility of opening the borders etc..
+
+With [[base:fpp|FPP]], you can simulate all the other ones. You have freedom to move your pixel-lines wherever you want multiple times.

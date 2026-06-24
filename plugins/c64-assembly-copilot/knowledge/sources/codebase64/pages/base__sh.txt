@@ -1,0 +1,18 @@
+# PAGE: base:sh
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:sh
+
+====== Super Hires ======
+
+**Super Hires** has become a melting pot of different custom gfx-modes, with the common property being the small pixels (Hires == high resolution). Sceners have always been searching for a way to paint in Hires, using more than the standard two colors per char. Here follows some examples.
+
+===== Char-based SuperHires =====
+
+The first version of Super Hires was probably the 4-color mode on a 96x200 pixel screen. The idea behind this is to build up a 12x25 char-screen and put two layers of 4 sprites on top of it. By multiplexing the sprites you can get a vertically full screen with this. Use single-color chars and sprites, and you get the 96x200 pixel screen with background color, char color, and two sprite colors with no further restrictions.
+
+Another version of Super Hires can be made with exactly the same idea as for the prior one, but using all the sprites for just one layer. The properties you'll get is a 192x200 screen with 3 colors without any restrictions.
+
+In order to get a horizontally full screen with SuperHires, there have also been examples of the same idea but using x-expanded sprite-layer. As the sprite-layer is now no longer in hires, this has been used together with the low-priority sprite-mode, making the sprite-layer go below the char-gfx. The sprites still cover the background color, but are at the same time covered by the char gfx. This is in other words not a clean Super Hires mode, and has sometimes been called **Advanced Bitmap**.
+
+===== Bitmap-based SuperHires =====
+
+Several versions of Super Hires have also been implemented using Bitmap mode instead of Char mode. Both the 96x200 screen and the 192x200 screen are possible with only small changes in code. As always when using bitmap, you get more colors to play with as a graphician. However, using the gfx format for computer generated gfx is rather complicated.

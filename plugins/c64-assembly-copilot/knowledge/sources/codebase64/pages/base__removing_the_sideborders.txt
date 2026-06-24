@@ -1,0 +1,63 @@
+# PAGE: base:removing_the_sideborders
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:removing_the_sideborders
+
+====== Removing the sideborders ======
+
+Here is an ugly piece of code that shows how to remove the sideborder. Of course there is much more to desire if you want to use it in a demo, you probably want sprites and perhaps graphics in the open area as well. This just shows how it worx.
+
+Please note that the code is assumed to be started from a normal basic screen. Particularly the $d016-register is assumed to be $c8 at start. Have fun! / HCL
+
+<code>
+        sei
+        
+;Fix PAL, otherwise NTSC
+        lda $02a6
+        beq +
+        lda #$49 ; ie EOR #$xx (time 2 cycles)
+        sta PALFIX
++
+
+loop1
+        lda #$1b ; Set y-scroll	to normal position (because we do FLD later on..)
+        sta $d011
+
+        lda #$3d ; Wait for position high up on the screen
+        cmp $d012
+        bne *-3
+
+	lda $d012 ; Ugly way to get stable raster
+	and #7
+        ora #$18
+        sta $d011
+
+        nop ; Wait some cycles to make the loop work fine
+        nop
+        nop
+        nop
+	nop
+	lda 0
+
+	ldx #0 ; Set 0 to counter
+loop2
+        clc ; Do FLD to avoid badlines
+	lda $d012
+	adc #4
+	and #7
+	ora #$18
+	sta $d011
+
+	ldy #5 ; Wait a	little
+	dey
+	bne *-1
+PALFIX  nop
+	nop
+
+        dec $d016 ; Set	38-chars width of screen -> remove sideborder
+        inc $d016 ; Set	back to	40-chars
+
+        inx ; Increase counter
+        cpx #$80
+        bcc loop2 ; Branch if counter less than	$80
+
+        jmp loop1 ; Next frame
+</code>

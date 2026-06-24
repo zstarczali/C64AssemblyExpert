@@ -1,0 +1,23 @@
+# PAGE: base:frame_skipping
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:frame_skipping
+
+====== Frame skipping ======
+
+Once in a while you created some effect that just goes too quick when you update it every frame.
+The option is to have a check in order to skip your routine every other frame.
+Put this inside your IRQ.
+
+<code>
+start:
+   inc skipper+1      // increase the check byte
+   
+skipper:
+   lda #$00           // check byte
+   and #$01           // check first bit (even or odd number?)
+   beq passroutine    // skip routine on even numbers
+   
+routine:
+   // routine that will be executed every other frame
+   
+passroutine:
+   // the rest, executed every frame</code>

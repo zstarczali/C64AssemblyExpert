@@ -1,0 +1,164 @@
+# PAGE: magazines:chacking_toc
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=magazines:chacking_toc
+
+====== C= Hacking Table of Contents ======
+
+    * [[chacking1|Issue #1]]
+          * "**Beginning ML - Part 1**", Craig Taylor. Documented and undocumented opcodes
+          * "**Simple Hires Line Drawing Package for the C-128 80-Column Screen**", Craig Bruce. Routines to move pixel/draw line, activate graphics/clear screen, restore old character set, desc. of some VDC registers, floating point numbers. 
+    * [[chacking2|Issue #2]]
+          * "**Beginning ML - Part 2**", Craig Taylor. Indexed addressing.
+          * "**An in-depth look at the 8563 Video Chip on the C= 128**", Craig Taylor. VDC schematics, register descriptions, programming descriptions.
+          * "**FILE SPLIITER**", Mark Lawrence. Turbo Pascal code to split a file.
+          * "**Banking on GEOS**", Robert Knop. Memory management, programming under GEOS 128.
+          * "**DYNAMIC MEMORY ALLOCATION FOR THE 128: Breaking the 64K barrier**", Craig Bruce. Like the title says :). Includes memory management kernal from ZED 128, sorting routine, etc. 
+    * [[chacking3|Issue #3]]
+          * "**Learning ML - Part 3**", Craig Taylor. Kernal routines, reading the directory, reading the error channel.
+          * "**The Demo Corner: Missing Cycles**", Pasi 'Albert' Ojala. Raster timings, bad lines, sprites, demonstration program.
+          * "**Kernal 64/128**", Craig Taylor. Kernal routines, listing and description.
+          * "**64K VDC RAM and an alternate GEOS128 Background Screen**", Robert Knop. Programming GEOS128.
+          * "**GeoPaint File Format**", Bruce Vrieling. Self explanatory.
+          * "**Rasters: What They Are And How To Use Them**", Bruce Vrieling. Interrupts, rasters, example code.
+          * "**Bursting your 128: The Fastload Burst Command**", Craig Bruce. Programming 1571 and 1581 drives, bust code library. 
+    * [[chacking4|Issue #4]]
+          * "**Learning ML - Part 4**", Craig Taylor. Development of a Space Invaders game (for the 64 and 128), part 1. Organization, custom characters (VIC and VDC), title screen, debugging, memory considerations.
+          * "**FLI - More Color To The Screen**", Pasi Ojala. VIC info, and of course an explanation of FLI graphics.
+          * "**RS-232 Converter**", Warren Tustin. Build a userport->RS-232 converter.
+          * "**Introduction to the VIC-II**", Pasi Ojala. VIC features and registers.
+          * "**LITTLE RED READER: MS-DOS file reader for the 128 and 1571/81 drives**", Craig Bruce. Like the title says :) All source included/explained or course. 
+    * [[chacking5|Issue #5]]
+          * "**Mail Server Documentation**", Craig Taylor. Outdated.
+          * "**The Demo Corner: Stretching Sprites**", Pasi Ojala. How to trick VIC into making some very large sprites.
+          * "**Rob Hubbard's Music: Disassembled, Commented, and Explained**", Anthony McSweeny. Yet another self-explanatory title.
+          * "**ZPM3 and ZCCP Enhancements for CP/M Plus from Simeon Cran**", Randy Winchester. Nice BIOS and BDOS enhancements for CP/M folks.
+          * "**Multitasking on the C=128 Part 1**", Craig Taylor. Description of a multitasking kernal for the 128.
+          * "**LITTLE READ READER: MS-DOS file reader/WRITER for the C128 and 1571/81**", Craig Bruce. Expanding the program with the capability to write files. 
+    * [[chacking6|Issue #6]]
+          * "**The Demo Corner: DYCP - Horizontal Scrolling**", Pasi Ojala of course :). Making character go up and down as well as right to left in scrolls, along with some awfully nice ASCII diagrams.
+          * "**Opening the Borders**", Pasi Ojala. How to remove the borders: top, bottom, and sides. Good stuff.
+          * "**A Heavy-Duty Power Supply for the C=64**", John Andrews. Schematics etc. for building - guess what? :) - a heavy duty power supply.
+          * "**LZW Compression**", Bill Lucier. Another title to make my job easy. Description+source.
+          * "**THREE-KEY ROLLOVER for the C=128 and C=64**", Craig Bruce. Modifying the KERNAL to use 3-key rollover (for you fast typists); gets rid of port #1 extraneous input, too. Neat! 
+    * [[chacking7|Issue #7]]
+          * "**Commodore Trivia Corner**", Jim Brain.
+          * "**Internet Resources for the Commodore 64/128**", Craig Taylor. Intro to the internet; old ftp list.
+          * "**Hiding Kilobytes**", Marko Mäkelä Memory management and different memory configurations on the C=64, and lots of subtobics: hiding underneath I/O, sitting in the stack, freezer cartridges.
+          * "**FLD - Scrolling the screen**", Mark Klampar. Code to demonstrate FLD.
+          * "**Tech-tech - More resolution to vertical shift**", Pasi Ojala. Cool.
+          * "**ACE 128/64 PROGRAMMER'S REFERENCE GUIDE**", Craig Bruce. Title explains it all. 
+    * [[chacking8|Issue #8]]
+          * "**Trivia Corner**", Jim Brain.
+          * "**RS232 Convertor**", Walter Wickersham. Another RS-232 interface for you to build.
+          * "**Programming the Commodore RAM Expansion Units (REUs)**", Richard Hable. Description of REUs and how to program them.
+          * "**A Different Perspective: Three Dimensional Graphics on the C=64**", Stephen Judd, George Taylor. Rotations, projections, drawing lines, etc. and an awful lot of text and crappily formatted code.
+          * "**DESIGN OF A 'REAL' OPERATING SYSTEM FOR THE 128: PART I**", Craig Bruce. Laying the groundwork for a new OS. 
+    * [[chacking9|Issue #9]]
+          * "**Trivia Corner**", Jim Brain.
+          * "**A Different Perspective, Part II**", Stephen Judd, George Taylor. Hidden faces, filled faces, mega-fast multiply, and some reasonably formatted code.
+          * "**2D Graphics Toolbox - Circles**", Stephen Judd. An awfully neat circle drawing algorithm, if I do say so myself. (See also issue 10 or 11).
+          * "**AFLI-specs v1.0**", D'Arc/Topaz for Chief/Padua. Build upon FLI to get even more colors.
+          * "**Coding Tricks**", compiled from comp.sys.cbm. Neat. Includes stable raster code.
+          * "**C.S. Bruce Interview**", Craig Taylor. Neat.
+          * "**Aligning 1541 Drives**", Ward Shrake. Lots of good info. 
+    * [[chacking10|Issue #10]] (Craig Taylor's last issue!)
+          * "**Trivia**", Jim Brain.
+          * "**BFLI - New Graphics Modes 2**", Pasi Ojala. Another FLI spinoff trick.
+          * "**Making stable raster routines (C64 and VIC-20)**", Marko Mäkelä How to make raster effects exactly where you want them (and how to mask an NMI too! :)
+          * "**A Different Perspective, part III**", by two old bums. Neat-o line drawing enhancement, general polygon routine, general hidden face removal, alternative filling method, and a misplaced and important addendum to the Circle routine in issue 9.
+          * "**Second SID Chip Installation**", Mark Dickenson. Add another SID to your setup.
+          * "**SOLVING LARGE SYSTEMS OF EQUATIONS ON A C64 WITHOUT MEMORY**", Alan Jones. "Quartersolve" routine.
+          * "**The World of IRC - A new life for the C64/128**", Bill Lueck. What every 64 user should know about IRC.
+          * "**Swiftlink-232 Application Notes v1.0b**", CMD with source code by Craig Bruce. All about Swiftlink and how to program it.
+          * "**Design and implementation of a simple/efficient upload/download protocol**", Craig Bruce. Pretty neat protocol (FX) used by ACE.
+          * "**DESIGN AND IMPLEMENTATION OF A 'REAL' OPERATING SYSTEM FOR THE 128: Part II**", Craig Bruce. Further laying the groundwork for a multitasking microkernal OS. 
+    * [[chacking11|Issue #11]]
+          * "**Hi Tech Trickery: Sample Dither**", George Taylor. Dither a digital sample to gain higher resolution.
+          * "**Speed up RAMLink transfers with the Double-DMA technique**", Doug Cotton. Super-fast RAMlink programming.
+          * "**The Graphics Toolbox: Ellipses**", Stephen L. Judd. Follow-up to the circle drawing algorithm, logarithmic division.
+          * "**Design and Implementation of an Advanced Text Editor**", Craig Bruce. Design and implementation of the very powerful ZED text editor used with ACE.
+          * "**Hacking Graphics: Let's get graphical**", Rick Mosdell. Hires file formats: DOODLE!, Koala.
+          * "**Errata**", fixes for 2nd SID chip and linear algebra article. 
+    * [[chacking12|Issue #12]]
+          * "**RUN64: Moving to 64 Mode**", Doug Cotton. How to switch from 128 mode to 64 mode (and expect it to work on just about any machine).
+          * "**Polygonamy: A Study in Three Dimensions**", Stephen L. Judd. High speed 3D virtual worlds for the 64. (Binary up above).
+          * "**Underneath the hood of the SuperCPU**", Jim Brain. Description and details of the SuperCPU.
+          * "**Talking to TED: The MOS 7360/8360 Display IC's**", Levente Harsfalvi. Programming TED on the +4 and C-16 (reg. desc., etc.) 
+    * [[chacking13|Issue #13]]
+          * "**HEAVY MATH - Part 0: History, Arithemtic, and Simple Algorithms**", Alan Jones. History, introduction, etc.
+          * "**OS/A65 - A Multitasking/Multithreading Operating System for 6502 Computers**", Andre Fachat. Design and implementation.
+          * "**Using UQWK with QWKRR128**", Gaelyne Moranec. Self-explanatory.
+          * "**Brad Templeton: The Programmer's Friend**", by Jim Lawless. An interview with Brad Templeton.
+          * "**Dim4: A Mind-Expanding Experience**", Stephen L. Judd. 4D graphics from a 4k contest. See above for source (all 115k of it) and executables (all 4k of it :).
+          * "**Exploiting the 65C816S CPU**", Jim Brain. Description of chip design, regs, addressing modes, etc. and some SuperCPU programming info.
+          * "**Using HTML on the Commodore, Part 1**", Jim Brain. Introduction to HTML and description of an HTML viewer for the 64.
+          * "**Creating 3D Dungeon Crawls**", Todd Elliott. How to do 3D dungeons a-la Bard's Tale.
+          * "**The Error Channel**", updates to Double-DMA article, TED programming, extra Polygonamy info. 
+    * [[chacking14|Issue #14]]
+          * "**The Commodore Telnet BBS**", Bo Zimmerman. Make your C= telnettable.
+          * "**Menu Toolbox III**", Jeff Jones. User interface subroutines: menus, disk io, etc.
+          * "**The CMD Nirvana: The Guts and Glory**", Todd Elliott. Todd's souped-up 128D.
+          * "**Jim Butterfield: The Commodore Guru - An Interview**", Jim Lawless.
+          * "**Hi Tech Trickery**", Alan Jones. More descriptions of Linear Programming.
+          * "**Hacking BASICs**", Richard T. Cunningham. Detecting drives and selective goto in BASIC.
+          * "**Twiddling the Bits**", Ward Shrake. VIC-20 cartridge exploration and archiving. 
+    * [[chacking15|Issue #15]] (Jim Brain's last issue!)
+          * "**Click to Mode Switch: The 40-80 Mouse switch**", Michael Nausch. Hardware mouse mod, mollifying monitor madness.
+          * "**The Canonical List of Commodore Produced Products**", Jim Brain. v2.0
+          * "**Scott Ballantyne : Blazing into Forth**", Jim Lawless. Interview with author of Blazin' FORTH.
+          * "**Technical Information on the VIC-20**", Ward Shrake. Pinouts and technical notes.
+          * "**Hacking BASICs**", Dick Cunningham. BASIC tips on 64/128 compatibility.
+          * "**Twiddling the Bits**", Frank Kontros. Update of the DataPump UART project. 
+    * [[chacking16|Issue #16]] (S. Judd's 1st issue)
+          * "**PAL VIC20 goes NTSC**", by Timo Raita and Pasi 'Albert' Ojala. How to turn your PAL VIC20 into an NTSC VIC20.
+          * "**Starfields**", S. Judd. Making simple hires starfields.
+          * "**Milestones of C64 Data Compression**", by Pontus Berg. A short history of data compression on the 64.
+          * "**Compression Basics**", by Pasi Ojala. Part one of a two-part article on data compression, giving an introduction to and overview of data compression and related issues.
+          * "**3D for the Masses: Cool World and the 3D Library**", S. Judd. The mother of all 3D articles. 
+    * [[chacking17|Issue #17]]
+          * "**SuperCPU software repair**", by S. Judd. SuperCPU-fixing.
+          * "**Pucrunch, part 2**", by Pasi Ojala. Continuation of article in issue 16. Discussion of pucrunch compression and decompression methods and code.
+          * "**VIC20 Disassembly Project**", by Richard Cini. First part of a complete ROM disassembly.
+          * "**NTSC/PAL-fixing, part 1**", Russel Reed, Robin Harbron, S. Judd. Robin and Steve fix a demo.
+          * "**The Herd Mentality**", Bil Herd. Lusty stories regaling the design and development of the C128.
+          * Files:
+                * {{magazines:slowideas-ntsc.gz|slowideas-ntsc.gz}} - NTSC fixed demo 
+    * [[chacking18|Issue #18]]
+          * "**Data Structures 101**", by Pasi Ojala and S. Judd. Linked lists and a nifty insertion sort.
+          * "**Counting Sort**", Pasi Ojala. Discussion of the counting sort!
+          * "**VIC20 Disassembly Project**", by Richard Cini. Part II: Interrupts.
+          * "**GeoWrite128 disassembly notes**", Todd Elliot. Discussion of GEOS, Todd's patches to geoWrite128 to work with more modern setups, and list of major geoWrite routines and entry points.
+          * "**NTSC/PAL-fixing, part 2: FLI and IFLI**", Russel Reed, Robin Harbron, S. Judd. Interactive tutorial on fixing FLI and IFLI graphics.
+          * "**Obj3d: The 3D object library**", S. Judd. Discussion of obj3d routines and example programs.
+          * Files:
+                * {{magazines:symgfx-ntsc.zip|symgfx-ntsc.zip}} - NTSC fixed gfx 
+    * [[chacking19|Issue #19]]
+          * "**Burst fastloader for the C64**", by Pasi Ojala. Hardware modification and code for burst-loading on a 64.
+          * "**8000's User Port and Centronics Printers**", by Ken Ross. The PET 8000's user port, and how to use it to drive printers.
+          * "**Sex, lies, and microkernal-based 65816 native OSes, part 1**", by Jolse Maginnis. OS design in general and JOS design in detail.
+          * "**VIC20 Disassembly Project**", by Richard Cini. Part III: Interrupts, continued (UDTIM, SCNKEY, etc.)
+          * "**Decoding JPEGs**", by S. Judd. Description of JPEG decoding process, especially IDCT.
+          * "**Bringing 'true-color' images to the 64**", by Adrian Gonzalez. Floyd-Steinberg dithering and the IFLI renderer used in JPZ. 
+    * [[chacking20|Issue #20]]
+          * "**Super/Turbo CPU VDC Hack**", Henry Sopko. Hardware mod to access the VDC using a SuperCPU64 or TurboCPU.
+          * "**16K Memory Expansion for the VIC-20**", Per Olofsson. Hardware mod to add memory to the VIC-20.
+          * "**Quick Quadratic Splines**", S. Judd. Algorithms to add curves and animations to programs.
+          * "**VIC-20 Kernal ROM Disassembly Project**", Richard Cini. Part IV: device I/O routines.
+          * "**MODs and Digital Mixing**", Jolse Maginnis. How to play MODs on a 64.
+          * "**The C64 Digi**", Robin Harbron, Levente Hársfalvi, Stephen Judd. Playing digis on the 64: theory, SID internals, $d418 digis, and Pulse Width Modulation.
+          * Files:
+                * {{magazines:slab.zip|slab.zip}} - Spline lab
+                * {{magazines:digibin.zip|digibin.zip}} - Digi stuff 
+          * ADDENDUM: After releasing the issue, Levente came up with a brilliant idea for playing high-resolution digis on a stock machine, using PWM.
+                * [[chacking20addendum|Addendum to C= Hacking 20]] - Explanation
+                * {{magazines:play.zip|play.zip}} - Example code 
+    * [[chacking21|Issue #21]]
+          * "**Pulse Width Modulation, continued**", Various. Tying up some loose ends.
+          * "**Introducing Full-Screen IFLI Mode With a SuperCPU**", Todd Elliot. Making those first three columns with FLI available.
+          * "**VIC-20 Kernal Disassembly Project, Part IV**", Richard Cini. Making sense out of the tape drive code.
+          * "**The Art of the Minigame**", various. Six articles discussing and disassembling some nifty minigames:
+                * Codebreaker, by David Holz
+                * TinyPlay, by S. Judd
+                * MagerTris, by Per Olofsson
+                * Compressing Tiny Programs, by S. Judd
+                * Tinyrinth, by Mark Seelye
+                * Tetrattack!, by S. Judd 

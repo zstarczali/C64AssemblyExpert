@@ -1,0 +1,6 @@
+# PAGE: base:fpp
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:fpp
+
+====== Flexible Pixel Position (FPP) ======
+
+FPP means the ability put every single pixel-line of graphics vertically on the screen independently of any other pixel-line. Where as with FPD the lines always keep the same order, with FPP you can turn your graphics upside down, display it tripple times, stretch it or whatever. FPP can be obtained in a few different graphic modes, as seen in [[base:introduction_to_vertical_tweaks|Introduction to Vertical Tweaks]], so basically you choose one from what kind of graphics you have.

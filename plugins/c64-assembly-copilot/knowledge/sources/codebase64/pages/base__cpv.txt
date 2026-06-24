@@ -1,0 +1,20 @@
+# PAGE: base:cpv
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:cpv
+
+====== Cracking ======
+
+===== Tutorials =====
+
+  * [[All American BBS - finding the serial number]] - extracted from a Lemon post by tnt/beyond force
+  * [[Creating a simple game trainer - Helikopter JAGD]] - by CSixx/uS
+===== Relevant information elsewhere on the wiki =====
+
+There is also information on cracking in these places on the wiki:
+  * ...in the [[books:start#cracking|Books section]].
+  * ...in the [[cia:io_programming|I/O Programming]] section. See especially the section on tape loading and xfer.
+  * ... at the [[https://rittwage.com/floppy/dp.php?pg=home|Floppy Preservations Project]] 
+
+====== Viruses ======
+
+  * [[base:viruslist|List of viruses]] - Info collected by Groepaz/Hitmen
+

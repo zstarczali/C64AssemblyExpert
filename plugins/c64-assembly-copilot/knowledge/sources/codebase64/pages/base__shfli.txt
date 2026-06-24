@@ -1,0 +1,8 @@
+# PAGE: base:shfli
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:shfli
+
+====== SHFLI ======
+
+SHFLI is short for Super Hires Flexibel Line Interlace, and is as the name suggests a combination of [[base:sh|Super Hires]] and [[base:fli|FLI]]. Super Hires with two sprite-layers, thus resulting in 96 pixels width, and FLI in Hires mode, thus suffering from the visible gray FLI-bug. Due to memory limits, this mode was originally invented to fit into one video bank, thus the hight was limited to 168 pixels. It is however possible to switch videobank after 168 pixels to fill the whole 200 pixels screen.
+
+There is also a variation of SHFLI called SHFLI-XL (correct me if wrong), using only one layer of sprites. This mode offers a wider graphics area and used one sprite for covering the FLI-bug. Perhaps it deserves its own entry here, perhaps not :).

@@ -1,0 +1,92 @@
+# PAGE: base:exomizer_adding_decrunch_splash_screens_during_sfx_decrunch
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:exomizer_adding_decrunch_splash_screens_during_sfx_decrunch
+
+====== Exomizer - Adding PETSCII decrunch screens ======
+
+Sometimes when it comes to creating a new C64 production, you might want to have some fun and make decrunching less boring by displaying something on the screen, or maybe code some kind of fade out/fade in effect before decrunching. If you have Exomizer V3.1.1 or V3.1.2 there is an option that allows you to use this feature. Please bear in mind that this will expand the size of your crunched file by about 1-2 kilobytes, but it is a fun option to have for things like presentation/splash screens before running a program. You should never use custom character sets, sprites, bitmap graphics or crunch programs that use the screen RAM location ($0400+) when sfx decrunching, otherwise things will look rather messy. 
+
+The decrunch screens are usually made after using the Exomizer cruncher. These are normally external routines/subroutines before calling the main de-cruncher. 
+
+For this example/tutorial I will be using TND PETSCII logo by Shine and CETI 22 for the example. 
+
+=== Step 1 ===
+
+The first step is to use the Exomizer on your program. Please take a look at this shell command below as an example: (note that the -x command is optional, you can do whatever effect you like or just use -n for no effect).
+
+<code>exomizer.exe sfx $6580 ceti22.prg -o ceti22_crunched.prg -s "jsr highest_addr_out" 
+-x "dec $d020 inc $d020"</code>
+
+=== Step 2 ===
+
+Step 1 is complete, so the next part is to program the PETSCII displayer, and then assemble it using a cross-assembler. I have used KickAssembler for this example.
+
+<code>
+// Exomizer PETSCII decrunch master
+
+// Labels for memory area of the PETSCII logo (this can be custom)
+.label screenmem = PETSCII
+.label colourmem = PETSCII+$400
+
+// The C64's default colour and screen RAM location
+
+.label screenram = $0400 
+.label colourram = $d800
+
+.var bordercolour = 4 // Purple background
+.var backgroundcolour = 0 // Black background
+
+
+	// Import the crunched program
+
+	*=$0801 
+	.import c64 "ceti22_crunched.prg"
+
+	// Main routine after decruncher 
+
+	lda #bordercolour
+	sta $d020
+	lda #backgroundcolour
+	sta $d021
+	lda #$14 // Default char
+	sta $d018
+
+	// Draw the PETSCII logo by copying and 
+	// pasting the memory loaction to the
+	// screen and colour RAM.
+
+	ldx #$00
+drawpetscii:
+	lda screenmem,x
+	sta screenram,x
+	lda screenmem+$100,x
+	sta screenram+$100,x
+	lda screenmem+$200,x
+	sta screenram+$200,x
+	lda screenmem+$2e8,x
+	sta screenram+$2e8,x
+	lda colourmem,x
+	sta colourram,x 
+	lda colourmem+$100,x
+	sta colourram+$100,x
+	lda colourmem+$200,x
+	sta colourram+$200,x
+	lda colourmem+$2e8,x
+	sta colourram+$2e8,x
+	inx
+	bne drawpetscii
+	rts // Exit subroutine ... this will then
+	    // jump directly to the main decrunch
+            // routine in exomizer!
+	
+	// Import PETSCII logo (My version was manipulated
+	// using an Action Replay M/C monitor.)
+
+PETSCII:
+	.import c64 "decrunchlogo.prg"
+
+	// Finished.
+</code>
+
+After compiling with KickAssembler, the de-crunch logo looks something like this and if you have done it right i.e. setting the correct jump address to the game/demo/intro (or whatever) in Exomizer V3.1.1/3.1.2 and you can show off your PETSCII logos during de-crunching of programs. 
+
+{{:base:petscii_decrunch.png?400|}}

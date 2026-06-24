@@ -1,0 +1,84 @@
+# PAGE: base:sid_programming
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:sid_programming
+
+====== SID and Music Programming ======
+
+This is where you find programming examples as well as hardware information about the SID, the soundchip inside the C64. This section also contain information related to music programming on the c64, such as music file formats and other things like that.
+
+===== Playing readymade tunes =====
+This section exemplifies how to play a tune in your own demos/games. The tune itself is done elsewhere, in a editor like JCH/DMC/SDI etc, or coded directly in assembler.
+
+  * [[sid:simple_irq_music_player|Simple IRQ Music Player]] - A small IRQ music player, by Richard/TND
+  * [[Playing music $A000-$FFFF]] - A quick tip by Richard/TND
+  * [[Avoiding the $D000-$DFFF issue for playing music]] - Some quick tips by Conrad/Viruz 
+  * [[Playing music on PAL and NTSC]] - by FTC/HT
+  * [[very_short_sid_playroutine|Very short music play routine with fast forward function]] - by The Typhoon/FTS 2009
+
+===== Waveforms =====
+Detailed examinations of the waveforms.
+  * [[Triangle Waveform]] - by Asger Alstrup
+  * [[Noise Waveform]] - by Asger Alstrup
+
+===== Players and Editors =====
+This section deals with code to generate music. (Not just playback of readymade music.)
+
+  * [[256 bytes tune+player]] - Compo entry by FTC/HT for the Tiny SID compo #1.
+  * [[Microtracker V1.0]] - minimalistic Musicplayer using max 6 Rasterlines, by The Syndrom
+  * [[A SID Player Routine]] - pseudocode for a MIDI controlled SID player - by Linus Wallej (King Fisher/Triad).
+  * [[Building a music routine]] - aka "[[http://cadaver.homeftp.net/rants/music.htm|Rant 6]]" - tutorial by Cadaver
+  * [[Modplay 64]] - Simple Amiga Module player for the C64.
+  * [[Modplay 128]] - The C128 version of the above player.
+  * [[Element 114 Music editor]] - Element 114 music editor with sources.
+  * [[Macro Player]] - Macro Player for the C64 by Geir Tjelta. 64tass source code with music (Noisy Pillars tune by Jeroen Tel).
+  * [[magazines:chacking5#rob_hubbard_s_musicdisassembled_commented_and_explained|Rob Hubbard - Monty on the Run]] - A commented disassembly of a player by Rob Hubbard (from C=Hacking #5).
+  * [[Matt Gray - Driller]] - A rough disassembly of Matt Gray's classic Driller tune.
+  * [[Sound Fx Player]] - Play sound fx in your code, by Malcolm Bamber.
+  * [[Sound Fx Routine]] - Full source code on the sound effect routine made exclusively for the C64 conversion of "Prince of Persia", by Conrad/Samar.
+  * [[Fake music player]] - A debug music player that aids in creating code while considering a music you don't have already. By Karoshier / DaCapo
+  * [[Spectrometer]] - An example on how you can create a spectrometer by Trap/Bonzai.
+==== File format descriptions ===
+
+  * [[JCH 20.G4 Player File Format]] - Brief documentation of the JCH Editor file format, by FTC
+
+===== SID model detection =====
+Is it a 6581 (the old one) or a 8580 (the new one) SID in your machine?
+
+  * [[detecting sid type]] - from "mathematica" by Reflex (This is the old and not 100% reliable method)
+  * [[detecting sid type - safe method]] - by SounDemon, based on a tip from Dag Lem. (Won't work in VICE.)
+
+===== Frequency tables/calculation =====
+
+  * [[How to calculate your own SID frequency table]] - by FTC
+  * [[PAL frequency table]] - A4 = 440 Hz tuning table for PAL C64s.
+  * [[NTSC frequency table]] - A4 = 440 Hz tuning table for NTSC C64s.
+  * [[ACME-Macros for frequency table calculation]] - by St0fF/NPL^t0M
+===== Envelope manipulation =====
+  * [[Classic hard-restart and about ADSR in generally]] - by mixer with contributions from many
+  * [[A new kind of hard-restart]] - by shrydar with contributions from LFT
+
+===== Samples aka Digis =====
+
+  * [[NMI Sample Player]] - Simple universal Sampleplayer (using $d418) working on 6581 and 8580 by Groepaz/Hitmen
+  * [[Digis R Eazy]] - A tutorial from Domination #13 written by Decomp/Style
+  * [[Vicious Sid Demo Routine Explained]] - by SounDemon from Vandalism News #50
+  * [[https://livet.se/mahoney/c64-files/Musik_RunStop_Technical_Details_by_Pex_Mahoney_Tufvesson_v2.pdf|Musik RunStop Technical Details]] - Mahoneys 44.1kHz 8-bit digi method from [[https://csdb.dk/release/?id=129090|Musik Run/Stop]]
+
+  * [[magazines:chacking11#hi_tech_trickerysample_dither|Hi Tech Trickery: Sample Dither]] - by George Taylor (published in C=Hacking #11)
+  * [[magazines:chacking20#mods_and_digital_mixing|Mods and Digital Mixing]] - by Jolse Maginnis (published in C=Hacking #20)
+  * [[magazines:chacking20#the_c64_digi|The C64 Digi]] - by R. Harbron, L. Harsfalvi, and S. Judd (published in C=Hacking #20)
+  * [[magazines:chacking20addendum|Addendum to C=Hacking #20]] - Further notes on sample playback by L. Harsfalvi
+
+  * [[dtv_dma_sid_digi_player|C64 DTV DMA SID Digi Player]] - by Gábor Lénárt.
+
+===== Speech Synthesis ====
+  * [[Formant]] - a speech synthesis program for the C64 by [[http://www.radwar.com|Radwar Enterprises]] used in the Demo [[http://pouet.net/prod.php?which=30289|Lautschrift]]
+  * [[http://hitmen.c02.at/html/tools_sam.html|Disassembly]] of the famous speech synth.
+  * [[https://github.com/mixer-6581/sampy|Python port]] of the SAM speech synth.
+
+===== MIDI on the C64 ====
+
+  * [[ MIDI on the C64 ]] - A number of wiki pages on MIDI and C64 MIDI coding
+
+===== Hardware Issues =====
+
+   * [[Reduce noise]]

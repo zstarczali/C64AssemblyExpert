@@ -8,5 +8,6 @@
   "license": "UNLICENSED",
   "keywords": ["c64", "commodore-64", "6502", "6510", "assembly", "retro"],
   "category": "developer-tools",
-  "skills": "skills/"
+  "skills": "skills/",
+  "agents": "agents/"
 }

@@ -1,0 +1,309 @@
+# PAGE: base:creating_a_simple_game_trainer_-_helikopter_jagd
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:creating_a_simple_game_trainer_-_helikopter_jagd
+
+====== Helikopter Jagd Trainer Tutorial ======
+
+Using a version cracked by Flash Cracking Group (FCG).
+http://csdb.dk/release/?id=40760
+
+Trainer tutorial by CSixx/uS
+---------------
+
+Step 1:
+
+We will use a method suggested by iAN CooG on Lemon forums.
+Starting with the FCG version of the game from CSDB, launch the d64 in WinVice.
+Start the gameplay, and before you lose a life, enter the monitor (alt-m).
+Save the ram using the following commands: (do not type the > sign)
+
+<code>
+bank ram
+s "lives4" 0 2 ffff
+</code>
+
+Resume gameplay and lose a life. Re-enter the monitor and save the ram:
+
+<code>
+bank ram
+s "lives3" 0 2 ffff
+</code>
+
+Do this once more, lose a life then save the ram:
+
+<code>
+bank ram
+s "lives2" 0 2 ffff
+</code>
+
+Now we can generate some diff files, from a DOS command prompt type:
+
+<code>
+fc lives4 lives3 /b>diff1.txt
+</code>
+
+Then again for the second compare:
+
+<code>
+fc lives3 lives2 /b>diff2.txt
+</code>
+
+Now we have two files that show the changes to the c64 memory when lives are lost.
+
+At this point, to make it easier to parse, I wrote my own tool to compare the two files and only single out entries that increased or decreased incrementally. You can do this manually of course or you can download the tool here:
+
+{{ :base:c64diff.zip |c64diff}}
+
+Once you have the tool, press the load button on the left hand side and select the diff1.txt file we created. Then do the same in the right window and select diff2.txt.
+
+Once finished, press the search button.
+
+The bottom window will contain all the memory locations that changed by 1. We can look through the list and some possible addresses that match the number of lives we had and now have...
+
+In this case, the following one looks interesting:
+
+<code>
+000027e1: 03 02 01
+</code>
+
+Restart the game and we will put a watch point on that address in WinVice.
+Once the gameplay has started, enter the monitor and type the following:
+
+<code>
+watch store 27e1
+</code>
+
+This tells winvice to open the monitor when any code stores a value to 27e1. Close the monitor to resume the game and lose a life. The monitor will automatically open now and above the prompt you will see the address directly following a write to 27e1.
+
+It will look like this:
+
+<code>
+** Monitor 079 053
+(C:$1ff6) #1 (Watch-store) .C:1ff6   30 09      BMI $2001
+</code>
+
+Now, from the view menu, open the disassembly window. It should be highlighted blue on line 1FF6. Scroll up and lets look at the line just before it.
+
+<code>
+1FF3:  CE E1 27   DEC $27E1
+</code>
+
+We can see that this is DECrementing the address we are watching. To give unlimited lives, all we need to do now is to change the three opcodes that make up this DECrement instruction (CE E1 27) to the opcode for No-OPeration, meaning do nothing (EA).
+
+Some assembly code to do this is:
+<code>
+lda #$ea
+sta $1ff3
+sta $1ff4
+sta $1ff5
+</code>
+
+Now that we know what we need to do, and we have the code to do it, we need to get our changes into the program file. In order to do that we have to unpack the original file.
+
+The original cracker (Duke/FCG) has packed the file (multiple times), so we have to unpack it before we can make changes.
+
+I used Unp64 2.27 from here:
+http://csdb.dk/release/?id=110545
+
+You will also need c1541.exe from Winvice in your path, or copied to your working folder.
+
+We'll make a Windows batch file to handle the unpacking. Create a file called extract.bat and open it in notepad.
+
+In the batch file, the first thing we need to do is extract the prg file from the .d64 and save it to our working folder, so add this line to the bat file:
+
+<code>
+c1541 -attach disk.d64 8 -read "helikopter jagd" output.prg 
+</code>
+
+This will save the game to a file named output.prg. Now we can run this file through unp64 to unpack it. In this case, we need to run it through the unpacker a few times to unpack all the different levels of packing. The automated feature in unp64 (-c) to do this didnt work for me, so we will just do it manually. We keep unpacking until unp64 tells us its no longer packed.
+
+To save you the time, it takes four runs through. So add the following lines to your bat file:
+
+<code>
+unp64 -v -l -o output1.prg output.prg
+del output.prg
+unp64 -v -l -o output2.prg output1.prg
+del output1.prg
+unp64 -v -l -o output3.prg output2.prg
+del output2.prg
+unp64 -v -l -o output4.prg output3.prg
+del output3.prg
+pause
+</code>
+
+The pause at the end is so you can look and find the entry-point before the window closes. We will need this address.
+
+Once this is done, save and run the bat file.
+You should end up with only one file: output4.prg, this is the unpacked version.
+
+While the window is still open, look at the last unpacking entry:
+
+<code>
+ECA Compacker, unpacker=$0100
+ECA reloc active at $01da, from $d000-$efff to $e000-$ffff (use -l)
+Clean memory-end leftovers
+Entry point: $0811
+pass1, find unpacker: $0100
+Iterations 169811 cycles 673037
+pass2, return to mem: $c000
+Iterations 525343 cycles 2675443
+ECA: endmem adjusted from $efff to $ffff
+mem $d000-$dfff cleaned
+saved $0900-$fffe as output4.prg
+</code>
+
+The Entry-Point listed here is the entry to the depacker routine and not the one we want. The "return to mem" value is the entry-point we need. In this case $c000.
+
+Now open the output4.prg in winvice. It wont run properly yet, but thats ok, once its "running", enter the monitor and pull up the disassembly window from the view menu.
+
+Scroll to our entry-point location ($C000). You should see the following code.
+I've commented some important points:
+
+<code>
+.C:c000   A9 0E      LDA #$0E
+.C:c002   8D 20 D0   STA $D020		;change screen/bg color
+.C:c005   8D 21 D0   STA $D021
+.C:c008   A9 04      LDA #$04
+.C:c00a   8D 00 DD   STA $DD00
+.C:c00d   A9 18      LDA #$18
+.C:c00f   8D 18 D0   STA $D018
+.C:c012   A9 D8      LDA #$D8
+.C:c014   8D 16 D0   STA $D016
+.C:c017   A9 3B      LDA #$3B
+.C:c019   8D 11 D0   STA $D011
+.C:c01c   A2 00      LDX #$00
+.C:c01e   BD 00 C8   LDA $C800,X	;load title pic data
+.C:c021   9D 00 D8   STA $D800,X
+.C:c024   BD 00 C9   LDA $C900,X
+.C:c027   9D 00 D9   STA $D900,X
+.C:c02a   BD 00 CA   LDA $CA00,X
+.C:c02d   9D 00 DA   STA $DA00,X
+.C:c030   BD 00 CB   LDA $CB00,X
+.C:c033   9D 00 DB   STA $DB00,X
+.C:c036   E8         INX
+.C:c037   E0 00      CPX #$00
+.C:c039   D0 E3      BNE $C01E
+.C:c03b   20 9F FF   JSR $FF9F
+.C:c03e   20 E4 FF   JSR $FFE4		;wait for keypress
+.C:c041   C9 20      CMP #$20		;check if space bar pressed
+.C:c043   D0 F6      BNE $C03B		;loop wait for keypress
+.C:c045   A9 97      LDA #$97		;space was pressed, continue
+.C:c047   8D 00 DD   STA $DD00
+.C:c04a   A9 15      LDA #$15
+.C:c04c   8D 18 D0   STA $D018
+.C:c04f   A9 C8      LDA #$C8
+.C:c051   8D 16 D0   STA $D016
+.C:c054   A9 1B      LDA #$1B
+.C:c056   8D 11 D0   STA $D011
+.C:c059   20 44 E5   JSR $E544
+.C:c05c   A2 00      LDX #$00
+.C:c05e   BD 7B C0   LDA $C07B,X
+.C:c061   9D E6 05   STA $05E6,X
+.C:c064   E8         INX
+.C:c065   E0 1A      CPX #$1A		;doing some stuff we dont care about
+.C:c067   D0 F5      BNE $C05E
+.C:c069   A9 0E      LDA #$0E
+.C:c06b   20 D2 FF   JSR $FFD2
+.C:c06e   A2 00      LDX #$00
+.C:c070   A9 00      LDA #$00
+.C:c072   9D E0 D9   STA $D9E0,X
+.C:c075   E8         INX
+.C:c076   D0 F8      BNE $C070
+.C:c078   4C 95 C0   JMP $C095
+.C:c07b   50 41      BVC $C0BE
+.C:c081   20 42 59   JSR $5942
+.C:c084   20 44 55   JSR $5544
+.C:c087   4B 45      ASR #$45
+.C:c089   20 4F 46   JSR $464F
+.C:c08c   20 46 43   JSR $4346
+.C:c08f   47 20      SRE $20
+.C:c091   31 39      AND ($39),Y
+.C:c093   34 31      NOOP $31,X
+.C:c095   A9 60      LDA #$60
+.C:c097   85 AE      STA $AE
+.C:c099   A9 72      LDA #$72
+.C:c09b   85 AF      STA $AF
+.C:c09d   4C 00 10   JMP $1000		;and finally, jump to start of game
+</code>
+
+We can see following this last address, there is alot of BRK lines... This is empty space we can use for our trainer intro if we write one (a job for another tutorial).
+
+Now we can insert our code to NOP out the DECrement line we covered earlier.
+Close the disassembly window, and leave the monitor open.
+
+We will replace the JMP $1000 line with our code to modify the DEC instruction.
+
+To start entering assembly code at c09d, where the JMP $1000 instruction is, type the following into the monitor:
+
+<code>
+a c09d
+</code>
+
+It is then ready for you to enter your assembly, type the following hitting enter after each line:
+
+<code>
+lda #$ea
+sta $1ff3
+sta $1ff4
+sta $1ff5
+jmp $1000
+</code>
+
+When finished, hit enter on an empty line to exit assembly mode.
+We have now edited the DEC instruction before jumping to $1000.
+You can now type:
+
+<code>
+d c081 
+</code>
+
+to see your modified code. (or use the disassembly window) Now we will take note of our new hex values and make the changes to the "output4.prg" file with a hex editor.
+
+You should be looking at the following code:
+
+<code>
+.C:c097   85 AE      STA $AE
+.C:c099   A9 72      LDA #$72
+.C:c09b   85 AF      STA $AF
+.C:c09d   A9 EA      LDA #$EA	;our changes start here
+.C:c09f   8D F3 1F   STA $1FF3
+.C:c0a2   8D F4 1F   STA $1FF4
+.C:c0a5   8D F5 1F   STA $1FF5
+.C:c0a8   4C 00 10   JMP $1000
+</code>
+
+Take note of the hex values of the three lines before our changed code. We will use this to find the correct place in the hex editor to put our new code. The hex for these three lines is:
+
+<code>
+85 AE A9 72 85 AF
+</code>
+
+Open output4.prg in any hex editor and search for those hex values. Once found, simply overwrite the bytes that follow it with your new bytes:
+
+<code>
+A9 EA 8D F3 1F 8D F4 1F 8D F5 1F 4C 00 10
+</code>
+
+You should now see this in your hex editor:
+
+<code>
+85 AE A9 72 85 AF A9 EA 8D F3 1F 8D F4 1F 8D F5 1F 4C 00 10
+</code>
+
+Save the changes to the file and we are ready to repack it and test it!
+
+We'll use exomizer to pack the file, so from a command prompt type:
+
+<code>
+exomizer sfx $c000 -x 1 output4.prg -o final.prg
+</code>
+
+The $c000 tells exomizer where to start the program from after unpacking, this is the entry point we determined earlier. Once this is done, you will have a file called final.prg.
+
+Open it up in WinVice and you will have unlimited lives...
+
+Ideally, instead of just patching the bytes and jumping to $1000 like we've done you would code a small intro asking whether the user wanted unlimited lives and patch accordingly. Then append the intro to the same location we started our changes above. This process is left to the reader :)
+
+I hope you find this useful. (and I hope I didnt make any mistakes).
+
+-CSixx
+uppercase SOFTWARE

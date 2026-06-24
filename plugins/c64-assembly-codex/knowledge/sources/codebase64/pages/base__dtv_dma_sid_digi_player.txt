@@ -1,0 +1,284 @@
+# PAGE: base:dtv_dma_sid_digi_player
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:dtv_dma_sid_digi_player
+
+====== DTV DMA SID digi player experiment ======
+
+This is my little experiment (and my first try to do anything with the DTV) to play digi on the DTV without using the CPU. 
+
+===== The idea itself =====
+
+This text was originally published [[http://cubed-borka.blogspot.com/2011/02/audio-sample-playback-on-c64dtv-without.html|here]]
+.
+
+DTV makes it easy to play digital sample back, since DtvSID has the "waveform accumlator" register ($D41E). It's interesting to note, that recently even on a plain C64 someone can play 8 bit samples. However my tries now are about using the DTV with freeing the CPU from doing the thing (surely, it's impossible on C64). If you ever programmed a sound card on PC, you know that it's quite comfortable that you can use the DMA capability of the sound card, so you don't need to this with keeping attention with all of your CPU on the process ... Since DTV has DMA, I was curious if I can do this there. And yes, I can.
+
+Let's say I store sample in flash. I have to program DMA to read bytes from the flash and write them into register $D41E. Since it's possible to give zero as the destination step, it's not so complicated to find the solution to write samples one by one to the very same destination byte all the time. Cool. However one problem remains: DMA is "too fast", it would be quite extreme sampling rate if you try this. Fortunately, DTV's DMA can help, again. It has the "modulo" capability which was designed to copy for example rectangular screen areas: copying X bytes, then add Y to the source (or destination), and so on. My solution is setting up the source step to zero, and line length to a value which is needed to have the same sample byte before using the next one. Playback sample rate is set up with giving the right "line length" value for the DMA. Modulo is set to one. So, after repeating the same byte, DMA will copy the next byte. The last thing in the game is to set up the "end DMA" IRQ. In the IRQ handler I simply program the DMA to continue (source continue on) the transfer. It's needed, since DMA can't do move more data than 64k.
+
+As you can see, audio playback is done by the DMA, and IRQ is involved the eliminate the maximal DMA transfer size, where IRQ is triggered by the end of DMA transfer. This way, you are free to do anything with the CPU, while you have audio playback in the background. I think one issue can remain though: issuing the IRQ and reprogramming the DMA (actually it's just two LDA/STA opcodes, but still, accepting the IRQ needs some cycles) causes to have audible problems during the playback.
+
+One thing: "speed of the DMA" have to be stable, which is not the case if other system components steal some cycles. So you should not use blitter meanwhile, also you should avoid VIC's color- and sprite data fetches (it sounds quite odd, otherwise). I have experienced this, simply switch off VIC (or disabling color fetches) worked the problem around. It's not so fun, to have switched of VIC, since the main advantage would be having "free to do anything" feeling during the playback. However you can use video modes where there is no color fetch. It seems, 320*200 256 color mode is great for it, also I can show nice images during the playback :) Also, you can try to disable "bad line emulation".
+
+===== Source code =====
+
+Here is some working code, hopefully it will be useful:
+
+<code>
+; (C)2011 Gábor Lénárt lgb-at-lgb-dot-hu
+;
+; Technical demonstration:
+;	playing audio digi on DTV without using CPU
+;	tested only in VICE 2.2 ...
+;
+; Note: it's my first try to do anything with DTV, so please
+; be patient :) Also, this is more like an "experiment" than a 
+; ready-to-use solution.
+; Can be assembled with ca65 (assembler of the cc65 suite: www.cc65.org)
+; You can find some useful (?) comments throughout the source.
+;
+; Do whatever you want with this source (other than claiming you are
+; the author), but if you find it (the source or the idea) useful
+; and/or interesting, please remember that it's always nice to give a
+; credit in your work ...
+
+.ORG $7FF
+.WORD basic_stub_start
+basic_stub_start:
+	.WORD @next_line
+	.WORD 2010
+	.BYTE $9E
+	.BYTE .LOBYTE(main/1000+'0')
+	.BYTE .LOBYTE(main/100 .MOD 10+'0')
+	.BYTE .LOBYTE(main/10 .MOD 10+'0')
+	.BYTE .LOBYTE(main .MOD 10+'0')
+	.BYTE $20,":",$8F,$14, $14, $14, $14
+	.BYTE "LGB",0
+@next_line:
+	.WORD 0
+
+
+DMA_LENGTH			= 0  ; 0 means 64K
+.IF DMA_LENGTH = 0
+DMA_LENGTH_REAL = $10000
+.ELSE
+DMA_LENGTH_REAL = DMA_LENGTH
+.ENDIF
+DMA_MODULO			= 1
+; DMA_LINE_LENGTH is for "slowing down" the DMA, it affects the playback
+; rate: bigger value causes lower playback frequency
+DMA_LINE_LENGTH			= 20
+; Number of bytes to play from flash
+; (Note: this is not very accurate, since NUM_OF_DMA_RUNS is integer:
+; this is also a point where you can see, this is more like an experiment
+; than a more serious solution)
+AUDIO_CLIP_BYTES		= 1048576
+NUM_OF_DMA_RUNS			= (AUDIO_CLIP_BYTES*DMA_LINE_LENGTH)/DMA_LENGTH_REAL
+; Starting address of sample data inside flash
+FLASH_AUDIO_START_LO_WORD	= $100+64000
+FLASH_AUDIO_START_HI_BYTE	= $1
+DMA_START_COMMAND_W_IRQ		= %10001101 
+DMA_START_COMMAND_WO_IRQ	= %00001101
+TARGET_REG			= $D41E
+; Some picture to show: address in flash
+FLASH_PICTURE_START_LO_WORD	= $100
+FLASH_PICTURE_START_HI_BYTE	= 1
+
+; Using tables made easy for me to play with the DMA
+
+dma_regs_for_playback:
+	.WORD FLASH_AUDIO_START_LO_WORD ; source lo&middle address
+	.BYTE FLASH_AUDIO_START_HI_BYTE  ; source high address+target memory(ROM)
+	.WORD TARGET_REG ; destination lo&middle address (DtvSID waveform accu)
+	.BYTE 128  ; destination high address+target memory(RAM+I/O regs)
+	.WORD 0 ; source step (zero, with line length/modulo, we "slow down" DMA)
+	.WORD 0 ; destination step (zero: we want to write DtvSID's $D41E only, all the time)
+	.WORD DMA_LENGTH  ; DMA length
+	.WORD DMA_MODULO  ; source modulo
+	.WORD 0  ; destination modulo
+	.WORD DMA_LINE_LENGTH  ; source line length
+	.WORD 0  ; destination line length
+	.BYTE 0,0,0,0,0,0,0,0,0 ; unused ...
+	.BYTE 1 ; clear IRQ
+	.BYTE 1   ; enable source modulo
+	.BYTE DMA_START_COMMAND_W_IRQ ; start DMA!
+
+dma_regs_for_screen_copy:
+	.WORD FLASH_PICTURE_START_LO_WORD
+	.BYTE FLASH_PICTURE_START_HI_BYTE
+	; destination will be the second 64K of the RAM
+	.WORD 0
+	.BYTE 64+1 ; destination high byte + target is RAM
+	.WORD 1 ; source step
+	.WORD 1 ; target step
+	.WORD 64000 ; DMA length
+	.WORD 0 ; source module
+	.WORD 0 ; dest modulo
+	.WORD 0 ; source line length
+	.WORD 0 ; dest line length
+	.BYTE 0,0,0,0,0,0,0,0,0 ; unused ...
+	.BYTE 1 ; clear IRQ
+	.BYTE 0 ; no modulo is used
+	.BYTE DMA_START_COMMAND_WO_IRQ
+
+; Program DMA with register data stored in memory
+; A/Y=address of DMA register table ($20 bytes)
+dma_start:
+	STA 2
+	STY 3
+        LDA #1		; wait for the end of possible already issued DMA
+@wait_dma:
+        BIT $D31F
+        BNE @wait_dma
+	TAY
+        DEY
+@dma_init_loop:
+        LDA (2),Y
+	STA $D300,Y
+	INY
+	CPY #$20
+	BNE @dma_init_loop
+	RTS
+
+
+
+main:
+	; disable interrupts
+	SEI
+	; extended DTV I/O registers to be enabled & disable interrupt sources
+	LDX #1
+	STX $D03F	; we want access for extended DTV regs
+	DEX
+	STX $D01A       ; VIC interrupt control
+	LDA #%01111111
+	STA $DC0D	; CIA-1 interrupt control (IRQ)
+	STA $DD0D	; CIA-2 interrupt control (NMI)
+
+	;; some DTV power ... (not so much needed here, but still)
+	;.BYTE $32,$99
+        ;ORA #%11
+        ;.BYTE $32,$0
+
+	; switch to all RAM+I/O
+	LDA #%00110101
+	STA 1
+
+	; install our IRQ handler
+	LDA #<irq_handler
+	STA $FFFE
+	LDA #>irq_handler
+	STA $FFFF
+
+	; clear SID registers to be safe ...
+	LDA #0
+	LDX #$1F
+@sid_clear_loop:
+	STA $D400,X
+	DEX
+	BPL @sid_clear_loop
+
+	; Initialize some SID registers for the player
+	LDA #$F0 
+	STA $D406
+	LDA #$21 
+	STA $D404
+	LDA #$0F
+	STA $D418
+
+	; DTV-VIC 320*200/8bpp chunky mode setup
+	; please *DO* read my comment at the loop (color fetch, etc)
+	LDA #%01110101
+	STA $D03C
+	LDA #%01011011
+	STA $D011
+	LDA #%00011000
+	STA $D016
+	LDY #1
+	STY $D04B
+	DEY
+	STY $D020
+	STY $D021
+        STY $D047
+        STY $D048
+        STY $D049
+        STY $D04A
+	LDA #8
+	STA $D04C
+@pal_init_loop:
+	TYA
+	STA $D200,Y
+	INY
+	CPY #$10
+	BNE @pal_init_loop
+
+	; DMA to copy the screen
+	LDA #<dma_regs_for_screen_copy
+	LDY #>dma_regs_for_screen_copy
+	JSR dma_start
+
+start_playback:
+
+	; initialize DMA for playback, and enable interrupts as well
+	LDA #.LOBYTE(NUM_OF_DMA_RUNS)
+	STA 4
+	LDA #.HIBYTE(NUM_OF_DMA_RUNS)
+	STA 5
+	LDA #0
+	STA 6
+	LDA #<dma_regs_for_playback
+	LDY #>dma_regs_for_playback
+	JSR dma_start
+	CLI
+
+	; The loop (we just do "something" here, while we are happy
+	; because hardware does the playback without the CPU's help)
+	; (since playing is done by DMA and some IRQ is used
+	; it's totally OK to whatever you want during the playback)
+	; In my case, I don't do too much with the CPU though :)
+	;
+	; !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	; NOTE: using Blitter, using VIC mode which involves color-fetch
+	; or sprite data fetch cause a very "odd" playback, since
+	; the speed of DMA is not constant, if other cycles need to be
+	; "stolen" for other purposes ... 320*200 8bpp chunky mode does
+	; not use color fetch, so it should be OK ... Other possibility:
+	; try to disable "bad line emulation" ...
+@wait_for_end_of_the_show:
+	; just copy waveform accu's content to the screen border color reg
+	; of course, much more interesting thing can be done here ...
+	LDA $D41E
+	STA $D020
+	LDA 6 ; IRQ handler sets this ZP loc to non-zero when playing is done
+	BEQ @wait_for_end_of_the_show
+
+	SEI
+	JMP start_playback
+
+
+
+irq_handler:
+	PHA
+	; clear IRQ+source continue mode
+	LDA #%11
+	STA $D31D
+	; counting down
+	DEC 4
+	LDA 4
+	CMP #$FF
+	BNE @no_hib_dec
+	DEC 5
+	BMI @counter_expired
+@no_hib_dec:
+	; start another DMA
+	LDA #DMA_START_COMMAND_W_IRQ
+        STA $D31F
+	; return from IRQ handler
+	PLA
+	RTI
+	; counter expired, no more playback, set the "flag" to "done"
+@counter_expired:
+	; ZP location 6 is $FF when end of playing
+	LDA #$FF
+	STA 6
+	; return from IRQ handler
+	PLA
+	RTI
+</code>

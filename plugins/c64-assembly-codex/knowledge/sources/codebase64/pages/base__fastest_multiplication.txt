@@ -1,0 +1,224 @@
+# PAGE: base:fastest_multiplication
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:fastest_multiplication
+
+====== Fastest 16x16 unsigned multiplication ======
+
+By Repose
+
+Requires tables or a generator routine such as [[table_generator_routine_for_fast_8_bit_mul_table]]
+
+Jack Asser's: 238.1 cycles  ref: [[seriously_fast_multiplication]] \\
+Chris Jam's: 204.5*  ref: http://csdb.dk/forums/?roomid=11&topicid=91766 \\
+Mine: 198.6 zp variation: 194.6 \\
+Times above need to add 6 for rts \\
+Note: updated 2023; corrected code, typos and timings \\
+*Timing approximate for external code \\
+This is the winner out of 120 published algorithms as independently tested here:
+https://github.com/TobyLobster/multiply_test \\
+Note: I have a new version which is 188.1 cycles, excepting the RTS. \\
+
+<code>
+;World's fastest 16x16 unsigned mult for 6502
+;you can go faster, but not without more code and/or data
+;and being less elegant and harder to follow.
+;by Repose 2017
+;table generator by Graham
+;addition improvement suggested by JackAsser
+
+;data: 2044 bytes
+;zero page ram required: minimum 8 bytes, ideally 14
+;do_add: 30 bytes in zp, if used
+;time: 198.6 cycles, option for 194.6 if you use 30 more zp bytes for do_add
+;measurement method: average timings over all input combinations
+
+;How to use:
+;put numbers in x/y and result is Y reg (z3), A reg (z2), z1, z0
+
+;tables of squares
+;sqr(x)=x^2/4
+;negsqr(x)=(255-x)^2/4
+sqrlo=$c100;511 bytes
+sqrhi=$c300;511 bytes
+negsqrlo=$c500;511 bytes
+negsqrhi=$c700;511 bytes
+
+;pointers to square tables above
+p_sqr_lo=$8b;2 bytes
+p_sqr_hi=$8d;2 bytes
+p_invsqr_lo=$8f;2 bytes
+p_invsqr_hi=$91;2 bytes
+
+;the inputs and outputs
+x0=$fb;multiplier, 2 bytes
+x1=$fc
+y0=$fd;multiplicand, 2 bytes
+y1=$fe
+z0=$80;product, 2 bytes
+z1=$81
+z2=$82 ;returned in A reg
+z3=$83 ;returned in Y reg
+
+;Example showing use
+*=$c000
+lda #$ff
+sta x0
+sta x1
+sta y0
+sta y1
+jsr makesqrtables
+jsr umult16
+sta z2
+sty z3
+rts
+;result should be $fffe0001, e.g. as viewed with a typical m 0080 monitor command:
+;0080 01 00 fe ff
+
+makesqrtables:
+;init zp square tables pointers
+lda #>sqrlo
+sta p_sqr_lo+1
+lda #>sqrhi
+sta p_sqr_hi+1
+lda #>negsqrlo
+sta p_invsqr_lo+1
+lda #>negsqrhi
+sta p_invsqr_hi+1
+
+;generate sqr(x)=x^2/4
+      ldx #$00
+      txa
+      !by $c9   ; CMP #immediate - skip TYA and clear carry flag
+lb1:  tya
+      adc #$00
+ml1:  sta sqrhi,x
+      tay
+      cmp #$40
+      txa
+      ror
+ml9:  adc #$00
+      sta ml9+1
+      inx
+ml0:  sta sqrlo,x
+      bne lb1
+      inc ml0+2
+      inc ml1+2
+      clc
+      iny
+      bne lb1
+
+;generate negsqr(x)=(255-x)^2/4
+      ldx #$00
+      ldy #$ff
+mt1:
+      lda sqrhi+1,x
+      sta negsqrhi+$100,x
+      lda sqrhi,x
+      sta negsqrhi,y
+      lda sqrlo+1,x
+      sta negsqrlo+$100,x
+      lda sqrlo,x
+      sta negsqrlo,y
+      dey
+      inx
+      bne mt1
+      rts
+
+umult16:
+;set multiplier as x0
+lda x0
+sta p_sqr_lo
+sta p_sqr_hi
+eor #$ff
+sta p_invsqr_lo
+sta p_invsqr_hi;17
+
+sec
+ldy y0
+lda (p_sqr_lo),y
+sbc (p_invsqr_lo),y;note these two lines taken as 10.996 total or 10+65280/65536
+sta z0;x0*y0l
+lda (p_sqr_hi),y
+sbc (p_invsqr_hi),y
+sta c1a+1;x0*y0h; 2+3+10.996+3+10.996+4=33.992
+;c1a means column 1, row a (partial product to be added later)
+
+ldy y1
+;sec  ;notice that the high byte of subtraction above is always positive, leaving Carry set
+lda (p_sqr_lo),y
+sbc (p_invsqr_lo),y
+sta c1b+1;x0*y1l
+lda (p_sqr_hi),y
+sbc (p_invsqr_hi),y
+sta c2a+1;x0*y1h; 3+10.996+4+10.996+4=32.992
+
+;set multiplier as x1
+lda x1
+sta p_sqr_lo
+sta p_sqr_hi
+eor #$ff
+sta p_invsqr_lo
+sta p_invsqr_hi;17
+
+ldy y0
+;sec
+lda (p_sqr_lo),y
+sbc (p_invsqr_lo),y
+sta c1c+1;x1*y0l
+lda (p_sqr_hi),y
+sbc (p_invsqr_hi),y
+sta c2b+1;x1*y0h;32.992
+
+ldy y1
+;sec
+lda (p_sqr_lo),y
+sbc (p_invsqr_lo),y
+sta c2c+1;x1*y1l
+lda (p_sqr_hi),y
+sbc (p_invsqr_hi),y
+tay;Y=x1*y1h, 30.992 cycles
+;17+34+33+17+33+31=164.97 cycles for main multiply part (minimum=157, maximum=173)
+
+;jmp do_adds; can put do_adds in zp for a slight speed increase
+do_adds:
+;-add the first two numbers of column 1
+	clc
+c1a:	lda #0
+c1b:	adc #0
+	sta z1;9
+
+;-continue to first two numbers of column 2
+c2a:	lda #0
+c2b:	adc #0
+	tax
+	bcc c1c;9
+	iny;z3++
+	clc;(+3) taken 7% of the time, 3*.07=+.21
+
+;-add last number of column 1
+c1c:	lda #0
+	adc z1
+	sta z1;8
+
+;-add last number of column 2
+	txa
+c2c:	adc #0
+	;A=z2
+	bcc fin;7
+	iny;(+1) taken 42% of the time, 1*.42=.42
+
+;Y=z3, A=z2
+;add partials part total cycles=33.63 (minimum=33, maximum=37)
+;total time=164.97+33.63=198.6
+fin:	rts;add 6 to include this (204.6)
+
+Diagram of the additions
+                y1    y0
+             x  x1    x0
+                --------
+             x0y0h x0y0l
++      x0y1h x0y1l
++      x1y0h x1y0l
++x1y1h x1y1l
+------------------------
+    z3    z2    z1    z0     
+</code>

@@ -1,0 +1,21 @@
+# PAGE: base:runbasicprg
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:runbasicprg
+
+====== Running a Basic program from Assembler ======
+
+Sometimes it is neccessary to run a Basic program from assembler code. To do this, it's a good idea to do a full [[base:kernalbasicinit|Kernal/Basic initialization]] before.
+
+<code>
+PRGEND = $1234    ; end of the Basic program
+
+    LDA #<PRGEND
+    STA $2D
+    STA $AE
+    LDA #>PRGEND
+    STA $2E
+    STA $AF
+
+    JSR $A659    ; Reset execute pointer and do CLR
+    JSR $A533    ; Rechain Lines
+    JMP $A7AE    ; Basic Warm Start
+</code>

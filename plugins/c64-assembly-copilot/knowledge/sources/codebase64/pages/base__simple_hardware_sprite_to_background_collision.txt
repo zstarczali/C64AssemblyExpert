@@ -1,0 +1,19 @@
+# PAGE: base:simple_hardware_sprite_to_background_collision
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:simple_hardware_sprite_to_background_collision
+
+=== Simple Hardware Sprite to Background collision ===
+
+Using $D01E causes a simple hardware sprite/sprite collision detection, but some games I wrote i.e. Bomb Chase, Balloonacy and Balloonacy 2 all used hardware sprite/sprite collision, which uses $D01F only for the player's sprite.  Here is how the code worked.
+
+<code>
+       lda $d01f
+       lsr a ;Sprite 0 crash into background
+       bcs dead
+       rts
+dead   jmp kill_sprite
+</code>
+
+However, if you want this to work on the next sprite, just add another 'lsr' command, etc. 
+
+
+

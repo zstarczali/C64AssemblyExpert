@@ -1,0 +1,45 @@
+# PAGE: base:bomb_chase_2009
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:bomb_chase_2009
+
+== Bomb Chase 2009 ==
+
+This was a more enhanced version of the original Bomb Chase, that I written back at the start of 2009. This version of the game featured invincibility and some enhanced special effects for the game. You are able to download the binaries [[http://tnd64.unikat.sk/source/source/bchase.zip|here]] to get you started, but you will also need the ACME cross assembler. This page will not show all the source code, because if you download it from the link above it is there.
+
+Just a quick thing for you. The assembly source is split into different files which are as follows.
+
+  * BCHASE.ASM - Main game and binary linking source code (This is the source file to assemble from)
+  * TITLE.ASM - Game's front end source code
+  * OPTIONS.ASM - Game's option screen/menu source code
+  * HI.ASM - High score table source code
+  * END.ASM - The game's end screen source code
+
+Also the binaries included are as follows:
+
+  * newsfx09.prg - Sound effects data
+  * bubbles.spr  - Bubble sprites (Changed to stars)
+  * sprx.prg     - Game sprites
+  * hiscores.prg - Game high scores data #1 (I think)
+  * nameentry.prg - Game high scores data #2 (I think)
+  * bitmap.prg - Front end logo's bitmap screen
+  * vidram.prg - Front end logo's video memory
+  * colram.prg - Front end logo's color ram
+  * music.prg - Actual music for the game
+  * lastlib.prg - Level data, created using the Multi Screen Construction Kit
+
+
+
+To assemble, use the following command:
+
+acme -v3 bchase.a 
+
+Then crunch the assembled file down with Exomizer or PuCrunch.
+
+EXOMIZER:
+exomizer sfx $3a00 bomb.prg -o bombchase.prg -n
+
+or
+
+PUCRUNCH:
+pucrunch bomb.prg -s bombchase.prg -x $3a00
+
+Please note: This source code is free for anyone to use and improve. So if you want to make this game even better (Maybe you don't want to really) then don't be afraid to update the source code, etc. 

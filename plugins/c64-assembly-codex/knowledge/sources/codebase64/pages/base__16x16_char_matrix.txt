@@ -1,0 +1,100 @@
+# PAGE: base:16x16_char_matrix
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:16x16_char_matrix
+
+====== Basics ======
+
+The VIC has the ability to display not only the charsets build into the rom, 
+but also custom made ones. 
+For each character 8 bytes are reserved so they represent 8x8 pixels.
+The Petscii Character '@' uses the first 8 bytes,
+the 'a' the second 8 bytes etc.
+
+====== What is it about ======
+
+Contrary to the bitmap mode these 8x8 pixel blocks can be freely positioned
+on the screen. Advantageously the blocks can be ordered in a way so that
+the y coordinate equals the byte offset in the charset.
+Character '@' represents the y coordinates 0-7, character 'a' the 
+coordinated 8-15 etc. 
+
+==== A 16x16 matrix looks like this ====
+
+{{base:16x16_char_display_small.jpg|}}
+
+==== Stupid effect using 16x16 character mode ====
+
+{{base:16x16stupideffect.jpg|}}
+
+====== Extentions ======
+
+If you code an effect with rotation, for example a vector,
+then in a 16x16 square the edge chars are often not used at all.
+If so, it is better to order the chars in a circular grid like this:
+
+{{:base:circular-chars.png|}}
+
+This has the advantage of covering a bigger area.
+
+====== Code ======
+
+===== Code for generating 16x16 rectangular grid =====
+This code uses the ca65 assembler.
+
+<code>
+ichar  
+       ldx #0
+initic 
+       txa
+       ldy #0
+i2
+       sta scrn,y
+       clc
+       adc #icharhigh
+       iny
+       cpy #icharwidth
+       bne i2
+
+       lda i2+1
+       clc
+       adc #scrwidth
+       sta i2+1
+       bcc *+5
+       inc i2+2
+
+
+       inx
+       cpx #icharhigh
+       bne initic
+       rts
+</code>
+
+===== Code for plotting a pixel to the 16x16 grid =====
+
+The coordinates are passed in the X and Y registers.
+
+<code>
+plotpixel   lda #<charset
+            sta $fb
+
+            ; ptr = (x / 8) * 128
+            txa
+            lsr                     ; x / 8
+            lsr
+            lsr
+
+            lsr                     ; * 128 (16-bit)
+            ror $fb
+            adc #>charset
+            sta $fc
+
+            ; mask = 2 ^ (x & 3)
+            txa
+            and #%00000111
+            tax
+            lda ($fb),y
+            ora bitmask,x
+            sta ($fb),y
+            rts
+
+bitmask     .byte $80,$40,$20,$10,$08,$04,$02,$01
+</code>

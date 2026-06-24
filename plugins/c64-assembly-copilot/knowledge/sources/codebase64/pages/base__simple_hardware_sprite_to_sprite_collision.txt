@@ -1,0 +1,21 @@
+# PAGE: base:simple_hardware_sprite_to_sprite_collision
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:simple_hardware_sprite_to_sprite_collision
+
+==== Sprite/Sprite hardware collision ====
+
+One of the most easiest methods to make the player sprite collide into sprite 2 or higher is by using a simple hardware collision. This is triggered by using $D01E. Unfortunately with most games these days, $D01E is very useless, therefore a software collision is used. Anyway, if you wish to use a sprite/sprite collision using hardware pokes, then here is how it works.
+
+<code>  
+          LDA $D01E ;Read hardware sprite/sprite collision
+          LSR       ; (LSR A for TASM users) Collision for sprite 1
+          BCC HIT
+          RTS       ;No collision
+HIT       INC $D020
+          JMP HIT
+</code>
+
+
+This source above shows that if the very first sprite hits any other sprite, the border will flash
+
+
+If you want the next sprite to read hardware collision to other sprites just add another LSR, etc. 

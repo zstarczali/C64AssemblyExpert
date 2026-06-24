@@ -1,0 +1,167 @@
+# PAGE: base:extract_row_from_tile_based_map
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:extract_row_from_tile_based_map
+
+====== Extract row from tile based map ======
+by Achim
+
+Example 4x4 tile:
+<code>aabb
+ccdd
+eeff
+gghh
+</code>					
+Tile data stored in memory: 
+<code>aabbccddeeffgghh</code>
+
+In order to read and plot the correct tile row for a vertical scrolling
+game, tileY has to be defined.
+<code>
+tileY: 00, ...    aabb
+       04, ...    ccdd
+       08, ...    eeff
+       0c, ...    gghh
+</code>
+
+Again a map pointer is needed (top-left) and mapX (=map width) for correct map data handling. 
+For a straight vertical scrolling game
+
+mapX = number of tiles left to right. In case of 4x4 tiles: mapX=#$0a, in case of 5x5 tiles mapX=#$08.
+
+
+Pseudo code for scrolling down (player moving up):
+
+<code>		
+		lda tileY
+		bne samemaprow		//top tile row done?
+			
+		lda map			//map - mapX
+		sec
+		sbc mapX
+		sta map
+		lda map+1
+		sbc #$00
+		sta map+1			
+		lda #$10		//tileY=0c
+samemaprow:	sec
+		sbc #$04
+		sta tileY		
+
+		lda map			//don't mess up map pointer...
+		sta maptmp
+		lda map+1
+		sta maptmp+1
+			
+		lda lo-bytescreentop
+		ldx hi-bytescreentop
+		jsr extractrow
+		...
+</code>
+
+Pseudo code for scrolling up (player moving down):
+
+<code>			
+		lda map			//using tmp again
+		sta maptmp
+		lda map+1
+		sta maptmp+1	
+
+		ldx numbertiles		//number of tiles top-bottom
+!:		lda maptmp		//calculate map row bottom
+		clc
+		adc mapX
+		sta maptmp			
+		lda maptmp+1
+		adc #$00
+		sta maptmp+1
+		dex
+		bpl !-
+						
+		lda lo-bytescreenbottom
+		ldx hi-bytescreenbottom
+		jsr extractrow
+			
+		lda tileY
+		cmp #$0c		//lowest tile row done?
+		bne !+
+		lda map			//map + mapX
+		clc
+		adc mapX
+		sta map
+		lda map+1
+		adc #$00
+		sta map+1
+		lda #$fc		//tileY=00
+!:		clc
+		adc #$04
+		sta tileY
+		...
+</code>
+Extracting a row is pretty simple...
+<code>
+/*--------------------------------------------------------------------------
+Extract row from tile data
+by A. Volkers, 2011
+
+a = lo-bytescreen
+x = hi-bytescreen
+
+->KickAssambler
+--------------------------------------------------------------------------*/
+.pc = $1000
+
+.const tilemem	= 	48	//hi-byte tile data: $3000
+
+.var tileY	=	$02	//row 00, 04, 08, 0c
+.var map	= 	$03	//16bit address for main program
+.var mapX	=	$04	//map width
+.var tiledata	=	$fc	//16bit address tile
+.var maptmp	=	$fe	//16bit tmp for mappointer
+
+
+
+extractrow:	sta plotrow+1		//prepare selfmod
+		clc
+		adc #$28
+		sta check+1		
+		stx plotrow+2		
+				
+extract:	ldy #$00
+		lda (maptmp),y		//calculate tile data address
+		and #$0f		//use tables for 5x5 tiles instead			
+		asl
+		asl
+		asl
+		asl
+		sta tiledata		//lo-byte
+		lda (maptmp),y
+		and #$f0
+		lsr
+		lsr
+		lsr
+		lsr
+		clc
+                adc #tilemem		//hi-byte
+		sta tiledata+1		
+				
+		ldy tileY		//get actual tile row
+		ldx #$03		//#$04 for 5x5 tiles
+readtile:	lda (tiledata),y	//read actual tile data
+plotrow:	sta $ffff		//selfmod for screen position	
+		inc plotrow+1
+		bne !+
+		inc plotrow+2
+!:		lda plotrow+1		
+check:		cmp #$28		//40 chars done?
+		beq exit
+		iny
+		dex
+		bpl readtile
+		inc maptmp		//next tile
+		bne !+
+		inc maptmp+1
+!:		clv
+		bvc extract		
+exit:		rts
+</code>
+
+Check out this program which uses the same routine. Hardscrolling only, no colour RAM shifting: {{:base:tile_row.zip|}}

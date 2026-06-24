@@ -1,0 +1,127 @@
+# PAGE: vic:demo_programming
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=vic:demo_programming
+
+====== Demo Coding ======
+ 
+This page is devoted specifically to demo effects and tutorials on how to make demos. More general graphics coding is instead covered in the [[:vic|General VIC programming page]].
+
+To provide an example: Opening the border is commonly made in demo parts, but simply opening the border does not constitute a demo effect in itself (at least not during the last 20 years). Therefore you would find that on the General VIC programming page instead.
+===== General Information and Tutorials =====
+
+  * [[vic:demo:demo_coding_introduction|An Introduction to Programming C-64 Demos]] - Puterman/FLT. Extensive and easy to read tutorial aimed at beginners.
+  * [[vic:demo:demo_world_records_and_world_firsts|Demo world records and world firsts]] - Who broke what record? Who invented effect X first? When? In what demo?
+  * [[https://www.atlantis-prophecy.org/recollection/?load=world_of_demos|World Firsts and Records]] @ Recollection
+
+
+====== Effects ======
+Many demo effects depend on precise timing. Therefore it might be useful to have a look on the [[base:interrupts|Interrupts and Timing]] page.
+
+
+===== Rasterbars =====
+The most classic demo effect, apart from scrolling text.
+
+  * [[magazines:chacking3#rasters_-_what_they_are_and_how_to_use_them|Rasters - what they are and how to use them (C=Hacking #3)]] - by Bruce Vrieling - (Note that there is a bug in the last example program that turns border black and white: the high and low bytes of "intcode" are reversed in the lda instructions. Also note that on PAL machines the refresh rate is not 60hz, but 50 hz.)
+  * [[base:rasterbars_source|Rasterbars source]] - by Knoeki
+  * [[base:rasterbars_with_screen_on|Rasterbars 2 source]] - by Bitbreaker
+  * [[base:rasterbars_small_source|Rasterbars 3 source]] - by Graham
+  * [[base:rasterbars_4_source]] - by Erhan
+  * [[base:rasterbars_flash_screen_effect|Rasterbar Flasher source]] - Flash Screen effect by Wozza/CygnusOz
+  * [[base:horizontal_raster_split|Horizontal Raster Split]] - Monte Carlos
+  * [[base:overlapping_raster_bars]] by Richard
+
+===== Scrolling text =====
+Those scrolling texts that we all hate to love that we love to hate. Also see the [[base:sprites#effects|sprite section]] for a sprite scroller.
+
+  * [[base:text_scroll|Scroll text in common]] - by Monte Carlos
+
+  * 1 char sized scrollers:
+    * [[base:1x1_scrolling_message|Scroll text]] - by Vai/Slash Design
+    * [[base:acme_1x1_scroll|Scroll text]] - By Richard/TND
+    * [[base:1x1_scroll|Scroll text]] - variable speed and direction, by Groepaz/Hitmen
+    * [[base:1x1_upscroll]] - the basics - by Richard/TND
+
+  * 2 char sized scrollers:
+
+    * [[base:2x2_upscroll_with_space_linefeed]] by Richard/TND
+    * [[base:2x2_sidescroll]] by Richard/TND
+
+  * Zoom chars 8x:
+    * [[base:8x_scale_charset_scrolling_message|Char zoom]] - by Conrad.
+    * [[base:realtime_8x_char_zoom|Char zoom]] - by Raf/Vulture Design
+
+  * Sprite scroller:
+    * [[base:scrolltext_using_sprites]] - a ROL-scroll, by Testicle
+    * [[base:waving_sprite_scroll]] - A letter per sprite with a sine move, by Mace
+
+  * Perspective Scroller
+    * [[base:discofloor_scroller_as_being_used_in_aechzzeit]] - by Bitbreaker/Oxyron^Arsenic^Nuance
+
+===== Swinging and tech-tech =====
+
+  * [[magazines:chacking7#tech-tech_-_more_resolution_to_vertical_shift|TechTech]] (or "wave") - by Pasi 'Albert' Ojala  (from "Demo corner" in C= Hacking 7).
+  * [[base:techtech_fli|TechTech]] (using FLI routine) - by Compyx/Focus
+  * [[base:logo_swing|Logo swing]] - By Richard Bayliss
+
+
+===== 3D dot scroll =====
+  * [[base:3d_dot_scroll]] -  by wegi /Black Sun/Samar/Fatum
+
+===== DYCP =====
+
+  *  [[magazines:chacking6#the_demo_cornerdycp_-_horizontal_scrolling|DYCP]] - Pasi 'Albert' Ojala (from "Demo Corner" in C= Hacking 6).
+
+
+===== DYSP =====
+
+  * [[base:dysp_d017|DYSP using sprite stretching]] - by Compyx/Focus
+  * [[base:dysp_cycle_table]|DYSP using a cycle table]] - by Compyx/Focus
+
+===== Plasma =====
+  * [[base:colorcycleplasma]] - By Cruzer
+  * [[base:afli-plasma]] - by Testicle
+  * [[base:proportional-charset-noter_with_plasma-effect]] - by Testicle
+  * [[base:copper_style_fli_plasma]] - By Cruzer
+
+===== FPP (Flexible Pixel Position, aka Stretcher) =====
+  * [[base:fli-fpp-scroller]] - by Testicle
+
+===== Graphics Distortion =====
+  * [[base:fli_floffy]] - By Cruzer
+  * [[base:2nd_pixel_fli_distorter]] - By Cruzer
+
+===== Fractals =====
+  * [[base:julia_fractal_morpher]] - By dW
+
+===== Vectors ===== 
+
+  * [[base:drivecalc_vectors]] - 3D realtime filled vectors with 3D calculations done in the drive, by wegi /Black Sun/Samar/Fatum
+  * [[base:filling_the_vectors]] - by Bitbreaker
+  * [[base:spritevectors]] - by Bitbreaker
+
+===== Blending and Fading =====
+  * [[base:8x8_charset_pixel-blend-in|Blend Charsets]] by Chico /CIVITAS
+
+===== Starfields =====
+  * [[base:8_sprite_starfield]] - by Richard Bayliss
+  * [[base:rol_starfield_using_d018]] - by Richard Bayliss
+  * [[base:Starfield|Starfield]] - by Fabrizio Stellato
+===== 2nd Line FLI =====
+  * [[base:twisters_x-rotators_and_waving_carpets]] - Bitbreaker/Oxyron^Arsenic^Nuance
+
+===== Fire Effects =====
+  * [[base:4x4_charset_fire_with_lots_of_colors]] - Bitbreaker/Oxyron^Arsenic^Nuance
+
+===== Misc =====
+  * [[base:colour_flashing_notewriter_style]] - (Extended colour mode) by Richard Bayliss
+  * [[base:just_animation]] - explains the concept of how the animations in reanim8ed work. originally published in [[http://noname.c64.org/csdb/release/?id=18201|Driven #31]]
+
+====== Software screen modes for effects ======
+
+  * 16x16:
+    * [[base:16x16_char_matrix]] by Monte Carlos
+    * [[base:16x16_matrix_scroll]] by Chico /CIVITAS
+
+====== Optimization ======
+  * [[base:speedcode]] by Cruzer/CML
+  * [[base:speeding_up_and_optimising_demo_routines]] - by conrad
+  * [[base:advanced_optimizing]] - by Bitbreaker/Oxyron/Nuance

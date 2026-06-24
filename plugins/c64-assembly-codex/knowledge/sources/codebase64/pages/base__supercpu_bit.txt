@@ -1,0 +1,77 @@
+# PAGE: base:supercpu_bit
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:supercpu_bit
+
+====== BIT ======
+
+<code>
+    //---------------------------------------------------------------------------------------------
+    // PseudoCommand-OPC: BIT16 (test memory BITs against accumulator)
+    //
+    // Addressing Modes:
+    //   Immediate                               ($89 - 2 bytes*, 2 cycles¹)
+    //   Absolute                                ($2c - 3 bytes, 4 cycles¹)
+    //   Direct Page (DP)                        ($24 - 2 bytes, 3 cycles¹²)
+    //   Absolute Indexed,X                      ($3c - 3 bytes, 4 cycles¹³)
+    //   DP Indexed,X                            ($34 - 2 bytes, 4 cycles¹²)
+    //   * - Add 1 byte if m = 0 (16-bit memory/accumulator)
+    //   ¹ - Add 1 cycle if m = 0 (16-bit memory/accumulator)
+    //   ² - Add 1 cycle if low byte of Direct Page register is other than zero (DL< >0)
+    //   ³ - Add 1 cycle if adding index crosses a page boundary
+    //
+    // Flags Affected:
+    //   n - Takes value of most significant bit of memory data.
+    //   v - Takes value of next-to-highest bit of memory data.
+    //   z - Set if logical AND of memory and accumulator is zero; else cleared.
+    //
+    // Description:
+    //   BIT sets the P status register flags based on the result of two different operations,
+    //   making it a dualpurpose instruction:
+    //
+    //   First, it sets or clears the n flag to reflect the value of the high bit of the data
+    //   located at the effective address specified by the operand, and sets or clears the v-Flag
+    //   to reflect the contents of the next-to-highest bit of the data addressed.
+    //
+    //   Second, it logically ANDs the data located at the effective address with the contents of
+    //   the accumulator; it changes neither value, but sets the z flag if the result is zero, or
+    //   clears it if the result is non-zero.
+    //
+    //   BIT is usually used immediately preceding a conditional branch instruction:
+    //    - to test a memory value’s highest or next-to-highest bits;
+    //    - with a mask in the accumulator, to test any bits of the memory operand;
+    //    - or with a constant as the mask (using immediate addressing) or a mask in memory, to
+    //      test any bits in the accumulator.
+    //   All of these tests are non-destructive of the data in the accumulator or in memory. When
+    //   the BIT instruction is used with the immediate addressing mode, the n- and v-Flags are
+    //   unaffected.
+    //
+    //   8-bit accumulator/memory (all processors): Data in memory is eight-bit;
+    //     - bit 7 is moved into the n flag;
+    //     - bit 6 is moved into the v flag.
+    //
+    //   16-bit accumulator/memory (65816 only, m = 0): Data in memory is sixteen-bit:
+    //      - the low-order eight bits are located at the effective address;
+    //      - the high-order eight bits are located at the effective address plus one.
+    //      - Bit 15 is moved into the n-Flag;
+    //      - bit 14 is moved into the v-Flag.
+    //---------------------------------------------------------------------------------------------
+
+    .pseudocommand bit16 val {
+        .if (val.getType()==AT_IMMEDIATE) {
+            .byte $89, <val.getValue(), >val.getValue()
+        }
+        .if (val.getType()==AT_ABSOLUTE) {
+            .if (val.getValue()<256) {
+                .byte $24, <val.getValue()       // Direct Page
+            } else {
+                .byte $2c, <val.getValue(), >val.getValue()
+            }
+        }
+        .if (val.getType()==AT_ABSOLUTEX) {
+            .if (val.getValue()<256) {
+                .byte $34, <val.getValue()
+            } else {
+                .byte $3c, <val.getValue(), >val.getValue()
+            }
+        }
+    }
+</code>

@@ -1,0 +1,115 @@
+# PAGE: base:reference_for_hes_graphics_basic_1.07
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:reference_for_hes_graphics_basic_1.07
+
+Reference for HES GRAPHICS BASIC 1.07\\
+Initial document by Kurious\\
+*This document currently is incomplete*\\
+
+Colors: There are identifiers for the 16 colors
+   BLACK
+   WHITE
+   RED
+   CYAN
+   PURPLE
+   GREEN
+   BLUE
+   YELLOW
+   PEACH
+   BROWN
+   PINK
+   GRAY1
+   GRAY2
+   LGREEN
+   SKY
+   GRAY3
+
+Parameters:
+   <color> - numeric value/variable or one of the color identifiers above
+   <sprite> - sprite number from 1 to 8
+   <voice> - an audio voice number from 1 to 3
+   <device> - default device is 8
+   [] - optional parameter
+   {<etc>|<etc>|<etc>} - a choice of parameters
+   [,<etc>...] - can repeat many times
+
+Graphics commands:
+   HIRES and MULTI modes display the same graphics buffer in different ways
+   The origin (0,0) lies at the lower left corner; coordinates are used as in typical math
+   TEXT - Switch to text mode
+   HIRES - Switch to HIRES mode
+   MULTI - Switch to MULTI mode
+   BACKGROUND <color> - Choose background color
+   BORDER <color> - Choose border color
+   HIRES COLOR <color> ON <color> - Choose foreground and background hires colors
+   MULTI COLOR <color>,<color>,<color> - Choose multicolor colors
+   CLEAR [<pattern>] - Clear the graphics buffer using pattern (0-255), default 0
+   FILL <x>,<y> - Fill at the specified coordinate
+   DOT <x>,<y> - Draw a dot at the specified coordinate
+   LINE <x1>,<y1> TO <x2>,<y2> - Draw a line
+   BOX <x1>,<y1> TO <x2>,<y2> - Draw the outline of a box
+   GPRINT <string> - Print the string within the graphics buffer
+   SETORIGIN <x>,<y> - Change the location of the origin
+   WINDOW <x1>,<y1>,<x2>,<y2> - Clip graphics commands to occur within this window
+   WINDOW - Issue without parameters to remove the window
+   SCALE <x>,<y> - Choose a different scale (NOTE: Command is accepted but doesn't seem to work)
+
+Sprite commands:
+   The following commands can be combined, i.e., SPRITE 1 ON AT 10,10 COLOR BLUE
+   SPRITE <sprite> {ON|OFF} - Turn sprite on or off
+   SPRITE <sprite> SHAPE <value> - The value is from 0 to 255
+   SPRITE <sprite> COLOR <color> - Choose sprite color
+   SPRITE <sprite> XYSIZE <xsize>,<ysize> - Sizes are 1 for single or 2 for double
+   SPRITE <sprite> UNDER {ON|OFF} - Choose the plane of the sprite
+   SPRITE <sprite> AT <x>,<y> - Choose the sprite position
+   SPRITE <sprite> ANIMATE {ON|OFF} - Turns sprite animation on or off
+   SPRITE <sprite> SPEED <number>,<number> - Accepts non-integer values
+   XPOS(<sprite>) - Returns X sprite position (this array is read-only)
+   YPOS(<sprite>) - Returns Y sprite position (this array is read-only)
+
+Sound commands:
+   Commands are accepted but don't seem to work
+   The following commands can be combined, i.e., VOICE 1 ON WAVE SAW
+   SOUND {ON|OFF} - Turn sound on or off
+   VOLUME <volume> - Choose the volume from 0 to 15
+   VOICE <voice> {ON|OFF} - Turn voice on or off
+   VOICE <voice> WAVE {SAW|TRIANGLE|PULSE|NOISE} - Choose the waveform
+   VOICE <voice> ADSR <attack>,<decay>,<sustain>,<release> - Select voice envelope
+   VOICE <voice> PLAY <value>[,<value>...] - Values are from 0 to 65535
+
+Disk commands:
+   DIR [<device>] - Display directory
+   DISK <command>,[<device>] - Execute disk command, for example: DISK "R:NEWNAME=OLDNAME"
+   DISK [,<device>] - Specify no command to retrieve status
+   SPRITE {LOAD|SAVE} <filename> - Load or save sprites from/to disk
+
+Keyboard commands:
+   KEY LIST - List function key assignments
+   KEY {ON|OFF} - Activate of deactivate function key assignments
+   KEY(<function-key-number>)=<string> - Perform assignment to the indicated function key
+
+Flow control:
+   ON ERROR GOTO <line-number> - Choose a non-existing line number to disable error control
+   PROCEDURE <procedure-name>[(<parameter>[,<parameter>...])] - Must be in code, only a marker
+   DO <procedure-name>[(<argument>[,<argument>...])] - Calls the given procedure and pass values
+   ELSE <statement> - Must be in a line by itself, matches last IF
+   RESET - The same as pressing [RUN/STOP]+[RESTORE]
+
+Convenience commands:
+   FIND <string> - Shows lines of code containing strings that contain the given string
+   CHANGE <string> TO <string> - Changes substrings within strings within the code
+   REN [<increment>[,<first-line-number>] - Renumber lines of code
+   EDIT - Enter sprite editor, to exit press Q (NOTE: Keyboard commands currently unknown-TO DO)
+
+Other commands:
+   JOY(<port>) - Returns the value at the joystick port, 1 or 2
+
+Existing keywords with usage currently unknown:
+   CIRCLE
+   COPY
+   EZE
+   FROM
+   HIT - Likely to be sprite related
+   MOVE
+   NE
+   ROLL
+   SCROLL

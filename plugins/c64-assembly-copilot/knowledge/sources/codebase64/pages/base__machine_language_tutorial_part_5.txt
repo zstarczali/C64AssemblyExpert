@@ -1,0 +1,81 @@
+# PAGE: base:machine_language_tutorial_part_5
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:machine_language_tutorial_part_5
+
+====== Part 5 - Addressing Modes ======
+
+An addressing mode refers to the way the CPU obtains information from memory. Here's a simple list:
+
+  * Implied - No address.
+  * Immediate - No address, but a value.
+  * Absolute - An address denoting a two-byte memory location.
+  * Zeropage - An address denoting a one-byte memory location. ($00xx)
+  * Indexed - Denoting a range of 256 locations.
+  * Indirect - Denoting a location where the real two-byte address can be found.
+  * Relative - An offset locating an address, used in branches (see part 3).
+
+===== Implied =====
+
+Instructions like ASL, INX, or DEY do not affect any address in memory. No operand is required.
+
+<code>ASL
+INX
+DEY</code>
+
+There is an odd instruction in this category though. The NOP instruction does nothing- no registers are changed.
+
+===== Immediate =====
+
+The operand of an immediate instruction is only one byte, and denotes a constant value.
+
+<code>LDA #$06
+ORA #$9A
+AND #$7F</code>
+
+===== Absolute =====
+
+The operand of an absolute instruction is two bytes, and denotes an address in memory.
+
+<code>LDA $1234
+STA $4321
+JMP $C000</code>
+
+===== Zeropage =====
+
+The operand of a zeropage instruction is one byte, and denotes an address in the zero page ($00xx).
+
+<code>LDA $FB
+STA $FE
+CMP $FD</code>
+
+===== Indexed =====
+
+If an operand is indexed, then whatever index is specified is added to the address to get the real address.
+
+<code>LDA $1234,X <- load A from $1234+the value in X
+STA $4321,Y <- store A to $4321+the value in Y
+LDA $FB,X <- load A from $00FB+the value in X</code>
+
+There is a bug regarding indexing from zeropage- say our X value is 4. We try LDA $FE,X. Instead of loading from $0102, the counter will roll over and load from $0002 instead.
+
+===== Indirect =====
+
+The operand of an indirect address points to an address where the actual two-byte address is held.
+If we had the value $C000 in $1234, ($1234) would load the two-byte value from $1234 ($C000) as the real operand.
+
+<code>JMP ($1234)</code>
+
+===== Indexed Indirect =====
+
+This mode points to an address in zeropage. Let's go through what it does-
+
+Say that at $FB, we have the value $2000 and we try:
+<code>LDA ($FB),Y</code>
+So, the CPU reads what address is at $FB- in our case, $2000. Then it adds the index to that value to get the real operand.
+
+===== Indirect Indexed =====
+
+This mode again points to an address in zeropage.
+
+Say that at $F0, we had $2000, $3000, then $4000 and we try:
+<code>LDA ($F0,X)</code>
+The CPU reads what address is at $F0+whatever is in X. If X was 0, it'd get $2000. If 2, it'd get $3000. If 4, it'd get $4000.

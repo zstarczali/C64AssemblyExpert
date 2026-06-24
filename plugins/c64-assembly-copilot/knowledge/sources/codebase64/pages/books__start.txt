@@ -1,0 +1,45 @@
+# PAGE: books:start
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=books:start
+
+====== Books on C64 programming ======
+
+This section contains various books related to C64 programming.
+Similar to the [[magazines:start|Magazines section]] this section of the wiki consists of material which has once been released as wholes, not intended to be modified. This should be respected, and corrections/comments and so on should rather be put ouside the texts than inside.
+
+It should be noted that a huge bunch of useful books are available at [[http://project64.c64.org|Project64]] and [[http://www.bombjack.org/commodore/|DLH's site]]. Check them!
+
+
+====== PDF books ======
+
+All these books are OCR'ed, so you can actually search for text snippets in them, even though they are shown as scanned images in your PDF reader. 
+
+
+===== Various C64/C128 =====
+
+  * {{ :books:mapping-the-64.pdf|Mapping the 64}}
+  * {{ :books:c64-programmers-reference-guide.pdf|C64 Programmers Reference Guide}}
+  * {{ :books:mapping-the-128.pdf|Mapping the 128}}
+  * {{ :books:c128-programmers-reference-guide.pdf|C128 Programmers Reference Guide}}
+  * {{ :books:machine-language-for-the-commodore64-128-revised-expanded-edition.pdf|Machine Language for the Commodore 64/128}} (Revised and expanded edition)
+  * {{ :books:inside-commodore-dos.pdf|Inside Commodore DOS}}
+  * {{ :books:commodore-64-troubleshooting-and-repair-guide.pdf|Commodore 64 Troubleshooting and Repair Guide }}
+  * [[https://ahesselbom.se/pages/commodorebasic20.html|Commodore BASIC 2.0 second release för Commodore 64 och VIC-20]] - Book in Swedish by Anders Hesselbom ( Repository: https://github.com/Anders-H/CommodoreBASIC20 )
+  * [[https://ahesselbom.se/pages/commodorebasic70.html|Commodore BASIC 7.0 för Commodore 128]] - Book in Swedish by Anders Hesselbom ( Repository: https://github.com/Anders-H/CommodoreBASIC70 )
+===== 1541 =====
+
+  * {{ :books:anatomy-of-the-1541-disk-drive.pdf|Anatomy of the 1541 disk drive}}
+  * {{ :books:commodore-1541-troubleshooting-and-repair-guide.pdf|Commodore 1541 Troubleshooting and Repair Guide }}
+
+===== Cracking/Protection =====
+These books, and additional software complementing them, are available [[http://www.lyonlabs.org/commodore/onrequest/index.html|here]].
+  * {{ :books:the-kracker-jax-revealed-trilogy.pdf|Kracker Jax Revealed Trilogy }}
+  * {{ :books:program-protection-manual-volume-1.pdf|Program Protection Manual Volume 1}}
+  * {{ :books:program-protection-manual-volume-2.pdf|Program Protection Manual Volume 2}}
+===== Third party topics =====
+
+  * {{ :books:c64-comal-reference-guide.pdf|C-64 COMAL Reference Guide}}
+  * {{ :books:c64-cpm-operating-system-users-guide.pdf|Commodore 64 CP-M Operating System - Users Guide}}
+====== Other docs ======
+
+  * [[books:hardware diagnostics|Hardware diagnostics]] - Commodore docs
+

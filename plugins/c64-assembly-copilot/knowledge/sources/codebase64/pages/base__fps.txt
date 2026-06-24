@@ -1,0 +1,12 @@
+# PAGE: base:fps
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:fps
+
+====== FPS (Stretcher) ======
+
+FPS, commonly know as 'Stretcher', means the ability to increase the size of each single pixel-line and e.g. make it wave like a flag. In opposite to the other tweaks, FPS does not origin in a single VIC-trick. Of course FPS can be simulated with FPP, but as we have seen FPP can not be used in the most delicious graphic modes, not even normal bitmap is possible with FPP. But smart coders have found ways to do FPS even with FLI, or in the sideborder with less limited graphics than an FPP would allow.
+
+It's harder to give you the code for this one, as it depends totally on what kind of graphics you have. Instead have a look at some examples.
+
+[[http://noname.c64.org/csdb/release/index.php?id=825|FPS in sideborder]]
+
+[[http://noname.c64.org/csdb/release/?id=2969|FPS with FLI]]

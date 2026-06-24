@@ -1,0 +1,330 @@
+# PAGE: base:asm_include_file_for_basic_routines
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:asm_include_file_for_basic_routines
+
+<code>
+; C64 BASIC ROM vectors
+; by White Flame
+
+
+;---------
+; Input
+
+; get next byte of BASIC text
+chrget          = $0073
+
+; chrget uint8 to .X (range checking)
+getbytc         = $b79b
+
+; chrget uint16 (0-63999) to $14-$15
+linget          = $a96b
+
+; chrget a float to fac1
+fin             = $bcf3
+
+; check for and skip open paren (syntax error otherwise)
+chkopn          = $aefa
+
+; check for and skip close paren (syntax error otherwise)
+chkcls          = $aef7
+
+; check for and skip comma (syntax error otherwise)
+chkcom          = $aefd
+chkcom2         = $e20e ;???
+
+; check for and skip char in .A (syntax error otherwise)
+synchr          = $aeff
+
+; skip comma and get int8 in .x
+comint          = $e200
+
+; default chrget routine
+initat          = $e3a2
+
+
+;---------
+; Output
+
+; print zero-terminated string @ <A >Y
+strout          = $ab1e
+
+; print uint16 <X >A
+linprt          = $bdcd
+
+; print BASIC token from .A
+qplop           = $a717
+
+; <A >Y = @ str(fac1)  (always returns $0100)
+fout            = $bddd
+
+
+;---------
+; FP/Int conversion
+
+; fac1 to int16 at $64-$65 big-endian, also <Y >A (range check)
+fac1ya          = $b1aa
+
+; fac1 to int16 at $64-$65 big-endian (range check)
+ayint           = $b1bf
+
+; fac1 to uint16 at $14-$15 (range check)
+getadr          = $b7f7
+
+; fac1 to int32 at $62-65 big-endian
+qint            = $bc9b
+
+; fac1 = @ <Y >A (int16)
+givayf          = $b391
+
+; fac1 += .A(int8)
+finlog          = $bd7e
+
+; .A = sgn(fac1), returns 0/1/255
+sign            = $bc2b
+
+; .A = sgn( fac1 - fac(@ <A >Y) )
+fcomp           = $bc5b
+
+; fac1 = .A (int8)
+;bc3c
+
+; fac1 = .A (uint8)
+;b3a2
+
+;---------
+; FP/Int conversion, more manual steps
+
+; fac1 = <Y >A (uint16)
+;   LDY #low
+;   LDA #high
+;   STY $63
+;   STA $62
+;   LDX #$90
+;   SEC
+;   JSR $BC49
+
+; fac1 = int24
+;   LDA #low
+;   LDX #mid
+;   LDY #high
+;   STY $62
+;   STX $63
+;   STA $64
+;   LDA $62
+;   EOR #$FF
+;   ASL A
+;   LDA #0
+;   STA $65
+;   LDX #$98
+;   JSR $BC4F
+
+; fac1 = uint24
+;   LDA #low
+;   LDX #mid
+;   LDX #high
+;   JSR $AF87
+;   JSR $AF7E
+
+; fac1 = int32 from $62-$65 big endian
+;   LDA $62
+;   EOR #$FF
+;   ASL A
+;   LDA #0
+;   LDX #$A0
+;   JSR $BC4F
+
+; fac1 = uint32 from $62-$65 big endian
+;   SEC
+;   LDA #0
+;   LDX #$A0
+;   JSR $BC4F
+
+
+
+;---------
+; FP copying
+
+; fac2 = @ <A >Y, 4 byte format
+conupk          = $ba8c
+
+; fac1 = @ <A >Y, 5 byte format
+movfm           = $bbd4 ;also bba2?
+
+; @ <X >Y = fac1, 5 byte format
+mov2f           = $bbc7
+
+; fac1 = fac2
+movfa           = $bbfc
+
+; fac2 = fac1 (rounded w/rounding byte)
+movaf           = $bc0c
+
+; fac2 = fac1
+movef           = $bc0f
+
+
+;---------
+; FP simple math
+
+; fac1 += 0.5
+faddh           = $b849
+
+; fac1 *= 10
+mul10           = $bae2
+
+; fac1 /= 10
+div10           = $bafe
+
+; fac1 -= fac(@ <A >Y)
+fsub            = $b850
+
+; fac1 -= fac2
+fsubt           = $b853
+
+; fac1 += fac(@ <A >Y)
+fadd            = $b867
+
+; fac1 += fac2
+faddt           = $b86a
+
+; fac1 *= fac2
+fmult           = $ba28
+
+; fac1 += .A * fac2
+faddmult        = $ba59
+
+; fac1 = fac(@ <A >Y) / fac1 (div by 0 check)
+fdiv            = $bb0f
+
+; fac1 = fac2 / fac1 (div by 0 check)
+fdivt           = $bb12
+
+; round fac1, using rounding byte
+round           = $bc1b
+
+; fac1 = sgn(fac1)
+sgn             = $bc39
+
+; fac1 = abs(fac1)
+abs             = $bc58
+
+; fac1 = int(fac1)
+int             = $bccc
+
+; normalize fac1
+normal          = $b8fe
+
+; negate fac1
+negfac          = $b947
+
+; fac1 = not(fac1), ie -fac1 - 1
+negop           = $bfb4
+
+; fac1 = next random number
+rndnext         = $e0be
+
+
+;---------
+; FP transcendental math
+
+; fac1 = sqrt(fac1)
+sqr             = $bf71
+
+; fac1 = fac2 ^ fac1  (that's to the power of, not xor)
+fpwrt           = $bf7b
+
+; fac1 = exp(fac1)
+exp             = $bfed
+
+; fac1 = ln(fac1)
+log             = $b9c1
+
+; fac1 = cos(fac1)
+cos             = $e264
+
+; fac1 = sin(fac1)
+sin             = $e268
+
+; fac1 = tan(fac1)
+tan             = $e2b4
+
+; fac1 = atn(fac1)
+atn             = $e20e
+
+
+;---------
+; FP constants (5-byte)
+
+; 1.0
+fone            = $b9bc
+
+; 10.0
+tenc            = $baf9
+
+; pi
+pival           = $aea8
+
+; -32768.0
+n32768          = $b1a5
+
+;    99,999,999.5
+;   999,999,999.5
+; 1,000,000,000.0
+no999           = $bdb3
+
+; 0.5
+fhalf           = $bf11
+
+; 1/log(2)
+expcon          = $bfbf
+
+; rnd multiplier
+rmulc           = $e08d
+
+; rnd adder
+raddc           = $e092
+
+; default rnd seed
+rndseed         = $e3ba
+
+; pi/2
+pi2             = $e2e0
+
+; 2*pi
+twopi           = $e2e5
+
+; 1/4
+fr4             = $e2ea
+
+
+;---------
+; FP constants (4-byte)
+
+;          -1
+;         +10
+;        -100
+;       +1000
+;     -10,000
+;    +100,000
+;  -1,000,000
+; +10,000,000
+;-100,000,000
+foutbl          = $bf1c
+
+; 6 constants for TI$ conversion
+fcdend          = $bf3a
+
+
+;---------
+; Polynomial constants (1 byte length, then 5 bytes per entry)
+
+; log constants
+logcn2          = $b9c1
+
+; sin/cos/tan
+sincon          = $e2ef
+
+; atan
+atncon          = $e33e
+
+
+</code>

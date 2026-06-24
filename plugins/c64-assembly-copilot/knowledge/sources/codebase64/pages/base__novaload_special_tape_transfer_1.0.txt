@@ -1,0 +1,522 @@
+# PAGE: base:novaload_special_tape_transfer_1.0
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:novaload_special_tape_transfer_1.0
+
+====== Novaload Special Tape Transfer 1.0 ======
+<code>
+;---------------------------------------
+;Novaload Special Tape Transfer 1.0
+;
+;(C) 2005 Nostalgia
+;
+;By Fungus / Nostalgia
+;---------------------------------------
+
+         *= $1000
+
+cd       = $02
+
+         lda $ba
+         sta cd       ;save current
+                      ;disk drive
+         lda #$0b     ;setup
+         sta $d011
+         lda #$c1     ;no nmi
+      ;  sta $0318
+         lda #$80
+      ;  sta $0291    ;no char shift
+         lda #$17
+         sta $d018    ;this set
+         lda #$00
+         sta $9d      ;st clear
+         sta $d020
+         sta $d021
+         lda #$2f     ;i/o config
+         sta $00      ;bit 4 = input
+         lda $01
+         and #$07     ;mem config
+         ora #$20     ;motor off
+         sta $01
+         lda #$00
+         sta $0289    ;no keys
+         sta $0286
+
+         lda #$93
+         jsr $ffd2    ;clr screen
+
+         ldx #$00     ;print msg 1
+pm1      lda $1400,x
+         sta $0400,x
+         lda #$05
+         sta $d800,x
+         inx
+         cpx #$a0
+         bne pm1
+
+         lda #$1b
+         sta $d011
+
+wplay    lda $01      ;wait for play
+         and #$10
+         bne wplay
+
+         jsr lod      ;load header
+
+         lda $01      ;motor off
+         ora #$20
+         sta $01
+
+         ldx #$00
+xl       lda loader1,x
+         sta $04a0,x
+         lda loader1+$0100,x
+         sta $05a0,x
+         lda loader1+$0200,x
+         sta $06a0,x
+         lda loader1+$0300,x
+         sta $07a0,x
+         inx
+         bne xl
+
+         jmp $04a0    ;begin real loader
+lod
+         lda #$01     ;open tape file
+         tax
+         tay
+         jsr $ffba
+         lda #$00
+         jsr $ffbd
+         lda #$00
+         sta $c0
+         sta $93
+         jsr $f7d7    ;load header/file
+         jmp $f84f
+
+;---------------------------------------
+;nova special tape routines
+
+loader1  = *
+         *= $04a0
+         .offs loader1-*
+
+savename = $0341
+
+         jsr clrmem    ;clear memory
+         jsr putindex
+         jsr printload
+         jsr printname
+
+         sei           ;begin loader 1
+         lda #$07
+         sta $01
+         lda #$1f
+         sta $dc0d
+         sta $dd0d
+         lda $dc0d
+         lda $dd0d
+         ldx #$01
+         stx $ab       ;eof marker
+         dex
+         stx $a5       ;address low
+         stx $a7       ;y index
+         lda #$55      ;sync
+         sta $aa
+         lda #<irq1
+         sta $0314
+         lda #>irq1
+         sta $0315
+         lda #$f4      ;timing constant
+         sta $dc04
+         lda #$03
+         sta $dc05
+         lda #$90      ;init irq on flag
+         sta $dc0d     ;input
+         cli
+
+waitld1  lda $ab
+         beq done1
+         bpl waitld1
+         lda #$30      ;load error
+done1    sta $90
+         lda $01       ;tape off
+         ora #$20
+         sta $01
+         lda $90
+         beq loadok1
+         jmp loaderr
+
+loadok1  lda #$00      ;load addy is
+         sta $ac       ;always $0800
+         sta $ae
+         lda #$08
+         sta $ad
+         inc $a6       ;end addy is
+         lda $a6       ;always even page
+         sta $af       ;on first file
+         jsr save
+         jsr putindex
+         jsr printname
+         lda #$00      ;intro is always
+         sta $ac       ;$e000-$ffff
+         sta $ae
+         sta $af
+         lda #$e0
+         sta $ad
+         jsr save
+         jmp loader2   ;start loader 2
+irq1
+         lda $dc05
+         ldy #$11
+         sty $dc0e
+         inc $d020     ;load effect
+         eor #$02
+         lsr a
+         lsr a
+         ror $a9
+         lda $a9
+
+selfmod1 = *+1
+
+         bcc sync1
+         bcs exitirq1
+sync1    cmp #$80      ;sync byte
+         bne exitirq1
+         lda #$0a
+         bne doself1
+         cmp #$aa
+         beq sync2
+         lda #$02
+         bne doself1
+sync2    lda #$33
+doself1  sta selfmod1
+
+resetin1 lda #$7f      ;reset input byte
+         sta $a9
+exitirq1 lda $dc0d
+         jmp $ea81
+
+         ldy $a7       ;store byte
+         sta ($a5),y
+         clc
+         adc $aa
+         sta $aa
+         iny
+         sty $a7
+         bne resetin1
+         lda #$33
+         bne doself1
+         cmp $aa       ;check chksum
+         bne error1    ;error
+selfmod2 = *+1
+         lda #$3b
+         bne doself1
+         cmp #$f0
+         bne putchk1
+         ldy #$46
+         sty selfmod2
+         bne putchk1
+         beq errex1    ;eof if chksum
+                       ;= 00
+putchk1  sta $aa
+         sta $a6
+         lda #$21
+         bne doself1
+errex1   sta $ab
+         lda #$1f      ;eof
+         sta $dc0d
+         bne exitirq1
+error1   lda #$80      ;load error
+         bne errex1
+
+;---------------------------------------
+;loader 2
+
+loader2
+         jsr clrmem    ;clear memory
+         jsr putindex
+         jsr printload
+         jsr printname
+
+         sei           ;begin loader 2
+         lda #$07
+         sta $01
+         lda #$1f
+         sta $dc0d     ;irq nmi off
+         sta $dd0d
+         sta $ab
+         lda $dc0d
+         lda $dd0d
+         lda #$00
+         sta $b4       ;y index
+         sta selfmod3  ;#$00
+         sta $90       ;st
+         sta $b7       ;loader variables
+         sta $a9
+         sta $aa
+         lda #$f4      ;timing contant
+         sta $dc04
+         lda #$03
+         sta $dc05
+         lda #$90      ;irq on flag set
+         sta $dc0d
+         lda #<irq2    ;loader
+         sta $0314
+         lda #>irq2
+         sta $0315
+         cli
+
+waitld2  lda $ab
+         beq done2     ;stop loading
+         bpl waitld2   ;continue loading
+
+         lda #$30      ;load error
+         sta $90
+done2
+         lda $01       ;tape motor off
+         ora #$20
+         sta $01
+         lda $90
+         beq loadok2
+         jmp loaderr
+loadok2
+         lda loadaddy
+         sta $ac
+         lda loadaddy+$01
+         sta $ad       ;fix high addy
+         inc $ad
+         jsr save
+         jmp loader2
+irq2
+         lda $dc05     ;get bit
+         ldy #$11
+         sty $dc0e
+         inc $d020
+         eor #$02
+         lsr a
+         lsr a
+         ror $a9
+         bcs exitirq2
+         lda $aa       ;checksum
+         sta $a8       ;checksum save
+         adc $a9       ;byte in
+         sta $aa       ;new checksum
+         ldy $b4       ;y index
+         lda $a9       ;byte in
+         sec
+
+selfmod3 = *+1
+
+         bcs sync3
+sync3    cmp #$80      ;%10000000
+         bne exitirq2
+         lda #$08
+         bne doself2
+         sbc #$aa      ;block id
+         beq sync5
+sync4    lda #$00
+         beq sync9
+sync5    sta $aa       ;checksum
+         lda #$23
+doself2  sta selfmod3  ;self mod
+resetin2 lda #$7f
+         sta $a9
+         sty $b4
+exitirq2 lda $dc0d     ;exit irq
+         jmp $ea81
+
+         sta $b5
+         cmp $b7
+         beq sync6
+         lda $b7
+         bne sync4
+         lda #$3e
+         bne doself2
+sync6    lda #$3b
+         cpy $b5
+         bne doself2
+         lda #$42
+         bne doself2
+         sta bullshit,y
+         lda #$42
+         bne sync8
+         sta $ac,y     ;load variables
+         sta loadaddy,y
+         lda #$53
+         iny
+         sty $b4
+         cpy #$06
+         bne resetin2
+         beq sync9
+         cmp $a8       ;checksum
+         bne error2
+         lda $b1       ;set eof
+         beq errex2
+         inc $ad       ;high byte load
+         dec $b1
+         bne sync7
+         lda $b0       ;set eof
+         beq errex2
+         sta $b5       ;y index max
+sync7    lda #$78
+         bne doself2
+errex2   sta $ab       ;exit
+         lda #$1f
+         sta $dc0d     ;irq off
+         bne exitirq2
+error2   lda #$80      ;error
+         bne errex2
+
+         sta ($ac),y    ;store in mem
+         lda #$53      ;falls through
+sync8    iny
+         cpy $b5
+         bne resetin2
+sync9    ldy #$00      ;reset y index
+         sty $b5
+         beq doself2
+
+;---------------------------------------
+;save routine
+
+save
+         lda #$00      ;save file
+         sta $d020     ;border  = black
+
+         jsr printsave
+
+         lda #$01      ;open file for
+         ldx cd        ;write
+         ldy #$01
+         jsr $ffba     ;setlfs
+         lda #$10
+         ldx #$41      ;$0340 16 chars
+         ldy #$03
+         jsr $ffbd     ;setname
+         jsr $ffc0     ;open
+         ldx #$01
+         jsr $ffc9     ;chkout
+         lda $ac       ;start addy low
+         jsr $ffa8     ;send
+         lda $ad       ;start addy high
+         jsr $ffa8     ;send
+
+         ldy #$00      ;save the file
+saveb    sei
+         inc $01
+         lda ($ac),y
+         dec $01
+         jsr $ffa8
+         inc $d020
+         dec $d020
+
+         inc $ac
+         bne b1
+         inc $ad
+b1       lda $ad
+         cmp $af
+         bne saveb
+         lda $ac
+         cmp $ae
+         bne saveb
+
+         lda #$01
+         jmp $ffc3     ;close the file
+
+;---------------------------------------
+;utility subroutines
+
+loaderr
+         lda #$02      ;print tape load
+         sta $d020     ;error msg
+         ldx #$17
+perr1    lda et1,x
+         and #$3f
+         sta $0478,x
+         lda #$01
+         sta $d878,x
+         dex
+         bpl perr1
+         jmp *         ;endless loop
+
+printload
+         ldx #$07      ;print loading
+ll       lda lt,x      ;text
+         and #$3f
+         sta $0478,x
+         lda #$05
+         sta $d878,x
+         dex
+         bpl ll
+         rts
+
+printsave
+         ldx #$07
+dl       lda st,x      ;print save text
+         and #$3f
+         sta $0478,x
+         lda #$05
+         sta $d878,x
+         dex
+         bpl dl
+         rts
+
+printname
+         ldx #$0f      ;print name
+ln       lda savename,x
+         and #$7f
+         sta savename,x
+         and #$3f
+         sta $0480,x
+         dex
+         bpl ln
+         rts
+
+putindex
+         lda fileidx
+         inc fileidx
+         pha
+         lsr a
+         lsr a
+         lsr a
+         lsr a
+         jsr convert1
+         sta savename+$0e
+         pla
+         and #$0f
+         jsr convert1
+         sta savename+$0f
+         rts
+
+convert1 ora #$30
+         cmp #$3a
+         bcc convert2
+         adc #$06
+convert2 rts
+
+clrmem
+         sei
+         inc $01
+         lda #$08
+         sta clrit+$02
+         lda #$00
+         tax
+clrit    sta $0800,x
+         inx
+         bne clrit
+         inc clrit+$02
+         bne clrit
+         dec $01
+         cli
+         rts
+
+;Transfer Messages
+
+fileidx  .byte $00
+
+et1      .text "Load Error!     "
+         .text "        "
+lt       .text "Loading "
+st       .text "Saving  "
+
+loadaddy .byte $00,$00,$00,$00,$00,$00
+bullshit
+</code>

@@ -1,0 +1,75 @@
+# PAGE: base:mathematics_in_assembly_part_8
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:mathematics_in_assembly_part_8
+
+====== Mathematics in ASM - part 8 ======
+
+by Krill/Plush
+
+====== Prologue ======
+
+Welcome to the eighth chapter of this tutorial, which was originally published inprinted form in the German GO64! magazine. Previously translated chapters of this tutorial can be found in the following magazines respectively:
+
+Attitude #4
+Domination #17
+Attitude #5
+Vandalism News #40
+Attitude #7
+
+====== Mathematics in assembler, chapter 8 ======
+
+After discussing a rather less useful version of a division routine, we reached the bitwise division, which is most likely the most practical method of dividing. Now, to write such a division routine, again some considerations have to be made.
+
+====== Some thoughts ======
+
+We have got a dividend which is being divided through the divisor, and we get a quotient. This quotient tells how often the divisor is included in the dividend. Let us assume we have 8 bits holding an unsigned integer dividend and a divisor of the same type. The quotient can now be as big as the dividend or, well, smaller. Now, each bit of the quotient tells that the divisor is contained as often in the dividend as the value of that particular bit is. That is, with a set bit 4 it is contained (at least) 2^4=16 times or, with a set bit 7, 2^7=128 times in the dividend. 
+
+====== The workings of the bitwise division ======
+
+Therefore, a routine would check for each bit of the quotient whether the divisor is contained in the dividend as often as the value of that bit is. One starts with the most significant bit (why will be obvious later on), so in this case bit 7. So the bit will be set if the divisor is contained (at least) 128 times in the dividend. If it is, this 128-fold divisor is subtracted from the dividend as it has already been taken care of in the result, with bit 7 being set. Now the next less significant bit is taken care of, which is bit 6 in this example. It is now checked whether the divisor is contained 64 times in the updated dividend, with bit 6 set in the result accordingly. This procedure is repeated until the result is as accurate as wanted, which can not only be the 8 bits before the point but an arbitrary number behind it, as with certain operations, there's a rest remaining after processing bit 0, which can remain even with an arbitrarily precise routine (f.e., 1 divided by 3). 
+
+Now it gets clear why we start with the results most significant bit, as the loop can simply be passed further 'down' the result, until one has gathered enough bits of the result, even the decimal ones.
+
+====== The routine ======
+
+As an illustration, once again a small, totally un-optimized routine
+
+<code>
+     STX dividend   ; store arguments
+     STY divisorhi
+     LDA #$00       ; divisor*128 is 16 bits large
+     STA divisorlo
+     STA result
+     LDX #$08       ; 8 bits for the result
+loop LSR divisorhi  ; halve the divisor
+     ROR divisorlo
+     SEC
+     LDA dividend   ; comparison
+     SBC divisorlo
+     TAY
+     LDA #$00
+     SBC divisorhi
+     BCC null
+     STY dividend   ; store newdividend
+null ROL result     ;set bits in the result
+     DEX
+     BNE loop
+     LDA result
+</code>
+
+Looks similar to the bitwise multiplication routine, of course. As one can see, the arguments are passed in the x and y registers while the result is passed in the accu after finishing the routine. By the way, to have the 128-fold divisor, it is not shifted left 7 times but just shifted right once and, with the redefinition of lo- and hi- byte, multiplied with 256. Apart from that, this implementation is nothing nifty.
+
+====== Some tips to optimize ======
+
+
+Having a closer look at the routine, one sees that as long as the hi-byte of the divisor is not 0, the according bit in the accu never gets 0. So one could add a small loop before the actual division loop, which halves the divisor until its hi-byte gets 0. Then, the main loop is as many loop passes shorter as the pre-loop had, plus the right shift of the divisor hi-byte and the subtraction of the hi-byte as it is 0 already. When having a routine handling bigger arguments or a bigger result, these optimizations are not that efficient any more.
+
+====== To be taken care of ======
+
+What is to be taken care of is similar to the bitwise multiplication: when having signed numbers, calculate using their absolute values and afterwards, set the a sign of the result accordingly. The result can then, as already said, have an arbitrary number of decimal bits and can furthermore, when calculating with arguments having decimals, be larger than the dividend, if the divisor is smaller than 1. When calculating with fractions, the result can have as many bits before the point as one takes care of in the routine, i.e., as in this case, with a maximum of a 128-fold original divisor, 1 byte before the point. A division by 0 gives, of course, not a valid result but a number having all bits set
+
+That's it for the bitwise division. I have, by the way, totally ignored the possibility to only use tables for the 'calculation' of the result, as this method works exactly as with the multiplication or any other mathematical function. Next time, we'll discuss the fastest approach to division known to me.
+
+Regards,
+
+Krill
+

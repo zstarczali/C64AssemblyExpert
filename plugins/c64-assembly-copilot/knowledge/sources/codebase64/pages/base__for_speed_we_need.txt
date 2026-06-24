@@ -1,0 +1,724 @@
+# PAGE: base:for_speed_we_need
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:for_speed_we_need
+
+===== For Speed We Need =====
+All code is Turbo Assembler, but it should also work in TASS (Crossplatform turbo assembler). You will need to draw some car sprites, background, get some music etc and then enter the following code (Or just rip the stuff from FSWN V1 on the TND web site or CSDB).
+
+Music at $1000-$1fff
+,Charset at $2000-$2800
+,Sprites at $2800-$3000
+,Screen map is at $4000-$5000
+<code>
+;--------------------------------------
+
+;SETUP THE PERAMETERS FOR THE GAME
+
+SCRTXT   = $4000 ;WHERE THE SCREEN MAP
+                 ;IS LOCATED
+
+SPEEDCOUNT = $02 ;THE STORAGE FOR THE
+                 ;MOVING CAR'S SPEED
+
+STORE    = $03F0 ;COLLISION STORAGE
+
+SHIELD   = $0340   ;TEMPORARY SHIELD
+CLOCKDELAY = $0341 ;DELAY FOR THE GAME
+                   ;TIME
+
+LEVEL    = $0342   ;THE ACTUAL SPEED OF
+                   ;THE ENEMY CARS
+
+SYNC     = $0C
+
+RASNUM   = $0330
+POINTER  = $0336   ;ANIMATOR POINTER
+
+
+
+         *= $5800  ;JUMP ADDRESS
+
+;ALL IRQ VECTORS TURNED OFF
+
+GAME     SEI
+         LDA #$81
+         STA $DC0D
+         STA $DD0D
+         LDA #$00
+         STA $D01A
+         LDA #$31
+         STA $0314
+         LDA #$EA
+         STA $0315
+
+;1. CLEAR THE SCREEN. (DON'T USE
+;JSR $E544, AS IT CAN FAIL TO WORK
+;PROPERLY ON A C128.
+
+;SCREEN GETS CLEARED USING THE SPACEBAR
+;CHARSET.
+
+
+
+         LDX #$00
+         STX POINTER
+CLEARSCN LDA #$20
+         STA $0400,X
+         STA $0500,X
+         STA $0600,X
+         STA $06E8,X
+         INX
+         BNE CLEARSCN
+         LDA #$00
+         STA $D021
+         STA $D020
+
+;INITIALIZE THE GAME MUSIC
+
+         LDA #$00
+         TAX
+         TAY
+         JSR $1000
+
+;INITIALIZE EVERYTHING ELSE, SO THAT THE
+;GAME RESTARTS.
+
+         SEI
+         LDA #$00
+         STA $D021
+         STA $D020
+
+         LDA #$01  ;LEVEL 1 IS SET
+         STA LEVEL
+
+         LDA #$00       ;SPEED COUNTER
+         STA SPEEDCOUNT ;AND DELAY ARE
+         STA CLOCKDELAY ;ZEROED
+
+         LDA #$06       ;SHIELD IS
+         STA SHIELD     ;INITIALIZED
+
+         LDA #$18       ;CHARSET AND
+         STA $D018      ;SCREEN MULTI
+         STA $D016      ;COLOUR IS ON
+
+         LDA #$FF       ;ALL SPRITES AND
+         STA $D01C      ;MULTICOLS ARE
+         STA $D015      ;ACTIVATED
+
+;2. COPY ALL THE GRAPHIC DATAS TO THE
+;SCREEN AND FILL THE WHOLE SCREEN WITH
+;GREEN MULTICOLOUR ($0D).
+
+         LDX #$00
+COPY1A   LDA #$0D
+         STA $D800,X
+         STA $D900,X
+         STA $DA00,X
+         STA $DAE8,X
+         LDA $4000,X
+         STA $0400,X
+         LDA $4100,X
+         STA $0500,X
+         LDA $4200,X
+         STA $0600,X
+         LDA $42E8,X
+         STA $06E8,X
+         INX
+         BNE COPY1A
+
+         LDA #$09   ;WHITE LINES ON ROAD
+         STA $D812
+         STA $D813
+         STA $D812+(1*40)
+         STA $D813+(1*40)
+         STA $D812+(2*40)
+         STA $D813+(2*40)
+         STA $D812+(3*40)
+         STA $D813+(3*40)
+         STA $D812+(4*40)
+         STA $D813+(4*40)
+         STA $D812+(5*40)
+         STA $D813+(5*40)
+         STA $D812+(6*40)
+         STA $D813+(6*40)
+         STA $D812+(7*40)
+         STA $D813+(7*40)
+         STA $D812+(8*40)
+         STA $D813+(8*40)
+         STA $D812+(9*40)
+         STA $D813+(9*40)
+         STA $D812+(10*40)
+         STA $D813+(10*40)
+         STA $D812+(11*40)
+         STA $D813+(11*40)
+         STA $D812+(12*40)
+         STA $D813+(12*40)
+         STA $D812+(13*40)
+         STA $D813+(13*40)
+         STA $D812+(14*40)
+         STA $D813+(14*40)
+         STA $D812+(15*40)
+         STA $D813+(15*40)
+         STA $D812+(16*40)
+         STA $D813+(16*40)
+         STA $D812+(17*40)
+         STA $D813+(17*40)
+
+
+;3. PASTE THE STATUS BAR ON TO THE
+;BOTTOM PORTION OF THE SCREEN.
+
+         LDX #$00
+COPY1B   LDA $6000,X ;WHERE STATUS LIES
+         STA $06F8,X
+         LDA #$0F    ;GREY SCREEN
+         STA $DAF8,X
+         INX
+         CPX #$F0
+         BNE COPY1B
+
+;4. SETUP THE COLOUR AND SCREEN SETTINGS
+
+         LDA #$00   ;GREY
+         STA $D023  ;SCREEN M.COL 2
+         LDA #$09   ;BROWN
+         STA $D022  ;SCREEN M.COL 1
+         LDA #$1B
+         STA $D011  ;TURN SCREEN ON
+         LDA #$00
+         STA $D012  ;INIT RASTERSPLIT
+
+;5. SETUP ALL THE SPRITES AND POSITIONS
+
+         LDA #$A0
+         STA $07F8  ;PLAYER SPRITE TYPE
+         LDA #$A1
+         STA $07F9  ;ENEMY SPRITE TYPES
+         STA $07FA
+         STA $07FB
+         STA $07FC
+         STA $07FD
+         STA $07FE
+         STA $07FF
+
+;THIS IS THE LOOP FOR SETTING UP A
+;SPRITE POSITION, ACCORDINGLY TO THE
+;VALUES OF THE DATA TABLES.
+
+         LDX #$00
+SETPOS   LDA POSITION+$00,X ;X-POSITION
+         STA $D002,X
+         INX
+         CPX #$0E
+         BNE SETPOS
+
+;DEFAULT THE PLAYER'S POSITION
+
+         LDA #$68
+         STA $D000
+         LDA #$50
+         STA $D001
+
+;SPRITE MULTICOLOURS
+
+         LDA #$0B
+         STA $D025
+         LDA #$0C
+         STA $D026
+         LDA #$0A
+         STA $D027
+
+;6. INITIALISE THE IRQ INTERRUPT PLAYER
+
+         LDA #<INT
+         STA $0314
+         LDA #>INT
+         STA $0315
+         LDA #$00
+         STA $D012
+         LDA #$7F
+         STA $DC0D
+         STA $DD0D
+         LDA #$1B
+         STA $D011
+
+         LDA #$01
+         STA $D019
+         STA $D01A
+         STA RASNUM
+
+         CLI
+         JMP DOSYNC
+
+;7. OUR MAIN IRQ RASTER INTERRUPT
+
+INT      LDA $D019
+         AND #$01
+         STA $D019
+         BNE IRQ1
+         JMP $EA81
+
+;8. THE BOTTOM RASTER
+
+IRQ1     LDA RASNUM
+         CMP #$02
+         BEQ RASTER2
+         LDA #$00
+         STA $D012
+         LDA #$1B
+         STA $D011
+         LDA #$08
+         STA $D016 ;SCREEN MULTICOL OFF
+         LDA #$FF
+         STA $D015 ;ALL SPRITES AND MCOL
+         LDA #$00
+         STA $D01C ;OFF
+         LDA #$FF  ;ALL SPRITES BLACK
+         STA $D01B ;AND BEHIND THE
+                   ;SCREEN.
+
+
+;OUR LOOP FOR THE SPRITE COLOURS, ALL
+;PAINTED IN BLACK.
+
+         LDX #$00
+COLOOP   LDA #$00
+         STA $D028,X
+         INX
+         CPX #$07
+         BNE COLOOP
+
+         LDA #$12  ;SCORE CHARSET
+         STA $D018
+         LDA #$02
+         STA RASNUM
+         JMP $EA81
+
+;9. THE BOTTOM RASTER
+
+RASTER2  LDA #$C4
+WAIT4    STA $D012
+
+;STRAIGHTEN THE BOTTOM RASTER USING
+;GENERAL TIMING
+
+         LDX #$0A
+TIME1    DEX
+         BNE TIME1
+
+;NOW FOR THE MAIN BITS FOR THE SECOND
+;RASTER
+
+         LDA #$1B  ;SCREEN ON
+         STA $D011
+         LDA #$18  ;SCREEN MULTICOLOR
+         STA $D016 ;IS ON
+
+         LDX #$00  ;ALL SPRITES ARE
+COLSPR   LDA COLOURS+$00,X
+         STA $D028,X
+         INX
+         CPX #$07
+         BNE COLSPR
+         LDA #$FF  ;SPRITE MULTICOL ON
+         STA $D01C
+         LDA #$00  ;ALL SPRITES IN FRONT
+         STA $D01B ;OF THE GRAPHICS
+         LDA #$18  ;GAME GRAPHICS ON
+         STA $D018
+         LDA #$01  ;SWITCH RASNUM VALUE
+         STA RASNUM;FOR SPLITS
+
+         LDA #$01  ;ADD 1 TO SYNC
+
+         STA SYNC
+         JSR MOVEBAD ;MOVE ENEMIES
+         JSR MOVEJOY ;JOYSTICK
+         JSR $1003 ;PLAY MUSIC
+         JMP $EA31
+
+
+;10. SYNCHRONIZE ROUTINES THEN CALL EM
+
+DOSYNC   LDA #$00
+         STA SYNC
+         LDA SYNC
+RASWAIT  CMP SYNC
+         BEQ RASWAIT
+
+         JSR SCROLL ;CALL ROUGH MAP
+                    ;SCROLL
+
+         JSR COLLISION ;CHECK COLLISION
+         JSR TIME      ;OPERATE TIMER
+         JSR SCORE     ;INCREASE SCORE
+         JSR ANIMATE   ;ANIMATE SPRITES
+
+         JMP DOSYNC    ;LOOP IN SYNC
+
+
+;11. OUR ROUTINE FOR THE ROUGH MAP
+;SCROLLER.
+
+SOFT     .BYTE $07
+SCRREP0  RTS
+COUNT    .BYTE $01
+
+
+SCRSPEED = 1       ;MIN. =  0, MAX. = 8.
+
+DELAY    = 1
+
+
+SCROLL
+         DEC COUNT
+         BNE SCRREP0
+         LDA #DELAY
+         STA COUNT
+
+         LDA $03    ;SCROLL SPEED
+         SEC
+SPEED    SBC #$05
+         AND #$07
+         STA $03
+         BCS SCRREP0
+
+
+;THE MAIN MAP UP THE SCREEN
+
+;THIS IS THE AREA WHERE THE SCREEN
+;CHARS IS PULLED FROM ONE AREA TO
+;ANOTHER ON THE GAME SCREEN.
+
+
+SCRREP1  LDX #39
+SCRREP2
+
+         LDA $0400+(1*40),X
+         STA $0400+(0*40),X
+         LDA $0400+(2*40),X
+         STA $0400+(1*40),X
+         LDA $0400+(3*40),X
+         STA $0400+(2*40),X
+         LDA $0400+(4*40),X
+         STA $0400+(3*40),X
+         LDA $0400+(5*40),X
+         STA $0400+(4*40),X
+         LDA $0400+(6*40),X
+         STA $0400+(5*40),X
+         LDA $0400+(7*40),X
+         STA $0400+(6*40),X
+         LDA $0400+(8*40),X
+         STA $0400+(7*40),X
+         LDA $0400+(9*40),X
+         STA $0400+(8*40),X
+         LDA $0400+(10*40),X
+         STA $0400+(9*40),X
+         LDA $0400+(11*40),X
+         STA $0400+(10*40),X
+         LDA $0400+(12*40),X
+         STA $0400+(11*40),X
+         LDA $0400+(13*40),X
+         STA $0400+(12*40),X
+         LDA $0400+(13*40),X
+         STA $0400+(12*40),X
+         LDA $0400+(14*40),X
+         STA $0400+(13*40),X
+         LDA $0400+(15*40),X
+         STA $0400+(14*40),X
+         LDA $0400+(16*40),X
+         STA $0400+(15*40),X
+         LDA $0400+(17*40),X
+         STA $0400+(16*40),X
+         LDA #$20
+         STA $06D0,X
+SCRREP3  LDA SCRTXT,X  ;CHECK IF THE MAP
+         CMP #$00      ;USES '@' SYMBOL
+         BEQ SCRREP4   ;IF SO, THEN
+                       ;RESTART THE
+                       ;SCROLL.
+
+         STA $0400+(17*40),X ;NOPE
+
+         DEX
+         BPL SCRREP2
+
+         LDA SCRREP3+1
+         CLC
+         ADC #40
+         STA SCRREP3+1
+         LDA SCRREP3+2
+         ADC #0
+         STA SCRREP3+2
+         RTS
+
+SCRREP4  LDA #$00          ;RESTART MAP
+         STA SCRREP3+1
+         LDA #$40
+         STA SCRREP3+2
+         JMP SCRREP2
+
+;12. THE JOYSTICK BEING READ IN PORT 2
+;
+;YOU SHOULD ALREADY KNOW WHAT HAPPENS
+;HERE, IT WAS EXPLAINED IN THE 2 PLAYER
+;BLASTER GAME.
+
+MOVEJOY  LDA $DC00
+         LSR A
+DOWN     LSR A
+         BCS LEFT
+LEFT     LSR A
+         BCS RIGHT
+         LDX $D000
+         DEX
+         DEX
+         DEX
+         DEX
+         CPX #$68
+         BCS SETLEFT
+         LDX #$68
+SETLEFT  STX $D000
+RIGHT    LSR A
+         BCS FIRE
+         LDX $D000
+         INX
+         INX
+         INX
+         INX
+         CPX #$E8
+         BCC SETRIGHT
+         LDX #$E8
+SETRIGHT STX $D000
+FIRE     RTS
+
+;13. ENEMY MOVEMENTS
+
+;YOU SHOULD ALSO BE FAMILIAR WITH THIS
+;ALSO, AS IT WAS KIND OF INTRODUCED IN
+;THE MISSILE BLASTA SOURCE.
+
+MOVEBAD  LDX #$00
+BADLOOP  LDA $D003,X
+         SEC
+         SBC LEVEL
+         STA $D003,X
+         LDA $D003,X
+         CMP #$0C
+         BCS RANDPLC
+         LDA RANDPOS+$00
+         STA $D002,X
+         LDA #$FC
+RANDPLC  STA $D003,X
+NORAND   INX
+         INX
+         CPX #$0E
+         BNE BADLOOP
+         LDA RANDPOS+$00
+         STA RANDPOS+$09
+         LDX #$00
+RANDOM   LDA RANDPOS+$01,X
+         STA RANDPOS+$00,X
+         INX
+         CPX #$09
+         BNE RANDOM
+         RTS
+
+;14.
+;A SIMPLE COLLISION USING $D01E (MOST
+;GAMES DON'T USE THIS AS $D01E IS VERY
+;SENSITIVE).
+
+COLLISION LDA $D01E
+         LSR A
+         BCC ALIVE
+         DEC SHIELD
+         LDA SHIELD ;IF SHIELD IS ZEROED
+         CMP #$00   ;GAME IS OVER.
+         BEQ DEAD
+ALIVE    RTS
+
+;15. PLAYER IS DEAD, SO DO GAME OVER
+
+DEAD     LDX #$00
+DEADLOOP LDA $6100,X
+         STA $07C0,X
+         INX
+         CPX #$28
+         BNE DEADLOOP
+         JMP GAMEOVER
+
+;16. SCORE ROUTINE (YOU SHOULD BE
+;FAMILIAR WITH THIS RIGHT NOW)
+
+
+SCORE    INC $077C
+         LDX #$05
+SC       LDA $0777,X
+         CMP #$3A
+         BNE SC2
+         LDA #$30
+         STA $0777,X
+         INC $0776,X
+SC2      DEX
+         BNE SC
+         RTS
+
+;17. CLOCK ROUTINE (YOU SHOULD ALSO BE
+;FAMILIAR TO HOW TO MAKE A CHARACTER ON
+;SCREEN COUNT DOWN).
+
+TIME     INC CLOCKDELAY
+         LDA CLOCKDELAY
+         CMP #$30
+         BNE NOTIME
+         LDA #$00
+         STA CLOCKDELAY
+         DEC $0796
+         LDA $0796
+         CMP #$2F
+         BNE NOTIME
+         LDA #$39
+         STA $0796
+         DEC $0795
+         LDA $0795
+         CMP #$2F
+         BNE NOTIME
+         LDA #$30
+         STA $0796
+         LDA #$36
+         STA $0795
+
+;18. TIME IS UP SO GO ON TO THE NEXT
+;LEVEL.
+
+         INC LEVEL
+         INC $078A
+         LDA LEVEL
+         CMP #$09
+         BNE NOTIME
+
+;19. ALL LEVELS ARE COMPLETE, SO NOW
+;THE PLAYER HAS WON THE GAME
+
+         LDA #$38
+         STA $078A
+         LDX #$00
+WINTEXT  LDA $6140,X
+         STA $07C0,X
+         INX
+         CPX #$28
+         BNE WINTEXT
+         LDA #$02
+         TAX
+         TAY
+         JSR $1000
+         JMP GAMEOVER
+NOTIME   RTS
+
+
+;20. OUR SIMPLE PRESS FIRE TO PLAY AGAIN
+;ROUTINE AND LOOP.
+
+GAMEOVER SEI
+         LDA #$00
+         STA $D015
+         LDA #$12
+         STA $D018
+         LDX #$00
+CLEAR2   LDA #$20
+         STA $0400+(0*40),X
+         STA $0400+(1*40),X
+         STA $0400+(2*40),X
+         STA $0400+(3*40),X
+         STA $0400+(4*40),X
+         STA $0400+(5*40),X
+         STA $0400+(6*40),X
+         STA $0400+(7*40),X
+         STA $0400+(8*40),X
+         STA $0400+(9*40),X
+         STA $0400+(10*40),X
+         STA $0400+(11*40),X
+         STA $0400+(12*40),X
+         STA $0400+(13*40),X
+         STA $0400+(14*40),X
+         STA $0400+(15*40),X
+         STA $0400+(16*40),X
+         STA $0400+(17*40),X
+         STA $0400+(18*40),X
+         INX
+         CPX #$28
+         BNE CLEAR2
+         LDA #$03
+         TAX
+         TAY
+         JSR $1000
+HITFIRE  LDA #$80
+RAS      CMP $D012
+         BNE RAS
+         LDA #$08
+         STA $D016
+
+         JSR $1003 ;MUSIC STILL PLAY
+         LDA $DC00
+         LSR A
+         LSR A
+         LSR A
+         LSR A
+         LSR A
+         BCS HITFIRE
+         JMP GAME
+
+;21. OUR ANIMATION PROCESS
+
+ANIMATE  LDX POINTER
+         LDA FRAME1+$00,X
+         STA $07F8
+         LDY FRAME2+$00,X
+         STY $07F9
+         STY $07FA
+         STY $07FB
+         STY $07FC
+         STY $07FD
+         STY $07FE
+         STY $07FF
+         INX
+         CPX #$0B
+         BEQ RESETPT
+         INC POINTER
+         RTS
+RESETPT  LDX #$00
+         STX POINTER
+         RTS
+
+;22. THE DATA TABLES FOR THE F.S.W.N
+;GAME.
+
+; POSITIONS FOR THE PLAYER
+
+POSITION .BYTE $90,$00,$78,$30,$80,$60
+         .BYTE $B0,$60,$A0,$D0,$E8,$20
+         .BYTE $C0,$D8
+
+;RANDOM POSITIONS FOR ENEMIES
+
+RANDPOS  .BYTE $68,$E8,$78,$D8,$88,$C8
+         .BYTE $98,$B8,$A8
+
+;COLOURS FOR ALL SPRITES
+
+COLOURS  .BYTE $0A,$03,$0D,$07,$0F,$0A
+         .BYTE $0E,$0D
+
+;PLAYER ANIMATION TABLE
+
+FRAME1   .BYTE $A0,$A0,$A0,$A0,$A0,$A0
+         .BYTE $A1,$A1,$A1,$A1,$A1,$A1
+         .BYTE $A1,$00,$00,$00,$00
+
+;ENEMY ANIM TABLE
+
+FRAME2   .BYTE $A2,$A2,$A2,$A2,$A2,$A2
+         .BYTE $A3,$A3,$A3,$A3,$A3,$A3
+         .BYTE $A3
+</code>

@@ -1,0 +1,1812 @@
+# PAGE: base:formant
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:formant
+
+====== Formant - a speech synthesis ======
+
+<code asm>
+; ----------------------------------------------------------------------------------------------------------------------
+; Formant - a speech synthesis program for the C64
+; (c) 2007 Radwar Enterprises 1941
+; ----------------------------------------------------------------------------------------------------------------------
+; a small intoduction to formant synthesis
+; each letter or phonem is created by 3 (or more) frequencies F1,F2,F3
+; each frequency has an amplitude A1,A2,A3 (and a bandwith which is not used here)
+; F0 is a "base" frequency which determines the "gender" of the speaker F0=100 Hz: male ; F0=150 Hz: female
+; each phonem has a Volume of "Voiced" sound AV (e.g. vocals) and "Fricative" Sound AF (e.g. "f" or "s") 
+; ----------------------------------------------------------------------------------------------------------------------
+; implementation:
+; The Frequencies F1-F3 are perfectly suitable for the SID :-)
+; The Amplitude A1-A3 is represented by the Sustain-Value of a normal ADSR-Curve (Attack and Decay are 0)
+; The F0 frequency is generated via $d418-Digi, but can be omitted. We kept it to mask some minor noise-glitches
+; To get a F0 of 100Hz, we set a Timer-IRQ to 5 ms (200 Hz) and toggle $D418
+; If AV is larger than AF then we use the Triangle-wave otherwise Noise-Wave
+; To transit from one phonem to the next, we just use a linear interpolation of 10 steps. 
+; So a transition from one phonem takes 100 ms in steps of 10 ms (every second time, our F0-Timer-IRQ is called :-)
+; We use double-buffering for the sound-data. While one sentence is "spoken", the next is calculated
+; ----------------------------------------------------------------------------------------------------------------------
+; This code was written using Relaunch64 and the ACME-Compiler
+
+*= $0801
+
+; SYS 2061
+!byte $23,$08,$95,$07,$9e
+!text "2080 RADWAR ENTERPRISES"
+!byte $00,$00,$00
+;
+!to "radwar-speech.prg"
+
+
+MCP2    	= $02
+MCP3 		= MCP2+1
+MCP4 		= MCP2+2
+MCP5 		= MCP2+3
+MCP6 		= MCP2+4
+MCP7 		= MCP2+5
+
+
+ZP1      		= MCP7+1 		; general ZP-Pointer
+ZP2      		= ZP1+2    	; general ZP-Pointer
+ZP3      		= ZP2+2    	; general ZP-Pointer
+ZP4      		= ZP3+2    	; general ZP-Pointer
+
+GPZ      		= ZP4+2    	; Pointer GetPara
+GPZCNT   		= GPZ+2 		; Counter  GetPara 		
+
+MPR			= GPZCNT+2      ; for Multiplication
+MPD			= MPR+2 		; for Multiplication
+PROD			= MPD+2 		; for Multiplication
+
+
+irqcntlo		= PROD+2 		; sound counter
+
+irqcntmaxlo	= irqcntlo+2 	; sound counter max value
+irqcntmaxsav	= irqcntmaxlo+1 ; store last sound counter max value
+d418store	= irqcntmaxlo+2 ; Store, D418-Pulsecode 
+irqms		= irqcntmaxlo+3 ; Counter, only F0-basesound or sound output
+charcnt		= irqcntmaxlo+4 ; Counter, how many chars
+charcntsav	= irqcntmaxlo+5 ; Store for charcnt
+nasal1		= irqcntmaxlo+6 ; Store, F1(x0)=0 ?
+nasal2		= irqcntmaxlo+7 ; Store, F1(x1)=0 ?
+whichBank 	= irqcntmaxlo+8 ; Store, which bank (1/2) is used for talking/computing  (0: IRQ has finished last sentence)
+
+speechzp	= irqcntmaxlo+9 ; Pointer to speechdata
+f1zp		= speechzp+2	; Pointer to F1
+f2zp		= speechzp+4	; Pointer to F2
+f3zp		= speechzp+6	; Pointer to F3
+a1zp		= speechzp+8	; Pointer to A1
+a2zp		= speechzp+10	; Pointer to A2
+a3zp		= speechzp+12	; Pointer to A3
+avzp		= speechzp+14	; Pointer to AV
+afzp		= speechzp+16	; Pointer to AF
+f1izp		= speechzp+18	; Pointer to F1 during IRQ
+f2izp		= speechzp+20	; Pointer to F2 during IRQ
+f3izp		= speechzp+22	; Pointer to F3 during IRQ
+a1izp		= speechzp+24	; Pointer to A1 during IRQ
+a2izp		= speechzp+26	; Pointer to A1 during IRQ
+a3izp		= speechzp+28	; Pointer to A1 during IRQ
+avizp		= speechzp+30	; Pointer to AV during IRQ
+afizp		= speechzp+32	; Pointer to AF during IRQ
+
+
+DestTab 		= ZP1 
+x0			= ZP1+3
+y0			= ZP1+4
+x1			= ZP1+5
+y1			= ZP1+6
+ax			= ZP1+7
+ay			= ZP1+8
+vx			= ZP1+9
+vy			= ZP1+10
+vz			= ZP1+11
+cx			= x0
+cy			= y0
+
+FreqTabLo 		= FREQTABLES 		
+FreqTabHi 		= FREQTABLES+$0100	
+F1A			= FREQTABLES+$0200	
+F2A			= FREQTABLES+$0300	
+F3A			= FREQTABLES+$0400	
+A1A			= FREQTABLES+$0500	
+A2A			= FREQTABLES+$0600	
+A3A			= FREQTABLES+$0700	
+AVA			= FREQTABLES+$0800	
+AFA			= FREQTABLES+$0900	
+F1B			= FREQTABLES+$0a00	
+F2B			= FREQTABLES+$0b00	
+F3B			= FREQTABLES+$0c00	
+A1B			= FREQTABLES+$0d00	
+A2B			= FREQTABLES+$0e00	
+A3B			= FREQTABLES+$0f00	
+AVB			= FREQTABLES+$1000	
+AFB			= FREQTABLES+$1100	
+
+
+MAIN
+
+	SEI
+
+	LDA #$35           
+	STA $01            
+
+;---------------------------------------
+
+	lda #0
+	tay
+	ldx #12
+.l1	sta FREQTABLES,y
+	iny
+	bne .l1
+	inc .l1+2
+	dex
+	bpl .l1
+
+	; initialize $d400
+         JSR MEMCOPY
+         !byte Q0-*
+         !byte MCP2; $02
+         !word SIDTAB
+         !word $D400
+         !word $18
+Q0
+	; to save memory, we quantize SID-Values 200 Hz , 216,8 Hz , 233,6 Hz ...
+	; this generates the table of SID-Values
+         JSR genFreq
+         !byte Q4-*
+         !byte ZP1
+         !word FreqTabLo
+         !word FreqTabHi
+Q4
+
+	; Initialize IRQs
+         LDX #$05
+.LOOP     
+         LDA IRTB,X
+         STA $FFFA,X
+         DEX
+         BPL .LOOP
+
+	 LDA $dc0e          ; load CIA 1 CR A
+	 AND #$fe           ; stop timer A
+	 STA $dc0e          ; write back
+
+; PAL clock speed / $133e ~= 200 Hz = 5 ms => F0 100Hz via $d418
+
+	LDA #$13           ;
+	STA $dc05          ; set CIA 1 timer A
+	LDA #$3e           ; 
+	STA $dc04
+
+	LDA #$81           ; CIA 1 ICR, enable
+	STA $dc0d          ; underflow timer A
+
+	LDA $dc0f          ; load CIA 1 CR B
+	AND #$fe           ; stop timer B
+	STA $dc0f          ; write back
+
+	lda#0
+	sta irqms		
+
+	ldx #2		   ; chooses the double-buffering sound-bank
+	jsr InitFTabellen
+
+;	lda #$f1		; if you like, play with some filters
+;	sta $d417
+;	lda #$1f
+	lda #15
+	sta $d418
+	sta d418store
+	
+	lda #0		   ; stop talking
+	sta whichBank
+	CLI
+
+	LDA $dc0e          ; load CIA 1 CR A
+	ORA #$01           ; start timer A
+	STA $dc0e          ; write back
+
+	; Pointer to speech data
+	lda #<SPEECHTAB
+	sta speechzp
+	lda #>SPEECHTAB
+	sta speechzp+1
+	ldy #0
+	lda (speechzp),y
+	sta charcnt	
+	tay
+	iny		
+	sty charcntsav
+	lda TIMETAB,y
+	sta irqcntmaxsav
+	jsr nextWord	; calculate F1-F3, A1-A3, AV, AF for the next sentence
+
+MAINL     
+
+		lda irqcntmaxsav
+		sta irqcntmaxlo
+		ldx #1
+		jsr InitFTabellen	; switch the double-buffering sound-bank
+					; and start talking 
+
+		sec
+		lda speechzp
+		adc charcntsav
+		sta speechzp
+		bcc .mainnw1
+		inc speechzp+1
+.mainnw1
+		ldy #0
+		lda (speechzp),y
+		bmi Finito		; $ff quits
+		sta charcnt
+		tay
+		iny		
+		sty charcntsav
+		lda TIMETAB,y
+		sta irqcntmaxsav
+		jsr nextWord		; calculate F1-F3, A1-A3, AV, AF for the next sentence
+
+irqIsTalking1
+		lda whichBank
+		bne irqIsTalking1	; wait until IRQ stopped talking
+
+		lda irqcntmaxsav
+		sta irqcntmaxlo
+		ldx #2
+		jsr InitFTabellen	; switch the double-buffering sound-bank
+					; and start talking 
+		sec
+		lda speechzp
+		adc charcntsav
+		sta speechzp
+		bcc .mainnw2
+		inc speechzp+1
+.mainnw2
+		ldy #0
+		lda (speechzp),y
+		bmi Finito		; $ff quits
+		sta charcnt
+		tay
+		iny		
+		sty charcntsav
+		lda TIMETAB,y
+		sta irqcntmaxsav
+		jsr nextWord		; calculate F1-F3, A1-A3, AV, AF for the next sentence
+
+
+irqIsTalking2
+		lda whichBank
+		bne irqIsTalking2	; wait until IRQ stopped talking
+
+		JMP MAINL
+          
+Finito    	lda #$37
+		sta $01
+		jmp ($fffc)
+		
+		
+IRTB     !byte <RTIADR,>RTIADR
+         !byte <RTIADR,>RTIADR
+         !byte <IRQ,>IRQ
+
+
+; ============================
+InitFTabellen
+!zone InitFTabellen
+		; reset the Frequency table pointers
+		; X-Reg = 1 => Bank1
+		; X-Reg = 2 => Bank2
+				
+		dex
+		bne .Satz2
+		
+.Satz1	JSR STOREZP
+		!byte .ift1-*
+		!byte f1zp
+		!word F1A
+		!word F2A
+		!word F3A
+		!word A1A
+		!word A2A
+		!word A3A
+		!word AVA
+		!word AFA
+		!word F1B
+		!word F2B
+		!word F3B
+		!word A1B
+		!word A2B
+		!word A3B
+		!word AVB
+		!word AFB
+.ift1	
+		ldx #1
+		jmp .iftall
+
+.Satz2
+		JSR STOREZP
+		!byte .ift2-*
+		!byte f1zp
+		!word F1B
+		!word F2B
+		!word F3B
+		!word A1B
+		!word A2B
+		!word A3B
+		!word AVB
+		!word AFB
+		!word F1A
+		!word F2A
+		!word F3A
+		!word A1A
+		!word A2A
+		!word A3A
+		!word AVA
+		!word AFA
+.ift2
+		ldx #2
+
+.iftall
+		lda f1zp+0
+		sta nwf1
+		lda f1zp+1
+		sta nwf1+1
+
+		lda f1zp+2
+		sta nwf2
+		lda f1zp+3
+		sta nwf2+1
+
+		lda f1zp+4
+		sta nwf3
+		lda f1zp+5
+		sta nwf3+1
+
+		lda f1zp+6
+		sta nwa1
+		lda f1zp+7
+		sta nwa1+1
+
+		lda f1zp+8
+		sta nwa2
+		lda f1zp+9
+		sta nwa2+1
+
+		lda f1zp+10
+		sta nwa3
+		lda f1zp+11
+		sta nwa3+1
+
+		lda f1zp+12
+		sta nwav
+		lda f1zp+13
+		sta nwav+1
+
+		lda f1zp+14
+		sta nwaf
+		lda f1zp+15
+		sta nwaf+1
+
+
+		lda #0
+		sta irqcntlo
+		
+		stx whichBank
+
+		rts
+		
+STOREZP
+		jsr GETP
+		rts         
+;---------------------------------------
+nextWord
+!zone nextWord
+		ldy charcnt
+		lda (speechzp),y
+		tax
+		cpx #7
+		bne .leise1a
+		iny
+		lda (speechzp),y
+		tax
+		dey
+.leise1a
+		
+		lda F1tab,x
+		sta ZP1+4 ;x0
+		sta nasal1
+		
+		lda TIMETAB,y
+		sta ZP1+3	;y0
+		
+		iny
+		lda (speechzp),y
+		tax
+		cpx #7
+		bne .leise1b
+		dey
+		lda (speechzp),y
+		tax
+		iny
+.leise1b
+		
+		lda F1tab,x
+		sta ZP1+6 ;x1
+		sta nasal2
+		
+		lda TIMETAB,y
+		sta ZP1+5	;y1
+		
+		; nasal sounds (n,m,nj) have F1=0
+		lda nasal1
+		bne nichtnasal1
+		lda #0
+		sta ZP1+4
+		sta ZP1+6		
+nichtnasal1
+		lda nasal2
+		bne nichtnasal2
+		lda ZP1+4
+		sta ZP1+6		
+nichtnasal2	
+
+         JSR Interpolate
+         !byte .nw1-*
+         !byte ZP1
+nwf1     !word F1A	;Dest-Tab
+.nw1
+		ldy charcnt
+		lda (speechzp),y
+		tax
+		bne .leise2a
+		iny
+		lda (speechzp),y
+		tax
+		dey
+.leise2a
+		
+		lda F2tab,x
+		sta ZP1+4 ;x0
+		
+		lda TIMETAB,y
+		sta ZP1+3	;y0
+		
+		iny
+		lda (speechzp),y
+		tax
+		cpx #7
+		bne .leise2b
+		dey
+		lda (speechzp),y
+		tax
+		iny
+.leise2b
+		lda F2tab,x
+		sta ZP1+6 ;x1
+		
+		lda TIMETAB,y
+		sta ZP1+5	;y1
+
+         JSR Interpolate
+         !byte .nw2-*
+         !byte ZP1
+nwf2     !word F2A	;Dest-Tab
+.nw2
+		ldy charcnt
+		lda (speechzp),y
+		tax
+		bne .leise3a
+		iny
+		lda (speechzp),y
+		tax
+		dey
+.leise3a
+		
+		lda F3tab,x
+		sta ZP1+4 ;x0
+		sta nasal1
+		
+		lda TIMETAB,y
+		sta ZP1+3	;y0
+		
+		iny
+		lda (speechzp),y
+		tax
+		cpx #7
+		bne .leise3b
+		dey
+		lda (speechzp),y
+		tax
+		iny
+.leise3b
+		lda F3tab,x
+		sta ZP1+6 ;x1
+		sta nasal2
+		
+		lda TIMETAB,y
+		sta ZP1+5	;y1
+		
+         JSR Interpolate
+         !byte .nw3-*
+         !byte ZP1
+nwf3     !word F3A	;Dest-Tab
+.nw3
+		ldy charcnt
+		lda (speechzp),y
+		tax
+		
+		lda A1tab,x
+		sta ZP1+4 ;x0
+		
+		lda TIMETAB,y
+		sta ZP1+3	;y0
+		
+		iny
+		lda (speechzp),y
+		tax
+		lda A1tab,x
+		sta ZP1+6 ;x1
+		
+		lda TIMETAB,y
+		sta ZP1+5	;y1
+
+         JSR Interpolate
+         !byte .nw4-*
+         !byte ZP1
+nwa1     !word A1A	;Dest-Tab
+.nw4
+		ldy charcnt
+		lda (speechzp),y
+		tax
+		
+		lda A2tab,x
+		sta ZP1+4 ;x0
+		
+		lda TIMETAB,y
+		sta ZP1+3	;y0
+		
+		iny
+		lda (speechzp),y
+		tax
+		lda A2tab,x
+		sta ZP1+6 ;x1
+		
+		lda TIMETAB,y
+		sta ZP1+5	;y1
+
+         JSR Interpolate
+         !byte .nw5-*
+         !byte ZP1
+nwa2     !word A2A	;Dest-Tab
+.nw5
+		ldy charcnt
+		lda (speechzp),y
+		tax
+		
+		lda A3tab,x
+		sta ZP1+4 ;x0
+		
+		lda TIMETAB,y
+		sta ZP1+3	;y0
+		
+		iny
+		lda (speechzp),y
+		tax
+		lda A3tab,x
+		sta ZP1+6 ;x1
+		
+		lda TIMETAB,y
+		sta ZP1+5	;y1
+
+         JSR Interpolate
+         !byte .nw6-*
+         !byte ZP1
+nwa3     !word A3A	;Dest-Tab
+.nw6
+		ldy charcnt
+		lda (speechzp),y
+		tax
+		
+		lda AVtab,x
+		sta ZP1+4 ;x0
+		
+		lda TIMETAB,y
+		sta ZP1+3	;y0
+		
+		iny
+		lda (speechzp),y
+		tax
+		lda AVtab,x
+		sta ZP1+6 ;x1
+		
+		lda TIMETAB,y
+		sta ZP1+5	;y1
+
+         JSR Interpolate
+         !byte .nw7-*
+         !byte ZP1
+nwav     !word AVA	;Dest-Tab
+.nw7
+		ldy charcnt
+		lda (speechzp),y
+		tax
+		
+		lda AFtab,x
+		sta ZP1+4 ;x0
+		
+		lda TIMETAB,y
+		sta ZP1+3	;y0
+		
+		iny
+		lda (speechzp),y
+		tax
+		lda AFtab,x
+		sta ZP1+6 ;x1
+		
+		lda TIMETAB,y
+		sta ZP1+5	;y1
+
+         JSR Interpolate
+         !byte .nw8-*
+         !byte ZP1
+nwaf     !word AFA	;Dest-Tab
+.nw8
+
+		dec charcnt
+		beq .nwrts
+		jmp nextWord
+.nwrts		rts
+;---------------------------------------
+
+MEMCOPY  
+         JSR GETP
+
+MM3      LDY #$00
+.L       
+MM2      LDA (MCP2),Y
+         STA (MCP4),Y
+         INY
+         BNE MM1
+         INC MCP3
+         INC MCP5
+MM1      DEC MCP6
+         BNE .L
+         DEC MCP7
+         BPL .L
+EXITMEM
+
+         RTS
+
+
+;===============
+
+;GETPARA
+;KOPIERT DIE WERTE NACH DEM JSR
+;IN DIE ANGEGEBENE ZP-ADR
+
+GETP     TSX
+         LDY #$01
+         LDA $0103,X
+         STA GPZ
+         LDA $0104,X
+         STA GPZ+1
+         LDA (GPZ),Y
+         INY
+         STA GPZCNT
+         CLC
+         ADC GPZ
+         STA $0103,X
+         LDA GPZ+1
+         ADC #$00
+         STA $0104,X
+         LDA (GPZ),Y
+         TAX
+.L2       
+         INY
+         LDA (GPZ),Y
+         STA $00,X
+         INX
+         CPY GPZCNT
+         BNE .L2
+         RTS
+
+;---------------------------------------
+; generates SID-Values from frequency data
+; SID = Hz * 16,8  => Hz*134/8
+; Factor 10 = 1340/8 = 167,5
+; lowest frequency is 210 (0 means 0 Hz)
+
+!zone genFreq
+genFreq 
+		JSR GETP
+
+		LDY #$00
+	 	
+.loop	tya
+		ldx #167
+		jsr MULT8 
+		
+		lda PROD
+		clc
+		adc #<3360 ; 200*16,8
+		
+		STA (ZP1),Y
+		lda PROD+1
+		adc #>3360 ; 200*16,8
+
+		STA (ZP2),Y
+		
+		INY
+		bne .loop
+
+;0 ist 0Hz not 200 Hz
+		tya
+		STA (ZP1),Y
+		STA (ZP2),Y
+		
+		RTS
+
+;---------------------------------------
+Interpolate ;drawline( x0, y0, x1, y1 )
+
+
+        	JSR GETP
+
+		lda #$e8 ; inx
+		sta mod_cy
+
+;ax = abs(x1 - x0)
+
+		sec
+		LDA x1
+		sbc x0   
+		sta ax
+
+xOK
+
+;vy = ax / 2 
+		lda ax
+		lsr
+		sta vy
+		
+;ay = abs(y1 - y0)		
+
+		sec
+		LDA y1
+		sbc y0   
+		sta ay
+		bne yUngleich
+;y1=y0 => sy=0 
+		lda #$ea ;nop
+		sta mod_cy
+		sec
+yUngleich
+		bcs yOK	    ;y1>y0
+		
+		SEC            
+		lda #0         
+		SBC ay	    
+		STA ay    	    
+
+;sy = sgn(y1 - y0)
+		lda #$CA ; dex
+		sta mod_cy
+yOK
+;   vz = ay
+;  vx = ay / 2 
+		lda ay
+		sta vz
+		lsr
+		sta vx
+		
+;if ax < ay then
+
+           LDA ax 
+           CMP ay   
+           BCS axgroesseray 
+           
+axkleineray
+; if ax == 0 then
+;   vz = ay
+		lda ax
+		beq vzOK
+; else
+;   vz = ax
+		sta vz
+		bne vzOK ; jmp vzOK
+
+axgroesseray
+;else ax > ay
+; if ay == 0 then
+		lda ay
+		bne vzOK
+;   vz = ax
+		lda ax
+		sta vz
+vzOK
+
+
+		ldy cx
+		ldx cy
+WHILE		
+;while cx != x1 or cy != y1
+		cpy x1
+		BNE ungleich
+
+		cpx y1
+		BEQ LastPoint
+
+
+ungleich
+
+; vx -= vz
+		sec
+		lda vx
+		sbc vz
+		sta vx
+; if vx < 0 then
+		bcs vxPlus
+		
+
+;   vx += ay
+		clc
+		lda vx
+		adc ay
+		sta vx
+		
+;   cx += sx (always 1, because ax >0)
+		txa
+		sta (DestTab),y
+
+		iny
+vxPlus
+
+; vy -= vz
+		sec
+		lda vy
+		sbc vz
+		sta vy
+; if vy < 0 then
+		bcs WHILE
+
+;   vy += ax
+		clc
+		lda vy
+		adc ax
+		sta vy
+;   cy += sy
+mod_cy	inx	;or dex or nop !!! selfmodifying code
+
+; WEND
+		jmp WHILE
+
+LastPoint
+;plot(cx,cy)
+		
+		txa
+		sta (DestTab),y
+
+         RTS
+
+;===================
+!zone Multiply
+; MULTIPLY ROUTINE 8x8=>16
+; Akku*X -> [PRODL,PRODH] (low,hi) 16 bit result
+
+MULT8 	
+		STA MPR 
+		STX MPD 
+		CLC 
+		LDA #0 	
+		STA MPD+1 	
+		STA PROD 	
+		STA PROD+1 	 
+		
+		LDX #8 	
+.LOOP 
+		LSR MPR 	
+		BCC .NOADD 
+		CLC
+		LDA PROD
+		ADC MPD	
+		STA PROD	
+		LDA PROD+1	
+		ADC MPD+1	 
+		STA PROD+1	
+.NOADD 	
+		ASL MPD	
+		ROL MPD+1 	
+		DEX 		
+		BNE .LOOP	
+		RTS
+
+ 
+ ; ============================
+
+IRQ		PHA                
+		TXA 
+		PHA 
+		TYA 
+		PHA 
+
+		LDA $dc0d          ; acknowledge interrupt
+		INC $d020         
+
+		lda	whichBank
+		bne	speech
+		jmp dosilence	; on 0, no Output
+
+speech
+		ldy irqcntlo
+
+		lda irqms
+		eor#1
+		sta irqms
+		beq formantsynth	; SID-Data change every second time (10ms)
+		jmp d418only
+formantsynth	
+		iny 
+		sty irqcntlo
+
+irqok
+		LDA irqcntlo  
+		CMP irqcntmaxlo   
+		BNE irqok2
+		lda	#0		; IRQ has finished speaking
+		sta whichBank
+		jmp dosilence
+
+irqok2
+
+		lda (f1izp),y
+		tax
+		lda FreqTabLo,x
+		sta $d400
+		lda (f1izp),y	
+		tax
+		lda FreqTabHi,x
+		sta $d401
+
+		lda (f2izp),y
+		tax
+		lda FreqTabLo,x
+		sta $d407
+		lda (f2izp),y
+		tax
+		lda FreqTabHi,x
+		sta $d408
+
+		lda (f3izp),y
+		tax
+		lda FreqTabLo,x
+		sta $d40e
+		lda (f3izp),y	
+		tax
+		lda FreqTabHi,x
+		sta $d40f
+
+		lda #$00
+		sta $d404		
+		sta $d40b		
+		sta $d412	
+		
+		lda (a1izp),y
+		and #$f0		;sustainlevel is amplitude
+		sta $d406
+
+		lda (a2izp),y
+		lsr
+		lsr
+		and #$f0
+		sta $d40d
+
+		lda (a3izp),y
+		lsr
+		lsr
+		and #$f0
+		sta $d414
+
+		clc			;If each amplitude is 0, no sound please
+		lda (a1izp),y
+		ora (a2izp),y
+		ora (a3izp),y
+		and #$f0
+beq dosilence	
+
+		lda (avizp),y   ; if AF>AV then Fricative sound (noise)
+		cmp (afizp),y
+		bcc noise
+
+
+		lda #$11
+		!byte $2c
+noise	lda #$81
+		
+		sta $d404		
+		sta $d40b		
+		sta $d412	
+		
+
+d418only
+		lda (a1izp),y	; if all is quite, disable F0
+		ora (a2izp),y
+		ora (a3izp),y
+		and #$f0
+		bne nosilence
+dosilence	
+		lda #$00
+		beq silence		
+		
+nosilence
+		lda d418store		
+		eor #$02 		; generate F0 basesound (100 Hz)
+		sta d418store
+
+silence
+		sta $d418		
+		
+		DEC $d020          
+		PLA                ; restore MPU's registers
+		TAY 
+		PLA 
+		TAX 
+		PLA 
+		CLI 
+RTIADR	RTI
+
+;--------------------------------------
+
+ 
+SIDTAB
+		!byte 000,000,000,008,000,000,$00 ; Voice1
+		!byte 000,000,000,008,000,000,$00 ; Voice2
+		!byte 000,000,000,008,000,000,$00 ; Voice3     
+		!byte 000,00,$00,$0f
+
+
+;------------------------------------------
+
+;Editing Speechdata is simple, just type, what you hear, not what you write!
+;e.g. "years" sounds like "yiirs" so
+;	!byte "y" - "a"
+;	!byte "i" - "a"
+;	!byte "i" - "a"
+;	!byte "r" - "a"
+;	!byte "s" - "a"
+;since "q" sound like "kw" and "x" sounds like "ks" these characters have special meanings
+;	q:	he	(as in hello)
+;	x:	nj	(as in bang)
+;	c,h:	no sound, short break
+;Sorry, but all nasal sounds "m","n","nj" sound a bit odd
+;	finish each sentence with two "h"-values (!byte 7)
+
+SPEECHTAB
+
+	!byte 18	; number of bytes-1 	;Hello Breakpoint
+!byte 16 		
+!byte 4		
+!byte 4		
+!byte 11		
+!byte 14		
+!byte 14		
+!byte 7		
+!byte 1		
+!byte 17		
+!byte 4		
+!byte 4		
+!byte 10		
+!byte 15		
+!byte 14		
+!byte 8		
+!byte 13		
+!byte 19		
+!byte 7		
+!byte 7		
+	!byte 18	; number of bytes-1 ; this is radwar 
+!byte 18		
+!byte 8		
+!byte 8		
+!byte 18		
+!byte 7		
+!byte 8		
+!byte 8		
+!byte 18		
+!byte 7		
+!byte 17		
+!byte 4		
+!byte 4		
+!byte 3		
+!byte 22		
+!byte 14		
+!byte 14		
+!byte 17		
+!byte 7		
+!byte 7		
+	!byte 17	; speaking on the 
+!byte 18		
+!byte 15		
+!byte 8		
+!byte 8		
+!byte 10		
+!byte 8		
+!byte 23		
+!byte 10		
+!byte 7		
+!byte 14		
+!byte 14		
+!byte 13		
+!byte 7		
+!byte 18		
+!byte 4		
+!byte 4		
+!byte 7		
+!byte 7		
+	!byte 15	;c64 
+!byte 18		
+!byte 8		
+!byte 8		
+!byte 7		
+!byte 18		
+!byte 8		
+!byte 10		
+!byte 18		
+!byte 19		
+!byte 8		
+!byte 5		
+!byte 14		
+!byte 14		
+!byte 17		
+!byte 7		
+!byte 7		
+	!byte 16	;at the 4k 
+!byte 4		
+!byte 4		
+!byte 19		
+!byte 7		
+!byte 18		
+!byte 4		
+!byte 4		
+!byte 7		
+!byte 5		
+!byte 14		
+!byte 14		
+!byte 17		
+!byte 10		
+!byte 4		
+!byte 8		
+!byte 7		
+!byte 7		
+	!byte 12	;competition
+!byte 10		
+!byte 14		
+!byte 12		
+!byte 15		
+!byte 4		
+!byte 19		
+!byte 8		
+!byte 7		
+!byte 18		
+!byte 14		
+!byte 13		
+!byte 7		
+!byte 7		
+	!byte 14	;and we would
+!byte 4		
+!byte 4		
+!byte 13		
+!byte 3		
+!byte 7		
+!byte 22		
+!byte 8		
+!byte 8		
+!byte 7		
+!byte 22		
+!byte 20		
+!byte 20		
+!byte 3		
+!byte 7		;like to tell you
+!byte 7		
+	!byte 18	
+!byte 11		
+!byte 0		
+!byte 8		
+!byte 10		
+!byte 7		
+!byte 19		
+!byte 20		
+!byte 20		
+!byte 7		
+!byte 19		
+!byte 4		
+!byte 4		
+!byte 11		
+!byte 7		
+!byte 9		
+!byte 20		
+!byte 20		
+!byte 7		
+!byte 7		
+	!byte 13	;twentyfive
+!byte 19		
+!byte 22		
+!byte 4		
+!byte 4		
+!byte 13		
+!byte 19		
+!byte 8		
+!byte 8		
+!byte 5		
+!byte 0		
+!byte 8		
+!byte 22		
+!byte 7		
+!byte 7		
+	!byte 10	;years of 
+!byte 9		
+!byte 8		
+!byte 8		
+!byte 17		
+!byte 18		
+!byte 7		
+!byte 14		
+!byte 14		
+!byte 5		
+!byte 7		
+!byte 7		
+	!byte 15	;c64
+!byte 18		
+!byte 8		
+!byte 8		
+!byte 7		
+!byte 18		
+!byte 8		
+!byte 10		
+!byte 18		
+!byte 19		
+!byte 8		
+!byte 5		
+!byte 14		
+!byte 14		
+!byte 17		
+!byte 7		
+!byte 7		
+	!byte 7	;is a
+!byte 8		
+!byte 8		
+!byte 18		
+!byte 7		
+!byte 4		
+!byte 4		
+!byte 7		
+!byte 7		
+	!byte 17	;perfect reason
+!byte 15		
+!byte 4		
+!byte 17		
+!byte 5		
+!byte 4		
+!byte 4		
+!byte 10		
+!byte 19		
+!byte 7		
+!byte 17		
+!byte 8		
+!byte 8		
+!byte 18		
+!byte 14		
+!byte 14		
+!byte 13		
+!byte 7		
+!byte 7		
+	!byte 16	;to celebrate
+!byte 19		
+!byte 20		
+!byte 20		
+!byte 7		
+!byte 18		
+!byte 4		
+!byte 4		
+!byte 11		
+!byte 4		
+!byte 4		
+!byte 1		
+!byte 17		
+!byte 4		
+!byte 4		
+!byte 19		
+!byte 7		
+!byte 7		
+	!byte 14	;so we want
+!byte 18		
+!byte 14		
+!byte 14		
+!byte 7		
+!byte 22		
+!byte 8		
+!byte 8		
+!byte 7		
+!byte 22		
+!byte 14		
+!byte 14		
+!byte 13		
+!byte 19		
+!byte 7		
+!byte 7		
+	!byte 16	;to invite you
+!byte 19		
+!byte 20		
+!byte 20		
+!byte 7		
+!byte 8		
+!byte 8		
+!byte 13		
+!byte 22		
+!byte 0		
+!byte 8		
+!byte 19		
+!byte 7		
+!byte 9		
+!byte 20		
+!byte 20		
+!byte 7		
+!byte 7		
+	!byte 16	;to our next
+!byte 19		
+!byte 20		
+!byte 20		
+!byte 7		
+!byte 0		
+!byte 20		
+!byte 4		
+!byte 17		
+!byte 7		
+!byte 13		
+!byte 4		
+!byte 4		
+!byte 10		
+!byte 18		
+!byte 19		
+!byte 7		
+!byte 7		
+	!byte 17	;radwar party
+!byte 17		
+!byte 4		
+!byte 4		
+!byte 3		
+!byte 22		
+!byte 14		
+!byte 14		
+!byte 17		
+!byte 7		
+!byte 15		
+!byte 0		
+!byte 0		
+!byte 17		
+!byte 19		
+!byte 8		
+!byte 8		
+!byte 7		
+!byte 7		
+	!byte 15	;in october 2007
+!byte 8		
+!byte 8		
+!byte 13		
+!byte 7		
+!byte 14		
+!byte 14		
+!byte 10		
+!byte 19		
+!byte 14		
+!byte 14		
+!byte 1		
+!byte 4		
+!byte 4		
+!byte 17		
+!byte 7		
+!byte 7		
+	!byte 19	
+!byte 19		
+!byte 20		
+!byte 20		
+!byte 18		
+!byte 0		
+!byte 20		
+!byte 18		
+!byte 4		
+!byte 4		
+!byte 13		
+!byte 3		
+!byte 18		
+!byte 4		
+!byte 4		
+!byte 22		
+!byte 4		
+!byte 4		
+!byte 13		
+!byte 7		
+!byte 7		
+	!byte 22	;please spread the news
+!byte 15		
+!byte 11		
+!byte 8		
+!byte 8		
+!byte 18		
+!byte 7		
+!byte 18		
+!byte 15		
+!byte 17		
+!byte 4		
+!byte 4		
+!byte 3		
+!byte 7		
+!byte 18		
+!byte 4		
+!byte 4		
+!byte 7		
+!byte 13		
+!byte 20		
+!byte 20		
+!byte 18		
+!byte 7		
+!byte 7		
+	!byte 19	;for details watch
+!byte 5		
+!byte 14		
+!byte 14		
+!byte 17		
+!byte 7		
+!byte 3		
+!byte 8		
+!byte 8		
+!byte 19		
+!byte 4		
+!byte 8		
+!byte 11		
+!byte 18		
+!byte 7		
+!byte 22		
+!byte 14		
+!byte 19		
+!byte 18		
+!byte 7		
+!byte 7		
+	!byte 19	;radwar.com
+!byte 17		
+!byte 4		
+!byte 4		
+!byte 3		
+!byte 22		
+!byte 14		
+!byte 14		
+!byte 17		
+!byte 7		
+!byte 3		
+!byte 14		
+!byte 14		
+!byte 19		
+!byte 7		
+!byte 10		
+!byte 14		
+!byte 14		
+!byte 12		
+!byte 7		
+!byte 7		
+	!byte 11	; "empty sentence"
+!byte 7		
+!byte 7		
+!byte 7		
+!byte 7		
+!byte 7		
+!byte 7		
+!byte 7		
+!byte 7		
+!byte 7		
+!byte 7		
+!byte 7		
+!byte 7		
+	!byte 21	;radwar party
+!byte 17		
+!byte 4		
+!byte 4		
+!byte 3		
+!byte 22		
+!byte 14		
+!byte 14		
+!byte 17		
+!byte 7		
+!byte 15		
+!byte 0		
+!byte 0		
+!byte 0		
+!byte 0		
+!byte 17		
+!byte 19		
+!byte 8		
+!byte 8		
+!byte 8		
+!byte 8		
+!byte 7		
+!byte 7	
+		!byte 7	;yeah
+!byte "y"-"a"
+!byte "i"-"a"
+!byte "e"-"a"
+!byte "e"-"a"
+!byte "a"-"a"
+!byte "a"-"a"
+	
+!byte 7		
+!byte 7	
+
+	!byte 11	; "empty sentence"
+!byte 7		
+!byte 7		
+!byte 7		
+!byte 7		
+!byte 7		
+!byte 7		
+!byte 7		
+!byte 7		
+!byte 7		
+!byte 7		
+!byte 7		
+!byte 7	
+
+	!byte 255	
+	
+TIMETAB	
+!byte 0
+!byte 10
+!byte 20
+!byte 30
+!byte 40
+!byte 50
+!byte 60
+!byte 70
+!byte 80
+!byte 90
+!byte 100
+!byte 110
+!byte 120
+!byte 130
+!byte 140
+!byte 150
+!byte 160
+!byte 170
+!byte 180
+!byte 190
+!byte 200
+!byte 210
+!byte 220
+!byte 230
+!byte 240
+!byte 250
+
+F1tab
+!byte 50     ;a
+!byte 20     ;b
+!byte 15     ;c
+!byte 1     ;d
+!byte 28     ;e
+!byte 14     ;f
+!byte 1     ;g
+!byte 0     ;h
+!byte 11     ;i
+!byte 6     ;j
+!byte 10     ;k
+!byte 11     ;l
+!byte 0;28     ;m
+!byte 0;28     ;n
+!byte 34     ;o
+!byte 20     ;p
+!byte 58     ;q (he)
+!byte 11     ;r
+!byte 12     ;s
+!byte 20     ;t
+!byte 15     ;u
+!byte 2     ;v
+!byte 9     ;w
+!byte 0;28     ;x (nj)
+!byte 6     ;y
+!byte 4     ;z
+
+F2tab
+!byte 102     ;a
+!byte 90     ;b
+!byte 160     ;c
+!byte 120     ;d
+!byte 152     ;e
+!byte 90     ;f
+!byte 179     ;g
+!byte 0     ;h
+!byte 182     ;i
+!byte 160     ;j
+!byte 179     ;k
+!byte 85     ;l
+!byte 107     ;m
+!byte 114     ;n
+!byte 90     ;o
+!byte 90     ;p
+!byte 152     ;q (he)
+!byte 86     ;r
+!byte 119     ;s
+!byte 140     ;t
+!byte 105     ;u
+!byte 90     ;v
+!byte 41     ;w
+!byte 140     ;x (nj)
+!byte 187     ;y
+!byte 119     ;z
+
+F3tab
+!byte 240     ;a
+!byte 195     ;b
+!byte 255     ;c
+!byte 250     ;d
+!byte 232     ;e
+!byte 188     ;f
+!byte 255     ;g
+!byte 0     ;h
+!byte 255     ;i
+!byte 255     ;j
+!byte 255     ;k
+!byte 255     ;l
+!byte 193     ;m
+!byte 227     ;n
+!byte 210     ;o
+!byte 195     ;p
+!byte 232     ;q (he)
+!byte 118     ;r
+!byte 233     ;s
+!byte 240     ;t
+!byte 200     ;u
+!byte 188     ;v
+!byte 195     ;w
+!byte 185     ;x (nj)
+!byte 255     ;y
+!byte 233     ;z
+
+AVtab
+!byte 240     ;a
+!byte 80     ;b
+!byte 0     ;c
+!byte 80     ;d
+!byte 240     ;e
+!byte 0     ;f
+!byte 80     ;g
+!byte 0     ;h
+!byte 240     ;i
+!byte 148     ;j
+!byte 0     ;k
+!byte 200     ;l
+!byte 160     ;m
+!byte 160     ;n
+!byte 240     ;o
+!byte 0     ;p
+!byte 0     ;q (he)
+!byte 200     ;r
+!byte 0     ;s
+!byte 0     ;t
+!byte 240     ;u
+!byte 188     ;v
+!byte 200     ;w
+!byte 0     ;x (nj)
+!byte 200     ;y
+!byte 188     ;z
+
+AFtab
+!byte 0     ;a
+!byte 0     ;b
+!byte 40     ;c
+!byte 0     ;d
+!byte 0     ;e
+!byte 80     ;f
+!byte 0     ;g
+!byte 0     ;h
+!byte 0     ;i
+!byte 40     ;j
+!byte 0     ;k
+!byte 0     ;l
+!byte 0     ;m
+!byte 0     ;n
+!byte 0     ;o
+!byte 0     ;p
+!byte 200     ;q (he)
+!byte 0     ;r
+!byte 80     ;s
+!byte 00     ;t
+!byte 0     ;u
+!byte 80     ;v
+!byte 0     ;w
+!byte 0     ;x (nj)
+!byte 0     ;y
+!byte 80     ;z
+
+A1tab
+!byte 240     ;a
+!byte 80     ;b
+!byte 0     ;c
+!byte 0     ;d
+!byte 240     ;e
+!byte 128     ;f
+!byte 0     ;g
+!byte 0     ;h
+!byte 240     ;i
+!byte 0     ;j
+!byte 0     ;k
+!byte 200     ;l
+!byte 160     ;m
+!byte 160     ;n
+!byte 240     ;o
+!byte 0     ;p
+!byte 16     ;q (he)
+!byte 200     ;r
+!byte 0     ;s
+!byte 0     ;t
+!byte 240     ;u
+!byte 0     ;v
+!byte 200     ;w
+!byte 240     ;x (nj)
+!byte 200     ;y
+!byte 0     ;z
+
+A2tab
+!byte 240     ;a
+!byte 80     ;b
+!byte 0     ;c
+!byte 0     ;d
+!byte 240     ;e
+!byte 128     ;f
+!byte 120     ;g
+!byte 0     ;h
+!byte 240     ;i
+!byte 0     ;j
+!byte 0     ;k
+!byte 200     ;l
+!byte 160     ;m
+!byte 160     ;n
+!byte 240     ;o
+!byte 0     ;p
+!byte 0     ;q (he)
+!byte 200     ;r
+!byte 64   ;s
+!byte 0     ;t
+!byte 240     ;u
+!byte 0     ;v
+!byte 200     ;w
+!byte 240     ;x (nj)
+!byte 200     ;y
+!byte 0     ;z
+
+A3tab
+!byte 240     ;a
+!byte 80     ;b
+!byte 88     ;c
+!byte 92     ;d
+!byte 240     ;e
+!byte 128     ;f
+!byte 108     ;g
+!byte 0     ;h
+!byte 240     ;i
+!byte 88     ;j
+!byte 0     ;k
+!byte 200     ;l
+!byte 160     ;m
+!byte 160     ;n
+!byte 240     ;o
+!byte 0     ;p
+!byte 16     ;q (he)
+!byte 200     ;r
+!byte 128     ;s
+!byte 0     ;t
+!byte 240     ;u
+!byte 0     ;v
+!byte 200     ;w
+!byte 240     ;x (nj)
+!byte 200     ;y
+!byte 0     ;z
+
+;---------------------------------------------
+
+FREQTABLES = *
+
+</code>

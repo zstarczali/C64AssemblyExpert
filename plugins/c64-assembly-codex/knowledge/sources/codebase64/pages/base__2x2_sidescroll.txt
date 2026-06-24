@@ -1,0 +1,71 @@
+# PAGE: base:2x2_sidescroll
+# URL: https://codebase.c64.org/doku.php?do=export_raw&id=base:2x2_sidescroll
+
+====== 2x2 Sideways Scrolling text ======
+
+This is a code snippet of how a 2x2 sideways scrolling message works. Like with the 1x1 scrolling message routine, it reads a $D016 control pointer XPos, and shifts it 7 pixels before shifting the character columns on both rows of the screen. The scroll then reads the positions of Scrolltext. If @ is found, the message resets otherwise, the code will check whether or not the pointer "Case" is using upper or lower char then stores it to the very last column. The message in the Scrolltext location will not be updated until after the upper case has been read. 
+
+<code>
+// Simple Scrolling message test routine 
+    
+Scroller:
+		lda XPos 
+		sec 
+		sbc #2
+		and #$07
+		sta XPos 
+		bcs ExitScroll
+		jmp MainScroll 
+ExitScroll:
+		rts 
+MainScroll:
+		ldx #$00
+ShiftByte:
+		lda $0400+(15*40)+1,x 
+		sta $0400+(15*40),x 
+		inx 
+		cpx #$50
+		bne ShiftByte 
+MessRead:
+		lda Scrolltext
+		cmp #$00
+		bne UpdateMess
+		lda #<Scrolltext 
+		sta MessRead+1
+		lda #>Scrolltext 
+		sta MessRead+2
+		jmp MessRead 
+UpdateMess:
+		sta CharStore
+		lda Case 
+		cmp #1
+		beq UpperCase 
+LowerCase:
+		lda CharStore
+		sta $0400+(15*40)+39
+		eor #$80
+		sta $0400+(16*40)+39
+		lda #1
+		sta Case 
+		rts 
+UpperCase: 
+		lda CharStore
+		eor #$40
+		sta $0400+(15*40)+39
+		eor #$80
+		sta $0400+(16*40)+39 
+		lda #0
+		sty Case 
+		inc MessRead+1
+		bne ExitScroll2
+		inc MessRead+2 
+ExitScroll2:
+		rts
+
+Case: .byte 0 // Which char code are we using (upper or lower)
+XPos: .byte 0 // $D016 control pointer
+
+
+Scrolltext: .text " ... this is a 2x2 character scrolling message ... "
+            .text "or it can be very short ...   i'll leave it up to you ...   "
+</code>	
